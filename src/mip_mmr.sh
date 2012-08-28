@@ -11,8 +11,15 @@
 
 if [ -z "$1" ]
 then
-    echo "usage: $0 <output_dir> <bam_file_all_mm> <sample>"
-	exit 2
+	sample=1
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_no_shrink_sample${sample}
+	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
+
+	echo $out_dir
+	echo $out_dir
+	echo $out_dir
+	echo $out_dir
+	./mip_mmr.sh $out_dir $fn_bam_all $sample
 else
 	out_dir=$1
 fi
@@ -71,7 +78,7 @@ fi
 
 #exit 1;
 
-for iter in `seq 1 3`
+for iter in `seq 1 1`
 do
 	echo $iter	
 	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.mmr.iter$iter.bam
@@ -111,11 +118,10 @@ do
 	##############################	
 	mip_dir=$out_dir/res_iter${iter}/
 	mkdir -p $mip_dir
-	MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
-	src="~/svn/projects/spladder/mip"
-	src2="~/svn/projects/spladder"
-	addpaths="addpath $src; addpath $src2; mip_paths;"
-	echo "dbstop error; $addpaths mip_paths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"
+	#MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
+	MAT="matlab -nojvm -nodesktop -nosplash"
+	addpaths="addpath matlab; "
+	echo "dbstop error; $addpaths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"
 	${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"
 	
 	##############################	

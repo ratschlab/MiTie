@@ -27,6 +27,7 @@ struct Config
 {
 	vector<char*> bam_files;
 	char* fn_gtf;
+	int gtf_offset;
 	bool strand_specific;
 	char* fn_regions;
 	char* fn_out;
@@ -55,11 +56,16 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "--gtf \t\t (file name) specify gtf file\n");
 			fprintf(stdout, "--seg-filter \t\t (default 0.05) segments are filtered out if fraction of covered nucleotides is below\n");
 			fprintf(stdout, "--tss-tts-pval \t\t (default 0.0001) p-value cutoff for transcription start and transcription termination site discovery\n");
+			fprintf(stdout, "--min-exonic-len\t\t\n");
+			fprintf(stdout, "--mismatches\t\t\n");
+			fprintf(stdout, "--gtf-offset\t\t\n");
+			fprintf(stdout, "\t\t\n");
 			return -1;
 	}
 
 	// defaults
 	c->fn_gtf = NULL;
+	c->gtf_offset = 0;
 	c->fn_regions = NULL;	
 	c->fn_out = argv[1];	
 	c->strand_specific = true;
@@ -78,6 +84,16 @@ int parse_args(int argc, char** argv,  Config* c)
 		{
 			c->strand_specific = false;
 		}
+	    else if (strcmp(argv[i], "--gtf-offset") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --gtf-offset\n") ;
+                return -1;
+            }
+            i++;
+			c->gtf_offset = atoi(argv[i]);
+        }
 	    else if (strcmp(argv[i], "--min-exonic-len") == 0)
         {
             if (i + 1 > argc - 1)
