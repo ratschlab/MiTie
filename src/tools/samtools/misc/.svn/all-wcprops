@@ -1,0 +1,143 @@
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/svnroot/samtools/!svn/ver/1008/trunk/samtools/misc
+END
+vcfutils.lua
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/samtools/!svn/ver/1008/trunk/samtools/misc/vcfutils.lua
+END
+zoom2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/samtools/!svn/ver/114/trunk/samtools/misc/zoom2sam.pl
+END
+maq2sam.c
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svnroot/samtools/!svn/ver/439/trunk/samtools/misc/maq2sam.c
+END
+HmmGlocal.java
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/samtools/!svn/ver/761/trunk/samtools/misc/HmmGlocal.java
+END
+varfilter.py
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/samtools/!svn/ver/583/trunk/samtools/misc/varfilter.py
+END
+bowtie2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/samtools/!svn/ver/205/trunk/samtools/misc/bowtie2sam.pl
+END
+psl2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/samtools/!svn/ver/423/trunk/samtools/misc/psl2sam.pl
+END
+ace2sam.c
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svnroot/samtools/!svn/ver/995/trunk/samtools/misc/ace2sam.c
+END
+soap2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/samtools/!svn/ver/206/trunk/samtools/misc/soap2sam.pl
+END
+interpolate_sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svnroot/samtools/!svn/ver/305/trunk/samtools/misc/interpolate_sam.pl
+END
+blast2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/samtools/!svn/ver/221/trunk/samtools/misc/blast2sam.pl
+END
+r2plot.lua
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/samtools/!svn/ver/1008/trunk/samtools/misc/r2plot.lua
+END
+md5.c
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svnroot/samtools/!svn/ver/442/trunk/samtools/misc/md5.c
+END
+wgsim.c
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svnroot/samtools/!svn/ver/984/trunk/samtools/misc/wgsim.c
+END
+wgsim_eval.pl
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/samtools/!svn/ver/584/trunk/samtools/misc/wgsim_eval.pl
+END
+seqtk.c
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svnroot/samtools/!svn/ver/984/trunk/samtools/misc/seqtk.c
+END
+md5.h
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svnroot/samtools/!svn/ver/442/trunk/samtools/misc/md5.h
+END
+sam2vcf.pl
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/samtools/!svn/ver/551/trunk/samtools/misc/sam2vcf.pl
+END
+samtools.pl
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/samtools/!svn/ver/822/trunk/samtools/misc/samtools.pl
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svnroot/samtools/!svn/ver/989/trunk/samtools/misc/Makefile
+END
+md5fa.c
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svnroot/samtools/!svn/ver/442/trunk/samtools/misc/md5fa.c
+END
+novo2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/samtools/!svn/ver/471/trunk/samtools/misc/novo2sam.pl
+END
+export2sam.pl
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/samtools/!svn/ver/931/trunk/samtools/misc/export2sam.pl
+END

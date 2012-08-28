@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svnroot/samtools/!svn/ver/1009/trunk/samtools/examples
+END
+toy.fa
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/samtools/!svn/ver/772/trunk/samtools/examples/toy.fa
+END
+chk_indel.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svnroot/samtools/!svn/ver/1009/trunk/samtools/examples/chk_indel.c
+END
+ex1.fa
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svnroot/samtools/!svn/ver/63/trunk/samtools/examples/ex1.fa
+END
+calDepth.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/samtools/!svn/ver/344/trunk/samtools/examples/calDepth.c
+END
+toy.sam
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/samtools/!svn/ver/960/trunk/samtools/examples/toy.sam
+END
+00README.txt
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svnroot/samtools/!svn/ver/109/trunk/samtools/examples/00README.txt
+END
+ex1.sam.gz
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/samtools/!svn/ver/207/trunk/samtools/examples/ex1.sam.gz
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/samtools/!svn/ver/892/trunk/samtools/examples/Makefile
+END
+bam2bed.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/samtools/!svn/ver/516/trunk/samtools/examples/bam2bed.c
+END

@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/svnroot/samtools/!svn/ver/432/trunk/samtools/win32
+END
+libz.a
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svnroot/samtools/!svn/ver/431/trunk/samtools/win32/libz.a
+END
+xcurses.h
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/samtools/!svn/ver/432/trunk/samtools/win32/xcurses.h
+END
+zconf.h
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svnroot/samtools/!svn/ver/427/trunk/samtools/win32/zconf.h
+END
+zlib.h
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svnroot/samtools/!svn/ver/427/trunk/samtools/win32/zlib.h
+END
+libcurses.a
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/samtools/!svn/ver/432/trunk/samtools/win32/libcurses.a
+END
