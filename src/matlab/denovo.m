@@ -127,8 +127,8 @@ while 1
 		%genes(k).start
 		%genes(k).stop
 
-		%[transcripts, weights, how, solvetime, clusters] = create_mip_simple_pair(coverage, len, seg_admat, predef_trans, initial, terminal, C, pair_list, insert_size, par, cov_scale, strand);
 		%create_mip_simple_pair(PAR);
+	
 		cnt = cnt+1;
 		jobinfo(cnt) = rproc('create_mip_simple_pair', PAR, mem_req, opts, time_req);
 	end

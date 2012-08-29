@@ -12,13 +12,9 @@
 if [ -z "$1" ]
 then
 	sample=1
-	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_no_shrink_sample${sample}
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
 	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
-	echo $out_dir
-	echo $out_dir
-	echo $out_dir
-	echo $out_dir
 	./mip_mmr.sh $out_dir $fn_bam_all $sample
 else
 	out_dir=$1

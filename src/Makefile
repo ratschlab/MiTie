@@ -16,10 +16,17 @@ MEX_UTILS = tools/mex/
 
 
 
-all: samtools define_regions generate_segment_graph ath_count_reads_in_region load_regions_bin.mexa64
+all: subfolders define_regions generate_segment_graph ath_count_reads_in_region load_regions_bin.mexa64
 
-samtools:
-	$(MAKE) tools/samtools
+subfolders:
+	@echo "##################################################" 
+	@echo "# compiling samtools"
+	@echo "##################################################" 
+	$(MAKE) -C tools/samtools
+	@echo "##################################################" 
+	@echo "# compiling mex tools"
+	@echo "##################################################" 
+	$(MAKE) -C matlab/tools
 
 define_regions: define_regions.cpp region.cpp ${GENOME}/genome.cpp ${GENOME}/tools.cpp ${NGS_TOOLS}
 	$(CXX) define_regions.cpp region.cpp ${NGS_TOOLS} ${GENOME}/genome.cpp ${GENOME}/tools.cpp ${INCL} -o define_regions
