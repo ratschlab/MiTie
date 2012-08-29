@@ -216,23 +216,30 @@ int main(int argc, char* argv[])
 		regions = parse_regions(c.fn_regions);
 		printf("number of regions from flat file: %i\n", (int) regions.size());
 	}
+	int num_reg = regions.size();
 
 	vector<Region*> gtf_regions;
 	if (c.fn_gtf)
 	{
 		printf("loading regions form gtf file: %s\n", c.fn_gtf);
 		gtf_regions = parse_gtf(c.fn_gtf);
+		for (int i=0; i<gtf_regions.size(); i++)
+		{
+			gtf_regions[i]->start = std::max(0, gtf_regions[i]->start-c.gtf_offset);
+			gtf_regions[i]->stop = gtf_regions[i]->stop+c.gtf_offset;
+		}
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 	}
+	int num_gtf = gtf_regions.size();
 	// add gtf regions
 	for (int i=0; i<gtf_regions.size(); i++)
 	{
 		regions.push_back(gtf_regions[i]);
 	}
 
-	if (regions.size()>0 && gtf_regions.size()>0)
+	if (num_reg>0 && num_gtf>0)
 	{
-		printf("merging %i flat file regions with %i gtf regions\n", (int) regions.size(), (int) gtf_regions.size());
+		printf("merging %i flat file regions with %i gtf regions\n", num_reg, num_gtf);
 		// self overlap
 		bool change = true;
 		int iter = 0;

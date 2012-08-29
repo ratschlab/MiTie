@@ -12,7 +12,8 @@
 if [ -z "$1" ]
 then
 	sample=1
-	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
+	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions_sample${sample}
 	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
 	./mip_mmr.sh $out_dir $fn_bam_all $sample
@@ -43,9 +44,10 @@ dir=`dirname $0`
 fn_regions=${out_dir}/regions.flat
 if [ ! -f $fn_regions ]
 then
+	echo run define_regions => $fn_regions
 	#valgrind --tool=cachegrind $dir/define_regions $fn_bam_all -o $fn_regions
 	#valgrind --leak-check=full $dir/define_regions $fn_bam_all -o $fn_regions
-	$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 120000
+	#$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 120000
 	#$dir/define_regions $fn_bam_all -o $fn_regions --cut-regions --max-len 200000
 fi
 
@@ -64,7 +66,8 @@ then
 	#opts="--mismatches 3 --min-exonic-len 5"
 	#valgrind --tool=cachegrind $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
 	#valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
-	$dir/generate_segment_graph $fn_graph $opts --regions $fn_regions --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	#$dir/generate_segment_graph $fn_graph $opts --regions $fn_regions --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	valgrind $dir/generate_segment_graph $fn_graph $opts --gtf-offset 1000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 fi
 
 #valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph --seg-filter 0.05 --region-filter 0 --gtf $fn_gtf $fn_bam_all
