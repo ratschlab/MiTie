@@ -326,6 +326,9 @@ void Region::find_tss_and_cleave(vector<int>* pos, vector<int>* starts, vector<i
 	sort(rstarts.begin(), rstarts.end());
 	sort(rends.begin(), rends.end());
 
+	if (rstarts.size()==0)
+		return;
+
 	int* rs = &rstarts[0];
 	int* re = &rends[0];
 

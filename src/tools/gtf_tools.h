@@ -120,6 +120,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 	//	printf("tr_id: %s\n", tr_id);
 	//	delete[] tr_id;
 	}
+	regions.back()->transcripts.push_back(transcript);
 
 	return regions;
 }

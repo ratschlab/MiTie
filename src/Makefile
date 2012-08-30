@@ -1,6 +1,6 @@
 
-CXX = g++ -O9
-#CXX = g++ -g
+#CXX = g++ -O9
+CXX = g++ -g
 NGS = tools/ngs
 NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp 
 SAMDIR = tools/samtools

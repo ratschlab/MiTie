@@ -13,10 +13,11 @@ if [ -z "$1" ]
 then
 	sample=1
 	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
-	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions_sample${sample}
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_sample${sample}
 	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
 	./mip_mmr.sh $out_dir $fn_bam_all $sample
+	exit 0;
 else
 	out_dir=$1
 fi
@@ -47,7 +48,7 @@ then
 	echo run define_regions => $fn_regions
 	#valgrind --tool=cachegrind $dir/define_regions $fn_bam_all -o $fn_regions
 	#valgrind --leak-check=full $dir/define_regions $fn_bam_all -o $fn_regions
-	#$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 120000
+	$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 100000
 	#$dir/define_regions $fn_bam_all -o $fn_regions --cut-regions --max-len 200000
 fi
 
@@ -58,6 +59,7 @@ fn_graph=${out_dir}/graph.bin
 
 fn_gtf=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
 #fn_gtf=~/tmp/sample.gtf
+#fn_gtf=~/tmp/test.gtf
 if [ ! -f $fn_graph ]
 then
 	echo
@@ -66,9 +68,17 @@ then
 	#opts="--mismatches 3 --min-exonic-len 5"
 	#valgrind --tool=cachegrind $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
 	#valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
-	#$dir/generate_segment_graph $fn_graph $opts --regions $fn_regions --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
-	valgrind $dir/generate_segment_graph $fn_graph $opts --gtf-offset 1000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	$dir/generate_segment_graph $fn_graph $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
+	
+
+	if [ ! "$?" -eq "0" ]; then
+		echo generate_segment_graph return: $?
+		exit 0
+	fi
+	mv ${fn_graph}.tmp $fn_graph
 fi
+#exit 1
 
 #valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph --seg-filter 0.05 --region-filter 0 --gtf $fn_gtf $fn_bam_all
 
@@ -77,7 +87,7 @@ fi
 
 #exit 1;
 
-for iter in `seq 1 1`
+for iter in `seq 1 3`
 do
 	echo $iter	
 	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.mmr.iter$iter.bam
@@ -95,7 +105,7 @@ do
 		LOSS_FILE=/fml/ag-raetsch/home/akahles/git/software/RNAgeeq/mm_resolve/threaded_oop_mip/poisson_3.flat
 		THREADS=3
 		OUTFILE=$HOME/tmp/mmr_iter$iter.bam
-		$mmr -o $OUTFILE -t $THREADS -S -f -F 1 -p -b -m -s $seg_list_iter -l $LOSS_FILE -r 75 -v $INPUT || exit -1;
+		$mmr -o $OUTFILE -t $THREADS -z -S -f -F 1 -p -b -m -s $seg_list_iter -l $LOSS_FILE -r 75 -v $INPUT || exit -1;
 		
 		samtools sort $OUTFILE ${fn_bam_iter%.bam} && samtools index $fn_bam_iter
 	fi

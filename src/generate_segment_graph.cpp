@@ -180,6 +180,142 @@ int parse_args(int argc, char** argv,  Config* c)
 	}
 	return 0;
 }
+
+void process_gtf_region(Region* region)
+{
+	if (region->transcripts.size()==0)
+	{
+		printf("no transcript found\n");
+		return;
+	}
+	int num_pos = region->stop-region->start+1;
+	int* map = new int[num_pos];
+	if (!map)
+	{
+		fprintf(stderr, "out of mem\n");
+		exit(2);
+	}
+
+	memset(map, 0, num_pos*sizeof(int));
+
+	// compute map
+	for (int i=0; i<region->reads.size(); i++)
+	{
+		CRead* r = region->reads[i];
+		int from = r->start_pos - region->start;
+		int to = r->get_last_position() - region->start;
+
+
+		// discard reads that span out of the region
+		if (from<0)
+			continue;
+
+		if (to>num_pos)
+			continue;
+
+		//from = std::max(0, from);
+		//to = std::min(num_pos, to);
+
+		assert(from<num_pos);
+		if (to<0)
+		{
+			//fprintf(stderr, "read last position (%i) smaller than region start (%i)\n", r->get_last_position(), region->start );
+			continue;
+		}
+
+		for (int j=from; j<to; j++)
+			map[j]++;
+	}
+	if (false)
+	{
+		FILE* fd = fopen("/tmp/map", "w");
+		for (int i=0; i<num_pos; i++)
+			fprintf(fd, "%i\n", map[i]);
+		fclose(fd);
+	}
+
+	int start = 1e9; 
+	int stop = 0;
+	for (int i=0; i<region->transcripts.size(); i++)
+	{
+		start = std::min(start, region->transcripts[i].front().first);
+		stop = std::max(stop, region->transcripts[i].back().second);
+	}
+	if (!(start>=region->start))
+	{
+		fprintf(stderr, "Start of transcript (%i) does not fit region start (%i)\n", start, region->start);
+		exit(0);
+	}
+	//fprintf(stdout, "Find new region start %i -- %i\n", start, region->start);
+	assert(start<region->stop);
+	int gap = 0;
+	int new_start = 0;
+	for (int i=start; i>region->start; i--)
+	{
+		if (map[i-region->start]<2)
+		{
+			if (gap==0)
+				new_start = i;
+			gap++;
+		}
+		else
+		{
+			gap = 0;
+		}
+		
+		if (gap>100)
+		{
+			//printf("move region start from %i to %i (anno: %i)\n", region->start, new_start, start);
+			region->start = new_start;
+			break;
+		}
+	}
+
+	//fprintf(stdout, "Find new region stop %i ++ %i\n", stop, region->stop);
+	assert(stop>=region->start);
+	if (stop>=region->stop)
+	{
+		fprintf(stderr, "Transcript end (%i) does not match region stop (%i)\n", stop, region->stop);
+	}
+	int new_stop = 0;
+	gap = 0;
+	for (int i=stop; i<region->stop; i++)
+	{
+		if (map[i-region->start]<2)
+		{
+			if (gap==0)
+				new_stop = i;
+			gap++;
+		}
+		else
+		{
+			gap = 0;
+		}
+		
+		if (gap>100)
+		{
+			//printf("move region start from %i to %i (anno: %i)\n", region->stop, new_stop, stop);
+			region->stop = new_stop;
+			break;
+		}
+
+	}
+}
+bool compare_chr_and_strand(const Region* reg1, const Region* reg2)
+{
+	if (reg1->chr_num<reg2->chr_num)
+		return true; 
+	if (reg1->chr_num>reg2->chr_num)
+		return false;
+
+	if (reg1->strand=='+' && reg2->strand=='-')
+		return true;
+	if (reg1->strand=='-' && reg2->strand=='+')
+		return false;
+	
+	return true;
+}
+
 int main(int argc, char* argv[])
 {
 	Config c;
@@ -218,17 +354,35 @@ int main(int argc, char* argv[])
 	}
 	int num_reg = regions.size();
 
+	FILE* fd_null = fopen("/dev/null", "w");
+
 	vector<Region*> gtf_regions;
 	if (c.fn_gtf)
 	{
 		printf("loading regions form gtf file: %s\n", c.fn_gtf);
 		gtf_regions = parse_gtf(c.fn_gtf);
+		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
+
+		printf("process gtf regions ...");
 		for (int i=0; i<gtf_regions.size(); i++)
 		{
+			set_chr_num(gtf_regions[i], header);
+			int chr_len = header->target_len[gtf_regions[i]->chr_num];
 			gtf_regions[i]->start = std::max(0, gtf_regions[i]->start-c.gtf_offset);
-			gtf_regions[i]->stop = gtf_regions[i]->stop+c.gtf_offset;
+			gtf_regions[i]->stop = std::min(chr_len-1, gtf_regions[i]->stop+c.gtf_offset);
+
+			// shrink start and stop according to read coverage	
+			int num_bam = c.bam_files.size();
+			if (!c.strand_specific)
+				gtf_regions[i]->strand = '0';
+			
+			gtf_regions[i]->fd_out = fd_null;
+			gtf_regions[i]->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
+
+			process_gtf_region(gtf_regions[i]);
+			gtf_regions[i]->clear_reads();
 		}
-		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
+		printf("done\n");
 	}
 	int num_gtf = gtf_regions.size();
 	// add gtf regions
@@ -237,10 +391,69 @@ int main(int argc, char* argv[])
 		regions.push_back(gtf_regions[i]);
 	}
 
-	if (num_reg>0 && num_gtf>0)
+	if (true)
+	{
+		printf("merging %i flat file regions with %i gtf regions (discard overlapping regions)\n", num_reg, num_gtf);
+		bool change = true;
+		int iter = 0;
+		while (change)
+		{
+			printf("merge iteration: %i size:%i\n", iter++, (int) regions.size());
+			if (iter >10)
+				break;
+			change = false;	
+			vector<vector<int> > ov_list = region_overlap(regions, regions);
+			for (int i=0; i<regions.size(); i++)
+			{
+				for (int j=0; j<ov_list[i].size(); j++)
+				{
+					// self overlap
+					if (ov_list[i][j]==i)
+						continue;
+
+					if (strcmp(regions[i]->chr, regions[ov_list[i][j]]->chr)!=0 || regions[i]->strand != regions[ov_list[i][j]]->strand)
+						continue;
+
+					if (regions[ov_list[i][j]]->start==-1 || regions[i]->start==-1)
+					{
+						continue;
+					}
+					change = true;
+
+					if (regions[ov_list[i][j]]->transcripts.size()==0 && regions[i]->transcripts.size()>0)
+					{
+						regions[ov_list[i][j]]->start = -1;
+						continue;
+					}
+					if (regions[ov_list[i][j]]->transcripts.size()>0 && regions[i]->transcripts.size()==0)
+					{
+						regions[i]->start = -1;
+						continue;
+					}
+					//printf("reg: %s%c:%i->%i\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
+					//printf("ov: %s%c:%i->%i\n", regions[ov_list[i][j]]->chr, regions[ov_list[i][j]]->strand, regions[ov_list[i][j]]->start, regions[ov_list[i][j]]->stop);
+					// merge regions
+					regions[i]->start = std::min(regions[i]->start, regions[ov_list[i][j]]->start);
+					regions[i]->stop = std::max(regions[i]->stop, regions[ov_list[i][j]]->stop);
+					for (int k=0; k<regions[ov_list[i][j]]->transcripts.size(); k++)
+						regions[i]->transcripts.push_back(regions[ov_list[i][j]]->transcripts[k]);
+
+					regions[ov_list[i][j]]->start = -1;
+
+				}
+			}
+			// remove merged regions
+			vector<Region*> tmp;
+			for (int i=0; i<regions.size(); i++)
+				if (regions[i]->start>-1)
+					tmp.push_back(regions[i]);
+
+			regions = tmp;
+		}
+	}
+	else if (num_reg>0 && num_gtf>0)
 	{
 		printf("merging %i flat file regions with %i gtf regions\n", num_reg, num_gtf);
-		// self overlap
 		bool change = true;
 		int iter = 0;
 		while (change)
@@ -288,8 +501,15 @@ int main(int argc, char* argv[])
 			regions = tmp;
 		}
 	}
+	if (c.reads_by_chr)
+	{
+		for (int i=0; i<regions.size(); i++)
+		{
+			set_chr_num(regions[i], header);
+		}
+		sort(regions.begin(), regions.end(), compare_chr_and_strand);
+	}
 
-	FILE* fd_null = fopen("/dev/null", "w");
 
 	vector<int> bias_vector(100, 0);
 	//filter regions
@@ -390,4 +610,6 @@ int main(int argc, char* argv[])
 	ofs->close();
 	bam_close(fd);
 	bam_header_destroy(header);
+
+	return 0;
 }
