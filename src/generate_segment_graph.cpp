@@ -313,7 +313,10 @@ bool compare_chr_and_strand(const Region* reg1, const Region* reg2)
 	if (reg1->strand=='-' && reg2->strand=='+')
 		return false;
 	
-	return true;
+	if (reg1->start<reg2->start)
+		return true;
+	else 
+		return false;
 }
 
 int main(int argc, char* argv[])
