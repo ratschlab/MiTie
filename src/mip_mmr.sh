@@ -13,7 +13,8 @@ if [ -z "$1" ]
 then
 	sample=1
 	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
-	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_sample${sample}
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_xx_sample${sample}
+	#out_dir=~/tmp
 	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
 	./mip_mmr.sh $out_dir $fn_bam_all $sample
@@ -48,8 +49,7 @@ then
 	echo run define_regions => $fn_regions
 	#valgrind --tool=cachegrind $dir/define_regions $fn_bam_all -o $fn_regions
 	#valgrind --leak-check=full $dir/define_regions $fn_bam_all -o $fn_regions
-	$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 100000
-	#$dir/define_regions $fn_bam_all -o $fn_regions --cut-regions --max-len 200000
+	#$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 100000
 fi
 
 # create segment graph and store in file
@@ -68,8 +68,8 @@ then
 	#opts="--mismatches 3 --min-exonic-len 5"
 	#valgrind --tool=cachegrind $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
 	#valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
-	$dir/generate_segment_graph $fn_graph $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
-	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
+	#$dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
 	
 
 	if [ ! "$?" -eq "0" ]; then
@@ -78,7 +78,6 @@ then
 	fi
 	mv ${fn_graph}.tmp $fn_graph
 fi
-#exit 1
 
 #valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph --seg-filter 0.05 --region-filter 0 --gtf $fn_gtf $fn_bam_all
 
@@ -127,8 +126,8 @@ do
 	##############################	
 	mip_dir=$out_dir/res_iter${iter}/
 	mkdir -p $mip_dir
-	#MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
-	MAT="matlab -nojvm -nodesktop -nosplash"
+	MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
+	#MAT="matlab -nojvm -nodesktop -nosplash"
 	addpaths="addpath matlab; "
 	echo "dbstop error; $addpaths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"
 	${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"

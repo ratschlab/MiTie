@@ -208,18 +208,21 @@ void process_gtf_region(Region* region)
 
 		// discard reads that span out of the region
 		if (from<0)
+		{
+			//fprintf(stdout, "from: %i, to: %i\n", r->start_pos, r->get_last_position());
 			continue;
+		}
 
 		if (to>num_pos)
+		{
+			//fprintf(stdout, "from: %i, to: %i\n", r->start_pos, r->get_last_position());
 			continue;
-
-		//from = std::max(0, from);
-		//to = std::min(num_pos, to);
+		}
 
 		assert(from<num_pos);
 		if (to<0)
 		{
-			//fprintf(stderr, "read last position (%i) smaller than region start (%i)\n", r->get_last_position(), region->start );
+			fprintf(stderr, "read last position (%i) smaller than region start (%i)\n", r->get_last_position(), region->start );
 			continue;
 		}
 
@@ -228,7 +231,7 @@ void process_gtf_region(Region* region)
 	}
 	if (false)
 	{
-		FILE* fd = fopen("/tmp/map", "w");
+		FILE* fd = fopen("/fml/ag-raetsch/home/jonas/tmp/map", "w");
 		for (int i=0; i<num_pos; i++)
 			fprintf(fd, "%i\n", map[i]);
 		fclose(fd);
@@ -243,16 +246,15 @@ void process_gtf_region(Region* region)
 	}
 	if (!(start>=region->start))
 	{
-		fprintf(stderr, "Start of transcript (%i) does not fit region start (%i)\n", start, region->start);
+		//fprintf(stderr, "Start of transcript (%i) does not fit region start (%i)\n", start, region->start);
 		exit(0);
 	}
-	//fprintf(stdout, "Find new region start %i -- %i\n", start, region->start);
 	assert(start<region->stop);
 	int gap = 0;
-	int new_start = 0;
+	int new_start = region->start;
 	for (int i=start; i>region->start; i--)
 	{
-		if (map[i-region->start]<2)
+		if (map[i-region->start]<1)
 		{
 			if (gap==0)
 				new_start = i;
@@ -266,12 +268,10 @@ void process_gtf_region(Region* region)
 		if (gap>100)
 		{
 			//printf("move region start from %i to %i (anno: %i)\n", region->start, new_start, start);
-			region->start = new_start;
 			break;
 		}
 	}
 
-	//fprintf(stdout, "Find new region stop %i ++ %i\n", stop, region->stop);
 	assert(stop>=region->start);
 	if (stop>=region->stop)
 	{
@@ -294,12 +294,15 @@ void process_gtf_region(Region* region)
 		
 		if (gap>100)
 		{
-			//printf("move region start from %i to %i (anno: %i)\n", region->stop, new_stop, stop);
+			//printf("move region start from %i to %i (anno: %i) gap: %i\n", region->stop, new_stop, stop, gap);
 			region->stop = new_stop;
 			break;
 		}
 
 	}
+	region->start = new_start;
+
+	delete[] map;
 }
 bool compare_chr_and_strand(const Region* reg1, const Region* reg2)
 {
@@ -366,7 +369,7 @@ int main(int argc, char* argv[])
 		gtf_regions = parse_gtf(c.fn_gtf);
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
-		printf("process gtf regions ...");
+		printf("process gtf regions ... ");
 		for (int i=0; i<gtf_regions.size(); i++)
 		{
 			set_chr_num(gtf_regions[i], header);
@@ -421,6 +424,11 @@ int main(int argc, char* argv[])
 					{
 						continue;
 					}
+					if (regions[ov_list[i][j]]->transcripts.size()>0 && regions[i]->transcripts.size()>0)
+					{
+						continue;
+					}
+
 					change = true;
 
 					if (regions[ov_list[i][j]]->transcripts.size()==0 && regions[i]->transcripts.size()>0)

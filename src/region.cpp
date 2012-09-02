@@ -520,9 +520,9 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 				}
 
 
-				for (int j=0; j<=i; j++)
+				for (int j=0; j<i; j++)
 				{
-					for (int k=i; k<pair_mat.size(); k++)
+					for (int k=i+1; k<pair_mat.size(); k++)
 					{
 						if (j==k)
 							continue;
