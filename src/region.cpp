@@ -422,6 +422,43 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	}
 	else
 	{
+		if (false)
+		{
+			// merge introns with just one position offset
+			vector<segment> tmp_introns;
+			vector<int> tmp_counts;
+			if (unique_introns.size()>0)
+			{
+				tmp_introns.push_back(unique_introns[0]);
+				tmp_counts.push_back(intron_counts[0]);
+			}
+			for (int i=1; i<unique_introns.size(); i++)
+			{
+				bool match = unique_introns[i].first==unique_introns[i-1].first+1 && unique_introns[i].second==unique_introns[i-1].second+1;
+				if (match && intron_counts[i]>intron_counts[i-1])
+				{
+					printf("merge introns: %i->%i (%i), %i->%i (%i)\n", unique_introns[i-1].first, unique_introns[i-1].second, intron_counts[i-1], unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
+					tmp_introns.back().first = unique_introns[i].first;
+					tmp_introns.back().second = unique_introns[i].second;
+					tmp_counts.back() += intron_counts[1];
+				}
+				else if (match && intron_counts[i]<intron_counts[i-1])
+				{
+					printf("merge introns: %i->%i (%i), %i->%i (%i)\n", unique_introns[i-1].first, unique_introns[i-1].second, intron_counts[i-1], unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
+					tmp_introns.back().first = unique_introns[i-1].first;
+					tmp_introns.back().second = unique_introns[i-1].second;
+					tmp_counts.back() += intron_counts[1];
+				}
+				else
+				{
+					tmp_introns.push_back(unique_introns[i]);
+					tmp_counts.push_back(intron_counts[i]);
+				}
+			}
+			unique_introns = tmp_introns;
+			intron_counts = tmp_counts;
+		}
+
 		pos.push_back(start-1);
 		for (int i=0; i<unique_introns.size(); i++)
 		{

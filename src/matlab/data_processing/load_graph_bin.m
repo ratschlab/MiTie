@@ -1,7 +1,11 @@
 function genes = load_graph_bin(fn_graph, num, fn_bam)
 
 if nargin>2
-	genes = load_regions_bin(fn_graph, num, fn_bam);
+	if iscell(fn_bam)
+		genes = load_regions_bin(fn_graph, num, fn_bam{:});
+	else
+		genes = load_regions_bin(fn_graph, num, fn_bam);
+	end
 else
 	genes = load_regions_bin(fn_graph, num);
 end

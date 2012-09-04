@@ -13,7 +13,9 @@ if [ -z "$1" ]
 then
 	sample=1
 	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
-	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_xx_sample${sample}
+	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
+	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_sample${sample}
 	#out_dir=~/tmp
 	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
@@ -86,7 +88,7 @@ fi
 
 #exit 1;
 
-for iter in `seq 1 3`
+for iter in `seq 1 1`
 do
 	echo $iter	
 	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.mmr.iter$iter.bam
