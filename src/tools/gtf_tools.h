@@ -3,7 +3,7 @@
 #include <assert.h>
 #include "region.h"
 
-char* get_attribute(char* line, char* tag);
+char* get_attribute(char* line, const char* tag);
 
 vector<char*> get_fields(char* line);
 
