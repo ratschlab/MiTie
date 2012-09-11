@@ -295,9 +295,14 @@ int main(int argc, char* argv[])
 				map_idx++;
 
 			assert(from>=0);
-			assert(from<len);
-			assert(to>0);
-			assert(to<len);
+			if (to>=len)
+			{
+				fprintf(stderr, "Warning: read alignment exceeds contig length: %i>=%i\n", to, len);
+				discarded++;
+				delete r;
+				last_coor = b->core.pos;
+				continue;
+			}
 			assert(to>from);
 
 			if (to-from>c.max_len)

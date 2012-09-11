@@ -15,9 +15,13 @@ then
 	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
 	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
 	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
-	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_sample${sample}
+	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
+	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
+	#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
+	out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_sample${sample}
 	#out_dir=~/tmp
-	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
+	#fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
+	fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.paired.sorted.bam
 
 	./mip_mmr.sh $out_dir $fn_bam_all $sample
 	exit 0;
@@ -51,7 +55,7 @@ then
 	echo run define_regions => $fn_regions
 	#valgrind --tool=cachegrind $dir/define_regions $fn_bam_all -o $fn_regions
 	#valgrind --leak-check=full $dir/define_regions $fn_bam_all -o $fn_regions
-	#$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 100000
+	$dir/define_regions $fn_bam_all -o $fn_regions --shrink --cut-regions --max-len 100000
 fi
 
 # create segment graph and store in file
@@ -70,8 +74,8 @@ then
 	#opts="--mismatches 3 --min-exonic-len 5"
 	#valgrind --tool=cachegrind $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
 	#valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
-	#$dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
-	$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
+	$dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 40000 --seg-filter 0.01 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
 	
 
 	if [ ! "$?" -eq "0" ]; then
@@ -88,10 +92,11 @@ fi
 
 #exit 1;
 
-for iter in `seq 1 1`
+for iter in `seq 2 3`
 do
 	echo $iter	
-	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.mmr.iter$iter.bam
+	#fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.mmr.iter$iter.bam
+	fn_bam_iter=$fn_bam_all
 
 	##############################	
 	# mmr

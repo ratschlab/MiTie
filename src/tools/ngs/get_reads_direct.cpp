@@ -167,7 +167,8 @@ void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header)
 
 	read->start_pos = b->core.pos+1;
 	read->set_strand('0');
-	read->read_id = new char[100];
+	int len = strlen(bam1_qname(b));
+	read->read_id = new char[len+1];
 	//sprintf(read->read_id, "%s\0", bam1_qname(b));
 	sprintf(read->read_id, "%s", bam1_qname(b));
 

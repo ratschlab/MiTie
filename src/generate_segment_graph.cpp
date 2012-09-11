@@ -11,6 +11,7 @@
 #include <fstream>
 #include "gtf_tools.h"
 #include "tools.h"
+#include "file_stats.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,19 +28,19 @@ struct Config
 {
 	vector<char*> bam_files;
 	char* fn_gtf;
-	int gtf_offset;
-	bool strand_specific;
 	char* fn_regions;
 	char* fn_out;
+	float seg_filter;
+	float tss_pval;
+	bool split_chr;
+	bool strand_specific;
 	bool reads_by_chr;
+	bool mm_filter;
 	int intron_len_filter;
 	int filter_mismatch;
 	int exon_len_filter;
-	bool mm_filter;
 	int region_filter;
-	float seg_filter;
-	float tss_pval;
-
+	int gtf_offset;
 };
 
 int parse_args(int argc, char** argv,  Config* c)
@@ -47,27 +48,32 @@ int parse_args(int argc, char** argv,  Config* c)
 	if (argc<4)
 	{
 			fprintf(stdout, "Usage: %s <fn_out> [options] <fn_bam1> <fn_bam2> ...\n", argv[0]);
+			fprintf(stdout, "\n");
 			fprintf(stdout, "options:\n");
-			fprintf(stdout, "--no-strand \t\t (flag) data are not strand specific \n");
-			fprintf(stdout, "--few-regions \t\t (flag) load data not for whole chromosome, but for each region separate \n");
-			fprintf(stdout, "\t\t\t\t -> (flag) more efficient if there are only a few region to predict on\n");
-			fprintf(stdout, "--region-filter \t\t (default 1000) discard regions with less reads \n");
-			fprintf(stdout, "--regions \t\t (file name) specify regions flat file (e.g. output of define_regions)\n");
-			fprintf(stdout, "--gtf \t\t (file name) specify gtf file\n");
-			fprintf(stdout, "--seg-filter \t\t (default 0.05) segments are filtered out if fraction of covered nucleotides is below\n");
-			fprintf(stdout, "--tss-tts-pval \t\t (default 0.0001) p-value cutoff for transcription start and transcription termination site discovery\n");
-			fprintf(stdout, "--min-exonic-len\t\t\n");
-			fprintf(stdout, "--mismatches\t\t\n");
-			fprintf(stdout, "--gtf-offset\t\t\n");
+			fprintf(stdout, "\t--regions\t\t(file name) specify regions flat file (e.g. output of define_regions)\n");
+			fprintf(stdout, "\t--few-regions \t\t(flag) load data not for whole chromosome, but for each region separate \n");
+			fprintf(stdout, "\t\t\t\t -> more efficient if there are only a few region to predict on\n");
+			fprintf(stdout, "\t--region-filter\t\t(default 1000) discard regions with less reads \n");
+			fprintf(stdout, "\t--gtf\t\t\t(file name) specify gtf file\n");
+			fprintf(stdout, "\t--gtf-offset\t\t(default 10000) region arround annotated gene to be included in search for alternative transcripts\n");
+			fprintf(stdout, "\t--seg-filter\t\t(default 0.05) segments are filtered out if fraction of covered nucleotides is below\n");
+			fprintf(stdout, "\t--tss-tts-pval\t\t(default 0.0001) p-value cutoff for transcription start and transcription termination site discovery\n");
+			fprintf(stdout, "\t--split-chr\t\t(flag) generate one output file for each chromosom\n");
+			fprintf(stdout, "\t\n");
+			fprintf(stdout, "read related options:\n");
+			fprintf(stdout, "\t--min-exonic-len\t(default 0) minimal number of aligned positions on each side of an intron\n");
+			fprintf(stdout, "\t--mismatches\t\t(default 10) maximal number of mismatches\n");
+			fprintf(stdout, "\t--best\t\t\t(flag) filter for best alignment\n");
+			fprintf(stdout, "\t--no-strand \t\t(flag) data are not strand specific \n");
 			fprintf(stdout, "\t\t\n");
 			return -1;
 	}
 
 	// defaults
 	c->fn_gtf = NULL;
-	c->gtf_offset = 0;
 	c->fn_regions = NULL;	
 	c->fn_out = argv[1];	
+	c->gtf_offset = 10000;
 	c->strand_specific = true;
 	c->reads_by_chr = true;
 	c->intron_len_filter = 200000;
@@ -77,6 +83,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->region_filter = 1000;
 	c->seg_filter = 0.05;
 	c->tss_pval = 1e-4;
+	c->split_chr=false;
 
     for (int i = 2; i < argc; i++)  
     {
@@ -84,6 +91,14 @@ int parse_args(int argc, char** argv,  Config* c)
 		{
 			c->strand_specific = false;
 		}
+		else if (strcmp(argv[i], "--split-chr") == 0)
+        {
+			c->split_chr = true;
+        }
+	    else if (strcmp(argv[i], "--best") == 0)
+        {
+			c->mm_filter = true;
+        }
 	    else if (strcmp(argv[i], "--gtf-offset") == 0)
         {
             if (i + 1 > argc - 1)
@@ -535,6 +550,16 @@ int main(int argc, char* argv[])
 		{
 			if (strcmp(regions[i]->chr, chr_prev)!=0 || (regions[i]->strand != strand_prev && c.strand_specific))
 			{
+				if (c.split_chr)
+				{
+					char fn_out[1000]; 
+					sprintf(fn_out, "%s_%s%c", c.fn_out, regions[i]->chr, regions[i]->strand);
+					if (fexist(fn_out))
+						continue;
+					ofs->close();
+					ofs->open(fn_out, std::ios::binary);
+				}
+
 				chr_prev = regions[i]->chr;
 				strand_prev = regions[i]->strand;
 				printf("starting with chr: %s%c\n", chr_prev, strand_prev);

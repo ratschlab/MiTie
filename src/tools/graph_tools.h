@@ -1,5 +1,5 @@
-#ifndef _TOOLS_H__
-#define _TOOLS_H__
+#ifndef _GRAPH_TOOLS_H__
+#define _GRAPH_TOOLS_H__
 #include <assert.h>
 
 int count_num_paths(vector<vector<float> > admat, int node1, int node2)

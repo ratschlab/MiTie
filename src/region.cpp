@@ -6,11 +6,10 @@
 #include "read.h"
 #include "math_tools.h"
 #include "graph_tools.h"
+#include "tools.h"
 #include <vector>
-  using std::vector;
+	using std::vector;
 #include <fstream>
-
-bool compare_second(segment intr1, segment intr2);
 
 /** default constructor*/
 Region::Region()
@@ -1550,16 +1549,4 @@ void Region::compute_intron_list()
 	//}
 	assert(sum==intron_list.size());
 }
-
-
-
-bool compare_second(segment intr1, segment intr2)
-{
-	if (intr1.first<intr2.first)
-		return true;
-	if (intr1.first>intr2.first)
-		return false;
-	return (intr1.second<intr2.second);
-}
-
 
