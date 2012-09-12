@@ -580,12 +580,16 @@ int main(int argc, char* argv[])
 			}
 
 			// get reads from chromosom region
+			curr = reg->reads.begin();
 			while (curr<reg->reads.end())
 			{
 				//printf("%p, %i read start\n", (*curr), (*curr)->start_pos);
-				if ((*curr)->start_pos>=regions[i]->stop)
-					break;
-				if ((*curr)->get_last_position()>regions[i]->start)
+				//if ((*curr)->start_pos>=regions[i]->stop)
+				//	break;
+				//if ((*curr)->get_last_position()>regions[i]->start)
+				//	regions[i]->reads.push_back(*curr);
+
+				if ((*curr)->start_pos>=regions[i]->start && (*curr)->get_last_position()<regions[i]->stop)
 					regions[i]->reads.push_back(*curr);
 				curr++;
 			}

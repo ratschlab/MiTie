@@ -42,7 +42,7 @@ char* get_attribute(char* line, const char* tag)
 		result[i] = start[i];
 		result[i+1] = '\0';
 	}
-	printf("\n");
+	//printf("\n");
 	return result;
 }
 
@@ -88,7 +88,12 @@ vector<Region*> parse_gtf(char* gtf_file)
 
 		if (fields.size()!=9)
 		{
-			printf("wrong number of fields: skip over line\n");
+			printf("wrong number of fields (%i): skip over line\n", (int) fields.size());
+			for (int i=0; i<(int)fields.size(); i++)
+			{
+				printf("%s\t", fields[i]);
+			}
+			printf("\n");
 			continue;
 		}
 
@@ -142,10 +147,10 @@ vector<Region*> parse_gtf(char* gtf_file)
 			}
 			reg->transcripts[0].push_back(*seg);
 		}
-		else
-		{
-			printf("skip over line: %s\n", line);
-		}
+		//else
+		//{
+		//	printf("skip over line: %s\n", line);
+		//}
 	}
 
 	

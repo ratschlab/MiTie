@@ -9,8 +9,7 @@ int file_stats(char* filename)
 
 	if (stat(filename, &sb) == -1)
 	{
-		perror("fexist: error using stat");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 	
 	switch (sb.st_mode & S_IFMT) 
