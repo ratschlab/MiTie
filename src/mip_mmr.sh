@@ -16,13 +16,13 @@ sample=1
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
-out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_again_sample${sample}
+out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_no_junc_sample${sample}
 #out_dir=~/tmp
 #fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
 for s in `seq 1 $sample`; do
-	#fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.paired.sorted.bam"
-	fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam"
+	fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.sorted.paired.bam"
+	#fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam"
 done
 
 mkdir -p $out_dir
@@ -54,7 +54,7 @@ then
 	#valgrind --tool=cachegrind $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
 	#valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
 	#$dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
-	$dir/generate_segment_graph $fn_graph.tmp $opt --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 40000 --seg-filter 0.01 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
 	
 
@@ -72,11 +72,10 @@ fi
 
 #exit 1;
 
-for iter in `seq 1 1`
+for iter in `seq 1 3`
 do
 	echo $iter	
-	#fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.mmr.iter$iter.bam
-	fn_bam_iter=$fn_bam_all
+	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.mmr.iter$iter.bam
 
 	##############################	
 	# mmr
@@ -84,7 +83,7 @@ do
 	##############################	
 	if [ "$iter" -gt "1" ]; then
 		mmr=$HOME/svn/projects/rnageeq/mm_resolve/threaded_oop_mip/mmr
-		INPUT=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.new.ID_sorted.paired.bam
+		INPUT=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.ID_sorted.paired.bam
 		seg_list_iter=$out_dir/segment_list_$(($iter - 1)).txt
 		LOSS_FILE=/fml/ag-raetsch/home/akahles/git/software/RNAgeeq/mm_resolve/threaded_oop_mip/poisson_3.flat
 		THREADS=3
@@ -95,7 +94,7 @@ do
 	fi
 
 	if [ "$iter" -lt "2" ]; then
-		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.best.bam
+		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.sorted.paired.best.bam
 	fi
 	if [ ! -f $fn_bam_iter ]; then
 		exit -1;
@@ -113,8 +112,10 @@ do
 	MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
 	#MAT="matlab -nojvm -nodesktop -nosplash"
 	addpaths="addpath matlab; "
-	echo "dbstop error; $addpaths; denovo('$fn_graph', {'`echo $fn_bam_all | sed "s/ /','/g"`'}, '$mip_dir'); exit"
-	${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam_all | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+	echo "dbstop error; $addpaths; denovo('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+	${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+	#echo "dbstop error; $addpaths mip_paths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"
+	#${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', '$fn_bam_iter', '$mip_dir'); exit"
 	
 	##############################	
 	# eval mip

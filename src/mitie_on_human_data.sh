@@ -29,7 +29,7 @@ then
 	echo
 	#opts="--mismatches 3 --min-exonic-len 5"
 	echo $dir/generate_segment_graph $fn_graph.tmp $opts --split-chr --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam_brain_all $fn_bam_uhr_all
-	gdb $dir/generate_segment_graph $fn_graph.tmp $opts --split-chr --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam_brain_all $fn_bam_uhr_all
+	$dir/generate_segment_graph $fn_graph.tmp $opts --split-chr --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam_brain_all $fn_bam_uhr_all
 	
 	if [ ! "$?" -eq "0" ]; then
 		echo generate_segment_graph return: $?
