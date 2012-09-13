@@ -540,6 +540,7 @@ int main(int argc, char* argv[])
 	vector<int> bias_vector(100, 0);
 	//filter regions
 	int cnt = 0;
+	int last_stop=0;
 	char* chr_prev = (char*) "xxx";
 	char strand_prev;
 	vector<CRead*>::iterator curr; 
@@ -576,11 +577,26 @@ int main(int argc, char* argv[])
 					reg->strand = '0';
 			
 				reg->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
+
+				// sort reads
+				sort(reg->reads.begin(), reg->reads.end(), CRead::compare_by_start_pos);
+
 				curr = reg->reads.begin();
+				last_stop=0;
 			}
 
 			// get reads from chromosom region
-			curr = reg->reads.begin();
+			// make sure regions are sorted and not overlapping
+			if (regions[i]->start<last_stop)
+			{
+				//printf("Regions are not sorted or overlapping\n");
+				//printf("region.start: %i, last_stop: %i\n", regions[i]->start, last_stop);
+				while (curr != reg->reads.begin() && (*curr)->start_pos>=regions[i]->start)
+					curr--;
+				//curr = reg->reads.begin();
+			}
+			last_stop = regions[i]->stop;
+
 			while (curr<reg->reads.end())
 			{
 				//printf("%p, %i read start\n", (*curr), (*curr)->start_pos);
@@ -588,6 +604,8 @@ int main(int argc, char* argv[])
 				//	break;
 				//if ((*curr)->get_last_position()>regions[i]->start)
 				//	regions[i]->reads.push_back(*curr);
+				if ((*curr)->start_pos>=regions[i]->stop)
+					break;
 
 				if ((*curr)->start_pos>=regions[i]->start && (*curr)->get_last_position()<regions[i]->stop)
 					regions[i]->reads.push_back(*curr);

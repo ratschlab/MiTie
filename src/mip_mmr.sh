@@ -21,7 +21,7 @@ out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_no_junc_samp
 #fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
 for s in `seq 1 $sample`; do
-	fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.sorted.paired.bam"
+	fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.bam"
 	#fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam"
 done
 
@@ -95,6 +95,9 @@ do
 
 	if [ "$iter" -lt "2" ]; then
 		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.sorted.paired.best.bam
+		for s in `seq 2 $sample`; do
+			fn_bam_iter=$fn_bam_iter /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.best.bam
+		done
 	fi
 	if [ ! -f $fn_bam_iter ]; then
 		exit -1;
