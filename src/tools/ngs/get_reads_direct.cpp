@@ -49,6 +49,12 @@ int parse_sam_line(char* line, CRead* read);
 //int set_strand(char c);
 //void parse_cigar(bam1_t* b, CRead* read);
 
+int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char strand, int lsubsample, bool p_stand_from_flag)
+{
+	strand_from_flag = p_stand_from_flag;
+
+	return get_reads_from_bam(filename, region, reads, strand, lsubsample);
+}
 
 int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char strand, int lsubsample)
 {
@@ -125,11 +131,16 @@ int bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int en
 					if ((rr%1000 < subsample))
 					{
 						CRead* read = new CRead();
+						if (!read)
+						{
+							printf("Error: get_reads_direct: out of mem\n");
+							exit(-1);
+						}
 						parse_cigar(b, read, header);
 
 						if (strand == '0' || strand==read->strand[0] || read->strand[0]=='0')
 						{
-								reads->push_back(read);
+							reads->push_back(read);
 						}
 						else 
 						{
@@ -282,22 +293,13 @@ void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header)
 		else if (type == 'Z') { ++s; }
 		else if (type == 'H') { ++s; }
 	}
-}
 
-//int set_strand(char c)
-//{
-//	if (c=='+')
-//	{
-//		char* fl = (char*) "0x0010";
-//		g_flag_on = strtol(fl, 0, 0);
-//		g_flag_off = 0;
-//	}
-//	else if (c=='-')
-//	{
-//		char* fl = (char*) "0x0010";
-//		g_flag_off = strtol(fl, 0, 0);
-//		g_flag_on = 0;
-//	}
-//	return 0;
-//}
+	if (read->strand[0]=='0' && strand_from_flag)
+	{
+		if ((b->core.flag & reverse_flag_mask) >0)
+			read->set_strand('-');
+		else
+			read->set_strand('+');
+	}
+}
 

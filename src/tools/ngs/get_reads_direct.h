@@ -17,6 +17,9 @@ static int reverse_flag_mask = strtol((char*) "0x10", 0, 0);
 static int subsample = 1000; 
 //static int collapse = 0;
 
+static bool strand_from_flag = false;
+
+int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char strand, int lsubsample, bool p_stand_from_flag);
 int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char strand, int lsubsample);
 void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header);
 

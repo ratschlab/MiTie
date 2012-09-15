@@ -23,6 +23,7 @@ Region::Region()
 	coverage = NULL;
 	intron_coverage = NULL;
 	gio = NULL;
+	reads_sorted = false;
 	
 }
 
@@ -38,6 +39,7 @@ Region::Region(int pstart, int pstop, int pchr_num, char pstrand, const char* gi
 	coverage = NULL;
 	intron_coverage = NULL;
 	fd_out = stdout;
+	reads_sorted = false;
 
 	// initialize genome information object
 	gio = new Genome(); 
@@ -61,6 +63,7 @@ Region::Region(int pstart, int pstop, int pchr_num, char pstrand)
 	intron_coverage = NULL;
 	fd_out = stdout;
 	gio = NULL;
+	reads_sorted = false;
 }
 /** constructor*/
 Region::Region(int pstart, int pstop, char* pchr, char pstrand)
@@ -75,6 +78,7 @@ Region::Region(int pstart, int pstop, char* pchr, char pstrand)
 	intron_coverage = NULL;
 	fd_out = stdout;
 	gio = NULL;
+	reads_sorted = false;
 }
 /** constructor*/
 Region::Region(Region* reg)
@@ -85,7 +89,7 @@ Region::Region(Region* reg)
 	chr_num = reg->chr_num;
 	if (reg->chr)
 	{
-		chr = new char[100];
+		chr = new char[strlen(reg->chr)+1];
 		strcpy(chr, reg->chr);
 	}
 	else
@@ -97,6 +101,7 @@ Region::Region(Region* reg)
 	intron_coverage = NULL;
 	fd_out = reg->fd_out;
 	gio = NULL;
+	reads_sorted = false;
 }
 
 /** destructor*/
@@ -172,7 +177,6 @@ char* Region::get_region_str()
 
 void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter, bool mm_filter)
 {
-	reads_sorted = false;
 
 	char* reg_str = get_region_str();
 	int subsample = 1000;
@@ -1422,17 +1426,17 @@ int Region::read_binary(std::ifstream* ifs)
 	ifs->read((char *) pair_cnt, len*sizeof(int));
 
 	assert(num_pairs==2*len);
-	for (int i=0; i<len; i+=2)
-	{
-		int j = pairs[i]; 
-		int k = pairs[i+1];
-		if (j<0 || j >= pair_mat.size() || k<0 || k>=pair_mat.size())
-		{
-			fprintf(stderr, "Error: j: %i k: %i, pair_mat.size(): %i\n", j, k, (int) pair_mat.size());
-			break;
-		}
-		pair_mat[j][k] = pair_cnt[i/2];
-	}
+	//for (int i=0; i<len; i+=2)
+	//{
+	//	int j = pairs[i]; 
+	//	int k = pairs[i+1];
+	//	if (j<0 || j >= pair_mat.size() || k<0 || k>=pair_mat.size())
+	//	{
+	//		fprintf(stderr, "Error: j: %i k: %i, pair_mat.size(): %i\n", j, k, (int) pair_mat.size());
+	//		break;
+	//	}
+	//	pair_mat[j][k] = pair_cnt[i/2];
+	//}
 	return 0;
 }
 void Region::compute_intron_list()

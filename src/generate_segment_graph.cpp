@@ -41,6 +41,7 @@ struct Config
 	int exon_len_filter;
 	int region_filter;
 	int gtf_offset;
+	int max_junk;
 };
 
 int parse_args(int argc, char** argv,  Config* c)
@@ -84,6 +85,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->seg_filter = 0.05;
 	c->tss_pval = 1e-4;
 	c->split_chr=false;
+	c->max_junk = 2e7;
 
     for (int i = 2; i < argc; i++)  
     {
@@ -549,6 +551,7 @@ int main(int argc, char* argv[])
 	{
 		if (c.reads_by_chr)// more fast if many regions are considered
 		{
+			bool get_reads = false;
 			if (strcmp(regions[i]->chr, chr_prev)!=0 || (regions[i]->strand != strand_prev && c.strand_specific))
 			{
 				if (c.split_chr)
@@ -560,16 +563,32 @@ int main(int argc, char* argv[])
 					ofs->close();
 					ofs->open(fn_out, std::ios::binary);
 				}
-
+				get_reads = true;
 				chr_prev = regions[i]->chr;
 				strand_prev = regions[i]->strand;
 				printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 				delete reg;
 				reg = new Region(regions[i]);
-				reg->start = 1;
+				reg->start = regions[i]->start;
 				set_chr_num(reg, header);
-				reg->stop = header->target_len[reg->chr_num];
-				printf("get reads for region %s:%i->%i\n", reg->chr, reg->start, reg->stop);
+				reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
+			}
+
+			if (reg->stop<regions[i]->stop)
+			{
+				int prev_st = reg->stop;
+				delete reg;
+				reg = new Region(regions[i]);
+				reg->start = regions[i]->start;
+				set_chr_num(reg, header);
+				reg->stop = std::max(prev_st+c.max_junk, regions[i]->stop); 
+				reg->stop = std::min(reg->stop, (int) header->target_len[reg->chr_num]);
+				get_reads = true;
+			}
+
+			if (get_reads)
+			{
+				printf("get reads from %i bam files for region %s:%i->%i\n", (int)c.bam_files.size(), reg->chr, reg->start, reg->stop);
 
 				// get reads for the large region
 				int num_bam = c.bam_files.size();
@@ -579,38 +598,43 @@ int main(int argc, char* argv[])
 				reg->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
 
 				// sort reads
+				//for (int j=0; j<reg->reads.size(); j++)
+				//{
+				//	printf("reg->reads[%i].start_pos: %i\n", j, reg->reads[j]->start_pos);
+				//}
+
+				printf("sort reads by start position ... ");
 				sort(reg->reads.begin(), reg->reads.end(), CRead::compare_by_start_pos);
+				printf("done\n");
 
 				curr = reg->reads.begin();
 				last_stop=0;
 			}
 
 			// get reads from chromosom region
-			// make sure regions are sorted and not overlapping
+			// if regions overlapp, decrement the read pointer accordingly
 			if (regions[i]->start<last_stop)
 			{
-				//printf("Regions are not sorted or overlapping\n");
-				//printf("region.start: %i, last_stop: %i\n", regions[i]->start, last_stop);
 				while (curr != reg->reads.begin() && (*curr)->start_pos>=regions[i]->start)
 					curr--;
-				//curr = reg->reads.begin();
 			}
 			last_stop = regions[i]->stop;
 
+			printf("add reads to region(%s%c:%i-%i)\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
+			int num_reads = 0;
 			while (curr<reg->reads.end())
 			{
-				//printf("%p, %i read start\n", (*curr), (*curr)->start_pos);
-				//if ((*curr)->start_pos>=regions[i]->stop)
-				//	break;
-				//if ((*curr)->get_last_position()>regions[i]->start)
-				//	regions[i]->reads.push_back(*curr);
 				if ((*curr)->start_pos>=regions[i]->stop)
 					break;
 
 				if ((*curr)->start_pos>=regions[i]->start && (*curr)->get_last_position()<regions[i]->stop)
+				{
 					regions[i]->reads.push_back(*curr);
+					num_reads++;
+				}
 				curr++;
 			}
+			printf("added %i reads\n", num_reads);
 		}
 		else
 		{
@@ -633,7 +657,9 @@ int main(int argc, char* argv[])
 		if (num_reads<=c.region_filter && !is_annotated)
 		{
 			if (c.reads_by_chr)
+			{
 				regions[i]->reads.clear();
+			}
 			else
 				regions[i]->clear_reads();
 			continue;

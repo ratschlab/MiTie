@@ -9,7 +9,7 @@
 #
 
 
-sample=1
+sample=2
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
@@ -51,10 +51,8 @@ then
 	echo generate graph on bam file $fn_bam_all
 	echo
 	#opts="--mismatches 3 --min-exonic-len 5"
-	#valgrind --tool=cachegrind $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
-	#valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph $fn_bam_all
-	#$dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions  --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
-	$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	echo $dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	gdb $dir/generate_segment_graph
 	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 40000 --seg-filter 0.01 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
 	
 
@@ -86,17 +84,18 @@ do
 		INPUT=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.ID_sorted.paired.bam
 		seg_list_iter=$out_dir/segment_list_$(($iter - 1)).txt
 		LOSS_FILE=/fml/ag-raetsch/home/akahles/git/software/RNAgeeq/mm_resolve/threaded_oop_mip/poisson_3.flat
-		THREADS=3
+		THREADS=6
 		OUTFILE=$HOME/tmp/mmr_iter$iter.bam
-		$mmr -o $OUTFILE -t $THREADS -z -S -I 3 -f -F 1 -p -b -m -s $seg_list_iter -l $LOSS_FILE -r 75 -v $INPUT || exit -1;
+		ITER=2
+		$mmr -o $OUTFILE -t $THREADS -z -S -I $ITER -f -F 1 -p -b -m -s $seg_list_iter -l $LOSS_FILE -r 75 -v $INPUT || exit -1;
 		
 		samtools sort $OUTFILE ${fn_bam_iter%.bam} && samtools index $fn_bam_iter
 	fi
 
 	if [ "$iter" -lt "2" ]; then
-		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.sorted.paired.best.bam
+		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.no_junc.sorted.paired.best.bam
 		for s in `seq 2 $sample`; do
-			fn_bam_iter=$fn_bam_iter /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.best.bam
+			fn_bam_iter="$fn_bam_iter /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.best.bam"
 		done
 	fi
 	if [ ! -f $fn_bam_iter ]; then

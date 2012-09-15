@@ -89,6 +89,11 @@ class CRead {
 
 		static bool compare_by_start_pos(const CRead* read1, const CRead* read2)
 		{
+			if (!read1)
+				return false;
+			if (!read2) 
+				return true;
+
 			return read1->start_pos<=read2->start_pos;
 		};
 

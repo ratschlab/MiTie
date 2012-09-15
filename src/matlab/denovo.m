@@ -51,7 +51,7 @@ gene_cnt = 0;
 % open binary file
 while 1
 
-	num = 1000;
+	num = 500;
 	if ~isempty(fn_bam)
 		genes = load_graph_bin(fn_graph, num, fn_bam);
 	else
@@ -88,16 +88,26 @@ while 1
 		opts.mem_req_resubmit = [15000 30000 45000];
 		opts.time_req_resubmit = [1e6 1e6 1e6];
 		
-		cov_scale = max(genes(k).coverage);
-		cov_scale = max([cov_scale, genes(k).seg_admat(:)']);
-		if cov_scale==0
-			fprintf('no coverage found for gene: %i\n', k)
+		cov_scale = [];
+		for r = 1:size(genes(k).seg_admat, 3)%loop over samples
+			cov_scale(r) = max(genes(k).coverage(r, :));
+			cov_scale(r) = max([cov_scale(r), max(genes(k).seg_admat(:, :, r))]);
+			if cov_scale(r)>0
+				sa = genes(k).seg_admat(:,:,r);
+				sa(sa>0) = sa(sa>0)/cov_scale(r);
+				genes(k).seg_admat(:,:,r) = sa;
+				genes(k).coverage(r, :) = genes(k).coverage(r, :)/cov_scale(r);
+			end
+		end
+
+		if all(cov_scale==0)
+			fprintf('no coverage found for gene: %i, %s%s:%i-%i\n', gene_cnt, genes(k).chr, genes(k).strand, genes(k).start, genes(k).stop)
 			continue;
 		end
-		genes(k).seg_admat(genes(k).seg_admat>0) = genes(k).seg_admat(genes(k).seg_admat>0)/cov_scale;
+		
 		PAR.gene = genes(k);
 		PAR.cov_scale = cov_scale;
-		PAR.coverage = genes(k).coverage/cov_scale;
+		PAR.coverage = genes(k).coverage;
 		PAR.len = genes(k).segments(2, :)-genes(k).segments(1,:)+1;
 		PAR.seg_admat = genes(k).seg_admat;
 		PAR.predef_trans = [];

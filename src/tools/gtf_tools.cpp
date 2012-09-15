@@ -72,12 +72,15 @@ vector<Region*> parse_gtf(char* gtf_file)
 		printf("could not open file: %s\n", gtf_file);
 		exit(-1);
 	}
+	int cnt = 0;
 	map<string, Region*> transcripts;
 	while (~feof(fd))
 	{
 		char line[1000];
 		if (fgets(line, 1000, fd)==NULL) break;
-		//printf("line: %s\n", line);
+
+		if (++cnt%1000==0)
+			printf("\rreading line %i (%i transcripts)", cnt, (int) transcripts.size());
 
 		vector<char*> fields = get_fields(line);
 
@@ -112,22 +115,6 @@ vector<Region*> parse_gtf(char* gtf_file)
 		char* chr = new char[100];
 		strcpy(chr, fields[0]);
 
-		//if (strcmp(type, "transcript")==0)
-		//{
-		//	// create new region for current transcript
-		//	//printf("%s%c:%i..%i\n", chr, strand, start, stop);
-		//	
-		//	if (regions.size()>0)
-		//	{
-		//		assert(transcript.size()>0);
-		//		assert(regions.back()->start = transcript.front().first);
-		//		assert(regions.back()->stop = transcript.back().second);
-		//		regions.back()->transcripts.push_back(transcript);
-		//		transcript.clear();
-		//	}
-		//	Region* reg = new Region(start, stop, chr, strand);
-		//	regions.push_back(reg);
-		//}
 		// parse exons
 		if (strcmp(type, "exon")==0)
 		{
@@ -152,7 +139,6 @@ vector<Region*> parse_gtf(char* gtf_file)
 		//	printf("skip over line: %s\n", line);
 		//}
 	}
-
 	
 	vector<Region*> regions;
 	map<string, Region*>::iterator it;
