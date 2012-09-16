@@ -39,7 +39,9 @@ then
 	#$dir/generate_segment_graph $fn_graph.tmp $opts --split-chr --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam
 	echo 
 	#valgrind --leak-check=full $dir/generate_segment_graph $fn_graph.tmp --few-regions $opts --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam
-	$dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam
+	echo $dir/generate_segment_graph $fn_graph.tmp $opts --regions $fn_regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam
+	gdb $dir/generate_segment_graph
+
 
 	if [ ! "$?" -eq "0" ]; then
 		echo generate_segment_graph return: $?

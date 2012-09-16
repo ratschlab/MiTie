@@ -51,8 +51,8 @@ then
 	echo generate graph on bam file $fn_bam_all
 	echo
 	#opts="--mismatches 3 --min-exonic-len 5"
-	echo $dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
-	gdb $dir/generate_segment_graph
+	valgrind --leak-check=full  $dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	#gdb $dir/generate_segment_graph
 	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 40000 --seg-filter 0.01 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
 	
 

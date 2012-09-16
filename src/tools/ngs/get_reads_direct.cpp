@@ -49,14 +49,7 @@ int parse_sam_line(char* line, CRead* read);
 //int set_strand(char c);
 //void parse_cigar(bam1_t* b, CRead* read);
 
-int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char strand, int lsubsample, bool p_stand_from_flag)
-{
-	strand_from_flag = p_stand_from_flag;
-
-	return get_reads_from_bam(filename, region, reads, strand, lsubsample);
-}
-
-int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char strand, int lsubsample)
+int get_reads_from_bam(char* filename, char* region, vector<CRead>* reads, char strand, int lsubsample)
 {
 	subsample = lsubsample;
 	//set_strand(strand);
@@ -89,7 +82,7 @@ int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char
 
 	buf = bam_plbuf_init(pileup_func, &tmp); // initialize pileup
 
-	bam_fetch_reads(tmp.in->x.bam, idx, ref, tmp.beg, tmp.end, buf, tmp.in->header, reads, strand);
+	my_bam_fetch_reads(tmp.in->x.bam, idx, ref, tmp.beg, tmp.end, buf, tmp.in->header, reads, strand);
 	//fprintf(stdout, "intron_list: %d \n", intron_list->size());
 
 	bam_plbuf_push(0, buf); // finalize pileup
@@ -100,8 +93,10 @@ int get_reads_from_bam(char* filename, char* region, vector<CRead*>* reads, char
 }
 
 
-int bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int end, void *data, bam_header_t* header, vector<CRead*>* reads, char strand)
+int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int end, void *data, bam_header_t* header, vector<CRead>* reads, char strand)
 {
+
+	int num_reads = reads->size();
 	int n_off;
 	pair64_t *off = get_chunk_coordinates(idx, tid, beg, end, &n_off);
 	if (off == 0) return 0;
@@ -130,22 +125,33 @@ int bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int en
 					int rr = rand();
 					if ((rr%1000 < subsample))
 					{
-						CRead* read = new CRead();
-						if (!read)
+						//CRead* read = new CRead();
+						if (reads->size()<num_reads+1)
 						{
-							printf("Error: get_reads_direct: out of mem\n");
-							exit(-1);
+							int num_new;
+							if (num_reads>1e6)
+								num_new = num_reads*1.5;
+							else if (num_reads>1e7)
+								num_new = num_reads*1.2;
+							else
+								num_new = 10000+num_reads*2;
+
+							printf("resize read vector from %i to %i\n", (int) reads->size(), num_new);
+							reads->resize(num_new);
 						}
+						CRead* read = &(reads->at(num_reads));
 						parse_cigar(b, read, header);
 
 						if (strand == '0' || strand==read->strand[0] || read->strand[0]=='0')
 						{
-							reads->push_back(read);
+							//reads->push_back(read);
+							assert(reads->at(num_reads).start_pos>0);
+							num_reads++;
 						}
-						else 
-						{
-							delete read;
-						}
+						//else 
+						//{
+						//	delete read;
+						//}
 						//else if (read->strand[0]=='0'&&((b->core.flag & g_flag_off) >0))
 						//{
 						//	//fprintf(stdout, "(-)-strand; read->strand[0]==0, num_exons: %i \n", read->block_starts.size());
@@ -167,6 +173,9 @@ int bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int en
 		bam_destroy1(b);
 	}
 	free(off);
+
+	printf("resize to %i reads\n", num_reads);
+	reads->resize(num_reads);
 	return 0;
 }
 
@@ -294,12 +303,12 @@ void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header)
 		else if (type == 'H') { ++s; }
 	}
 
-	if (read->strand[0]=='0' && strand_from_flag)
-	{
-		if ((b->core.flag & reverse_flag_mask) >0)
-			read->set_strand('-');
-		else
-			read->set_strand('+');
-	}
+	//if (read->strand[0]=='0' && strand_from_flag)
+	//{
+	//	if ((b->core.flag & reverse_flag_mask) >0)
+	//		read->set_strand('-');
+	//	else
+	//		read->set_strand('+');
+	//}
 }
 

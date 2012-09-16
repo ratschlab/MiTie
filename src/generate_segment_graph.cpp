@@ -240,7 +240,8 @@ void process_gtf_region(Region* region)
 		if (to<0)
 		{
 			fprintf(stderr, "read last position (%i) smaller than region start (%i)\n", r->get_last_position(), region->start );
-			continue;
+			exit(-1); 
+			//continue;
 		}
 
 		for (int j=from; j<to; j++)
@@ -386,9 +387,10 @@ int main(int argc, char* argv[])
 		gtf_regions = parse_gtf(c.fn_gtf);
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
-		printf("process gtf regions ... ");
+		printf("process gtf regions ... \n");
 		for (int i=0; i<gtf_regions.size(); i++)
 		{
+			printf("\rprocess region %i (%i)", i, (int) gtf_regions.size());
 			set_chr_num(gtf_regions[i], header);
 			int chr_len = header->target_len[gtf_regions[i]->chr_num];
 			gtf_regions[i]->start = std::max(0, gtf_regions[i]->start-c.gtf_offset);

@@ -121,8 +121,8 @@ Region::~Region()
 
 void Region::clear_reads()
 {
-	for (int i=0; i<all_reads.size(); i++)
-		delete all_reads[i];
+	//for (int i=0; i<all_reads.size(); i++)
+	//	delete all_reads[i];
 	all_reads.clear();
 	// reads is a subset of all_reads, therefore the 
 	// destructor for each read has already been called
@@ -199,17 +199,30 @@ void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filte
 	int multi_filter= 0;
 	for (int i=0; i<all_reads.size(); i++)
 	{
-		if (all_reads[i]->max_intron_len()>=intron_len_filter)
+		bool take = true;
+		if (all_reads[i].max_intron_len()>=intron_len_filter)
+		{
 			intron_filter++;
-		if (all_reads[i]->min_exon_len()<=exon_len_filter)
+			take = false;
+		}
+		if (all_reads[i].min_exon_len()<=exon_len_filter)
+		{
 			exon_filter++;
-		if (all_reads[i]->get_mismatches()>filter_mismatch)
+			take = false;
+		}
+		if (all_reads[i].get_mismatches()>filter_mismatch)
+		{
 			mismatch_filter++;
-		if (all_reads[i]->multiple_alignment_index!=0 && mm_filter)
+			take = false;
+		}
+		if (all_reads[i].multiple_alignment_index!=0 && mm_filter)
+		{
 			multi_filter++;
+			take = false;
+		}
 
-	    if (all_reads[i]->max_intron_len()<intron_len_filter && all_reads[i]->min_exon_len()>exon_len_filter && all_reads[i]->get_mismatches()<=filter_mismatch && (all_reads[i]->multiple_alignment_index==0 || !mm_filter))
-	        reads.push_back(all_reads[i]);
+	    if (take)
+	        reads.push_back(&all_reads[i]);
 	}
 	fprintf(fd_out, "number of reads: %d\n", (int) reads.size());
 	fprintf(fd_out, "Filter: intron_len:%i, min_exon_len:%i, mismatch:%i, multi_mapper:%i\n", intron_filter, exon_filter, mismatch_filter, multi_filter);

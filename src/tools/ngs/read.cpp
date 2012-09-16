@@ -15,6 +15,45 @@ CRead::CRead() {
 	reverse = false;
 	is_clipped = false;
 }
+CRead::CRead(const CRead& r)
+{
+	if (r.read_id)
+	{
+		read_id = new char[strlen(r.read_id)+1];
+		sprintf(read_id, "%s", r.read_id);
+	}
+	else
+		read_id = NULL;
+	if (r.sam_line)
+	{
+		sam_line = new char[strlen(r.sam_line)+1];
+		sprintf(sam_line, "%s", r.sam_line);
+	}
+	else
+		sam_line = NULL;
+
+	if (r.strand)
+	{
+		//strand = new char[strlen(r.strand)+1];
+		//sprintf(strand, "%s", r.strand);
+		strand = new char[2];
+		strand[0] = r.strand[0];
+		strand[1] = '0';
+	}
+	else
+		strand = NULL;
+	
+	block_starts = r.block_starts;
+	block_lengths = r.block_lengths;
+	start_pos = r.start_pos;
+	matches = r.matches;
+	mismatches = r.mismatches;
+	multiple_alignment_index = r.multiple_alignment_index;
+	left = r.left;
+	right = r.right;
+	reverse = r.reverse;
+	is_clipped = r.is_clipped;
+}
 
 CRead::~CRead() {
 	delete[] read_id;

@@ -33,7 +33,7 @@ class Region
 		int chr_num;
 		char* chr;
 		char strand; 
-		vector<CRead*> all_reads; 
+		vector<CRead> all_reads; 
 		vector<CRead*> reads; 
 		bool reads_sorted;
 		uint32_t* coverage;
