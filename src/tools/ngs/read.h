@@ -20,6 +20,8 @@ class CRead {
 		CRead(const CRead& r);
 		~CRead();
 		
+		void cleanup();
+		
 		vector<int> block_starts;
 		vector<int> block_lengths;
 		char* read_id;

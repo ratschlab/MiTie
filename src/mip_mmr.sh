@@ -16,7 +16,7 @@ sample=2
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
-out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_no_junc_sample${sample}_2
+out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_no_junc_sample${sample}
 #out_dir=~/tmp
 #fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
@@ -41,7 +41,7 @@ fi
 # create segment graph and store in file
 #fn_graph=${out_dir}/graph.flat
 #fn_graph=${out_dir}/graph.bin
-fn_graph=${out_dir}/graph.bin
+fn_graph=${out_dir}/graph_2.bin
 
 fn_gtf=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
 #fn_gtf=~/tmp/sample.gtf
@@ -51,8 +51,8 @@ then
 	echo generate graph on bam file $fn_bam_all
 	echo
 	#opts="--mismatches 3 --min-exonic-len 5"
-	#valgrind --leak-check=full  $dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 	$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	#$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 	#gdb $dir/generate_segment_graph
 	#$dir/generate_segment_graph ${fn_graph}.tmp $opts --few-regions --gtf-offset 40000 --seg-filter 0.01 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all 
 	

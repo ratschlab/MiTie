@@ -148,10 +148,12 @@ int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int
 							assert(reads->at(num_reads).start_pos>0);
 							num_reads++;
 						}
-						//else 
-						//{
-						//	delete read;
-						//}
+						else 
+						{
+							//delete read;
+							read->cleanup();
+
+						}
 						//else if (read->strand[0]=='0'&&((b->core.flag & g_flag_off) >0))
 						//{
 						//	//fprintf(stdout, "(-)-strand; read->strand[0]==0, num_exons: %i \n", read->block_starts.size());

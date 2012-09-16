@@ -55,10 +55,31 @@ CRead::CRead(const CRead& r)
 	is_clipped = r.is_clipped;
 }
 
-CRead::~CRead() {
+CRead::~CRead() 
+{
+	cleanup();
+}
+
+void CRead::cleanup()
+{
 	delete[] read_id;
 	delete[] sam_line;
 	delete[] strand;
+
+	block_starts.clear();
+	block_lengths.clear();
+
+	read_id = NULL;
+	sam_line = NULL;
+	strand = NULL;
+	start_pos = 0;
+	matches = 0;
+	mismatches = 0;
+	multiple_alignment_index = 0;
+	left = false;
+	right = false;
+	reverse = false;
+	is_clipped = false;
 }
 
 /*

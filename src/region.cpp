@@ -555,13 +555,21 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 			//printf("%i->%i  %.4f, %.4f\n", segments[i].first, segments[i].second, cov, seg_filter);
 			
 			// check if segment is part of any transcript
-			bool keep = is_annotated(i);
+			bool keep = cov>seg_filter || is_annotated(i);
 
+			bool no_parents = get_parents(i+1).isempty();
+			bool no_children = get_children(i+1).isempty();	
+
+			if (!is_annotated(i) && no_parents && no_children && segments[i].second-segments[i].first<150)
+			{
+				// discard segment even if well covered
+				keep = false;
+			}
 
 			// check if removal of this segment cuts a path between to 
 			// paired end reads
 
-			if (cov<=seg_filter && !keep && segments[i].second-segments[i].first<1000)
+			if (!keep && segments[i].second-segments[i].first<1000)
 			{
 
 				// remove all connections to the current segment
@@ -598,7 +606,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 			}
 
 
-			if (cov>seg_filter || keep) 
+			if (keep) 
 			{
 				seg_filtered.push_back(segments[i]);	
 			}

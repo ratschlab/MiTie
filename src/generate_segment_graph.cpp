@@ -694,6 +694,7 @@ int main(int argc, char* argv[])
 	delete reg;
 	//fclose(fd_out);
 	ofs->close();
+	delete ofs;
 	bam_close(fd);
 	bam_header_destroy(header);
 

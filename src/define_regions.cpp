@@ -66,10 +66,10 @@ void get_regions(vector<Region*>* regions, int* map, int len, char* chr, char st
 				int thresh = 2;
 				for (int st=start/map_resolution+20; st<stop/map_resolution; st++)
 				{
-					if (st*map_resolution-start>200000&&stop-st*map_resolution>200000 && thresh == 2)
+					if (st*map_resolution-start>200000&&stop-st*map_resolution>200000)
 					{
 						thresh = 4;
-						printf("long region: %i, %i increase cut threshold to %i\n", start, stop, thresh);
+						//printf("long region: %i, %i increase cut threshold to %i\n", start, stop, thresh);
 					}
 					else 
 						thresh = 2;
