@@ -63,16 +63,25 @@ void get_regions(vector<Region*>* regions, int* map, int len, char* chr, char st
 				}
 				int low = 0;
 				int new_stop = 0;
+				int thresh = 2;
 				for (int st=start/map_resolution+20; st<stop/map_resolution; st++)
 				{
-					if (low==0 && map[st]<2)
+					if (st*map_resolution-start>200000&&stop-st*map_resolution>200000 && thresh == 2)
+					{
+						thresh = 4;
+						printf("long region: %i, %i increase cut threshold to %i\n", start, stop, thresh);
+					}
+					else 
+						thresh = 2;
+
+					if (low==0 && map[st]<thresh)
 					{
 						new_stop = st*map_resolution;
 						low++;
 						if (print)
 							printf("1: start: %i, stop: %i, new_stop: %i\n", start, stop, new_stop);
 					}
-					else if (map[st]>=2 && low>50)
+					else if (map[st]>=thresh && low>50)
 					{
 						if (print)
 							printf("2: start: %i, stop: %i, new_stop: %i, low:%i\n", start, stop, new_stop, low);
@@ -90,7 +99,7 @@ void get_regions(vector<Region*>* regions, int* map, int len, char* chr, char st
 						new_stop = 0;
 						low = 0;
 					}
-					else if (map[st]>=2)
+					else if (map[st]>=thresh)
 					{
 						// this is the end of a short lowly covered region
 						new_stop = 0;
