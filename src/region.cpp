@@ -185,6 +185,7 @@ void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filte
     	char* fn_bam = bam_files[i];
 	    fprintf(fd_out, "getting reads from file: %s\n", fn_bam);
 		get_reads_from_bam(fn_bam, reg_str, &all_reads, strand, subsample);
+		fprintf(fd_out, "#reads: %d\n", (int) all_reads.size());
 	}
 	delete[] reg_str; 
 	fprintf(fd_out, "number of reads (not filtered): %d\n", (int) all_reads.size());
@@ -557,8 +558,8 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 			// check if segment is part of any transcript
 			bool keep = cov>seg_filter || is_annotated(i);
 
-			bool no_parents = get_parents(i+1).isempty();
-			bool no_children = get_children(i+1).isempty();	
+			bool no_parents = get_parents(i+1).empty();
+			bool no_children = get_children(i+1).empty();	
 
 			if (!is_annotated(i) && no_parents && no_children && segments[i].second-segments[i].first<150)
 			{

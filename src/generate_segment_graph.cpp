@@ -53,6 +53,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "options:\n");
 			fprintf(stdout, "\t--regions\t\t(file name) specify regions flat file (e.g. output of define_regions)\n");
 			fprintf(stdout, "\t--few-regions \t\t(flag) load data not for whole chromosome, but for each region separate \n");
+			fprintf(stdout, "\t--max-junk \t\t(default 2e7) if flag --few-regions not set, load reads for junk at once\n");
 			fprintf(stdout, "\t\t\t\t -> more efficient if there are only a few region to predict on\n");
 			fprintf(stdout, "\t--region-filter\t\t(default 1000) discard regions with less reads \n");
 			fprintf(stdout, "\t--gtf\t\t\t(file name) specify gtf file\n");
@@ -100,6 +101,17 @@ int parse_args(int argc, char** argv,  Config* c)
 	    else if (strcmp(argv[i], "--best") == 0)
         {
 			c->mm_filter = true;
+        }
+	    else if (strcmp(argv[i], "--max-junk") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --max-junk\n") ;
+                return -1;
+            }
+            i++;
+			c->max_junk = atoi(argv[i]);
+
         }
 	    else if (strcmp(argv[i], "--gtf-offset") == 0)
         {
@@ -594,18 +606,23 @@ int main(int argc, char* argv[])
 
 				// get reads for the large region
 				int num_bam = c.bam_files.size();
+				//int num_bam = 1;
 				if (!c.strand_specific)
 					reg->strand = '0';
 			
 				reg->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
 
 				// sort reads
+				//vector<CRead*>::iterator it;
 				//for (int j=0; j<reg->reads.size(); j++)
+				//int count = 0;
+				//for (it = reg->reads.begin(); it != reg->reads.end(); it++)
 				//{
-				//	printf("reg->reads[%i].start_pos: %i\n", j, reg->reads[j]->start_pos);
+				//	//printf("reg->reads[%i].start_pos: %i (%i)\n", j, reg->reads[j]->start_pos, (int) reg->reads.size());
+				//	printf("[%i] it->start_pos: %i (%i)\n", count++, (**it).start_pos, (int) reg->reads.size());
 				//}
 
-				printf("sort reads by start position ... ");
+				printf("sort reads by start position ... \n");
 				sort(reg->reads.begin(), reg->reads.end(), CRead::compare_by_start_pos);
 				printf("done\n");
 

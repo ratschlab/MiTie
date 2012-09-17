@@ -136,23 +136,25 @@ int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int
 							else
 								num_new = 10000+num_reads*2;
 
-							printf("resize read vector from %i to %i\n", (int) reads->size(), num_new);
+							//printf("resize read vector from %i to %i\n", (int) reads->size(), num_new);
 							reads->resize(num_new);
 						}
 						CRead* read = &(reads->at(num_reads));
 						parse_cigar(b, read, header);
 
+						//printf("read->start_pos: %i", read->start_pos);
 						if (strand == '0' || strand==read->strand[0] || read->strand[0]=='0')
 						{
 							//reads->push_back(read);
 							assert(reads->at(num_reads).start_pos>0);
 							num_reads++;
+							//printf("take\n");
 						}
 						else 
 						{
 							//delete read;
 							read->cleanup();
-
+							//printf("discard\n");
 						}
 						//else if (read->strand[0]=='0'&&((b->core.flag & g_flag_off) >0))
 						//{
@@ -176,7 +178,7 @@ int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int
 	}
 	free(off);
 
-	printf("resize to %i reads\n", num_reads);
+	//printf("resize to %i reads\n", num_reads);
 	reads->resize(num_reads);
 	return 0;
 }
