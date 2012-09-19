@@ -29,6 +29,8 @@
 
 void get_regions(vector<Region*>* regions, int* map, int len, char* chr, char strand, int map_resolution, bool shrink, bool cut)
 {
+	int num_in =  regions->size();
+
 	bool in_reg = false;
 	int start = -1;
 	int stop = -1;
@@ -57,22 +59,22 @@ void get_regions(vector<Region*>* regions, int* map, int len, char* chr, char st
 			if (cut)
 			{
 				bool print = false;
-				if (start==16190560 && stop==16245960)
-				{
-					print = true;
-				}
+				//if (start==16190560 && stop==16245960)
+				//{
+				//	print = true;
+				//}
 				int low = 0;
 				int new_stop = 0;
 				int thresh = 2;
 				for (int st=start/map_resolution+20; st<stop/map_resolution; st++)
 				{
-					if (st*map_resolution-start>200000&&stop-st*map_resolution>200000)
-					{
-						thresh = 4;
+					//if (st*map_resolution-start>200000&&stop-st*map_resolution>200000)
+					//{
+					//	thresh = 4;
 						//printf("long region: %i, %i increase cut threshold to %i\n", start, stop, thresh);
-					}
-					else 
-						thresh = 2;
+					//}
+					//else 
+					//	thresh = 2;
 
 					if (low==0 && map[st]<thresh)
 					{
@@ -120,6 +122,42 @@ void get_regions(vector<Region*>* regions, int* map, int len, char* chr, char st
 			start = -1;
 			stop = -1;
 			in_reg = false;
+		}
+	}
+
+	// cut very long regions
+	bool change = true;
+	while (change)
+	{
+		change = false;
+		for (int i=num_in; i<regions->size(); i++)
+		{
+			int start = regions->at(i)->start;
+			int stop = regions->at(i)->stop;
+			//printf("check region %i->%i\n", start, stop);
+			if (stop-start<1e6)
+			{
+				continue;
+			}
+			int min = 1e7;
+			int cut = 0;
+			for (int st=start/map_resolution+20000; st<stop/map_resolution-20000; st++)
+			{
+				if (map[st]<min)
+				{
+					cut = st*map_resolution;
+					min = map[st];
+				}
+			}
+			printf("cut long regions %i->%i at %i min: %i\n", start, stop, cut, min);
+			assert(cut>0);
+			char* pchr = new char[strlen(chr)+1];
+			strcpy(pchr, chr);
+			Region* reg = new Region(cut+1, stop, pchr, strand);
+			regions->push_back(reg);
+			regions->at(i)->stop = cut;
+	
+			change = true;
 		}
 	}
 }
@@ -348,9 +386,13 @@ int main(int argc, char* argv[])
 		int len = header->target_len[i]/res;
 		char* chr = header->target_name[i];
 
+		printf("find regions for %s+\n", chr);
 		get_regions(&regions, maps[i*2]  , len, chr, '+', res, c.shrink, c.cut_regions);
 		if (c.strand_specific)
+		{
+			printf("find regions for %s-\n", chr);
 			get_regions(&regions, maps[i*2+1], len, chr, '-', res, c.shrink, c.cut_regions);
+		}
 	}
 
 	// filter regions

@@ -558,14 +558,6 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 			// check if segment is part of any transcript
 			bool keep = cov>seg_filter || is_annotated(i);
 
-			bool no_parents = get_parents(i+1).empty();
-			bool no_children = get_children(i+1).empty();	
-
-			if (!is_annotated(i) && no_parents && no_children && segments[i].second-segments[i].first<150)
-			{
-				// discard segment even if well covered
-				keep = false;
-			}
 
 			// check if removal of this segment cuts a path between to 
 			// paired end reads
@@ -614,7 +606,31 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 			//else
 			//	printf("discard segment[%i]: %i->%i\n", i, segments[i].first, segments[i].second);
 		}
+
 		//printf("\t%i (%i) segments passed filter\n", (int)seg_filtered.size(), (int) segments.size());
+		if (seg_filtered.size()>0)
+		{
+			segments.clear();
+			segments = seg_filtered;
+		}
+		compute_admat(starts, stops);
+		// filter segments without coverage
+
+		seg_filtered.clear();
+		for (int i=0; i<segments.size(); i++)
+		{
+
+			bool no_parents = get_parents(i+1, false).empty();
+			bool no_children = get_children(i+1, false).empty();	
+			//printf("segment: %i->%i, no_parents, %i, no_children: %i\n", segments[i].first, segments[i].second, no_parents, no_children);
+
+			if (is_annotated(i) || !no_parents || !no_children || segments[i].second-segments[i].first>150)
+			{
+				// discard segment even if well covered
+				seg_filtered.push_back(segments[i]);
+				//printf("no parents, no children: discard\n");
+			}
+		}
 		if (seg_filtered.size()>0)
 		{
 			segments.clear();
@@ -800,7 +816,7 @@ vector<int> Region::find_max_path()
 	int i=max_seg;
 	while (!is_initial(i+1))
 	{
-		vector<int> parents = get_parents(i);	
+		vector<int> parents = get_parents(i, false);	
 		assert(parents.size()>0);
 		float max_cov = -3;
 		int next = -1;
@@ -837,7 +853,7 @@ vector<int> Region::find_max_path()
 	i=max_seg;
 	while (!is_terminal(i))
 	{
-		vector<int> children = get_children(i);	
+		vector<int> children = get_children(i, false);	
 		float max_cov = -1;
 		int next = -1;
 		for (int j=0; j<children.size(); j++)
@@ -937,8 +953,8 @@ void Region::compute_admat(vector<int> starts, vector<int> stops)
 	// connect nodes to source and sink
 	for (int j=0; j<segments.size(); j++)
 	{
-		vector<int> parents = get_parents(j+1);	
-		vector<int> children = get_children(j+1);	
+		vector<int> parents = get_parents(j+1, false);	
+		vector<int> children = get_children(j+1, false);	
 		bool is_start=false;
 		for (int k=0; k<starts.size(); k++)
 			if(segments[j].first==starts[k]+1)
@@ -1231,22 +1247,34 @@ int Region::compute_pair_mat()
 }
 
 
-vector<int> Region::get_parents(int node)
+vector<int> Region::get_parents(int node, bool no_neighbors)
 {
+	int thresh;
+	if (no_neighbors)
+		thresh = CONNECTION;
+	else
+		thresh = NEIGHBOR;
+
 	vector<int> parents;
 	for (int j=1; j<node; j++)
 	{
-		if (admat[j][node]>=NEIGHBOR)
+		if (admat[j][node]>=thresh)
 			parents.push_back(j);
 	}
 	return parents;
 }
-vector<int> Region::get_children(int node)
+vector<int> Region::get_children(int node, bool no_neighbors)
 {
+	int thresh;
+	if (no_neighbors)
+		thresh = CONNECTION;
+	else
+		thresh = NEIGHBOR;
+
 	vector<int> children;
 	for (int j=node+1; j<=segments.size(); j++)
 	{
-		if (admat[j][node]>=NEIGHBOR)
+		if (admat[j][node]>=thresh)
 			children.push_back(j);
 	}
 	return children;

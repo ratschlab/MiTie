@@ -101,7 +101,7 @@ while 1
 		end
 
 		if all(cov_scale==0)
-			fprintf('no coverage found for gene: %i, %s%s:%i-%i\n', gene_cnt, genes(k).chr, genes(k).strand, genes(k).start, genes(k).stop)
+			fprintf('no coverage found for gene: %i, %s%s:%i-%i\n', genes(k).id, genes(k).chr, genes(k).strand, genes(k).start, genes(k).stop)
 			continue;
 		end
 		
@@ -136,6 +136,19 @@ while 1
 		elseif num_paths > 1e4
 			PAR.C.num_transcripts = C.num_transcripts*10;
 		end
+
+		num_samples = size(PAR.seg_admat, 3);
+		gpp = load('param/GP_param_samples.mat', 'res_orig', 'names');
+		idx = min(size(gpp.res_orig, 1), num_samples);
+		for n = 1:length(gpp.names)
+			try
+				eval(sprintf('PAR.%s;', gpp.names{n}))
+				eval(sprintf('PAR.%s = gpp.res_orig(idx, n);', gpp.names{n}))
+			catch
+				%fprintf('not a valid field: %s\n', gpp.names{n})
+			end
+		end
+		PAR.param.lambda = round(PAR.param.lambda);
 
 		%create_mip_simple_pair(PAR);
 	

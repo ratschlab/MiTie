@@ -10,9 +10,11 @@
 
 orig_data=/fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE/
 fn_bam="$orig_data/*merge.chr20.bam"
-#fn_bam="$orig_data/wgEncodeCshlLongRnaSeqSknshraCellPapAln.merge.chr20.bam $orig_data/wgEncodeCshlLongRnaSeqK562CellPapAln.merge.chr20.bam"
+#fn_bam="$orig_data/wgEncodeCshlLongRnaSeqSknshraCellPapAln.merge.chr20.bam"
 
-out_dir=/fml/ag-raetsch/nobackup/projects/mip/ENCODE/MiTie_all
+fn_bam_few="/fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE//wgEncodeCshlLongRnaSeqA549CellPapAln.merge.chr20.bam /fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE//wgEncodeCshlLongRnaSeqAg04450CellPapAln.merge.chr20.bam /fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE//wgEncodeCshlLongRnaSeqBjCellPapAln.merge.chr20.bam /fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE//wgEncodeCshlLongRnaSeqCd20CellPapAln.merge.chr20.bam /fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE//wgEncodeCshlLongRnaSeqGm12878CellPapAln.merge.chr20.bam /fml/ag-raetsch/nobackup/projects/sequencing_runs/human/ENCODE//wgEncodeCshlLongRnaSeqGm12878CytosolPapAln.merge.chr20.bam"
+
+out_dir=/fml/ag-raetsch/nobackup/projects/mip/ENCODE/MiTie_all_max1e6
 mkdir -p $out_dir
 fn_regions=$out_dir/regions.flat
 
@@ -23,8 +25,11 @@ then
 	echo run define_regions => $fn_regions
 	#valgrind --tool=cachegrind $dir/define_regions $fn_bam_all -o $fn_regions
 	#valgrind --leak-check=full $dir/define_regions $fn_bam_all -o $fn_regions
-	$dir/define_regions $fn_bam -o $fn_regions --shrink --cut-regions --max-len 100000
+	echo $dir/define_regions $fn_bam_few -o $fn_regions --shrink --cut-regions --max-len 100000
+	gdb  $dir/define_regions
 fi
+
+exit 1
 
 # create segment graph and store in file
 fn_graph=${out_dir}/graph
@@ -49,7 +54,6 @@ then
 	fi
 	mv ${fn_graph}.tmp $fn_graph
 fi
-exit 0
 
 
 ##############################	

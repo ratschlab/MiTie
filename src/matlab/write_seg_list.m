@@ -6,7 +6,6 @@ if fd<0
 end
 l = load_pred(res_dir);
 
-
 for j = 1:length(l)
 
 	if l(j).solvetime<0
@@ -14,17 +13,17 @@ for j = 1:length(l)
 	end
 
 	seg = l(j).segments;
-	assert(size(l(j).weights, 1)==1) % only one sample
 	for s = 1:size(seg, 1)
 		weight = 0;
 		for t = 1:length(l(j).transcripts)
 			if ismember(s, l(j).transcripts{t})
-				weight = weight+l(j).weights(t);
+				weight = weight+l(j).weights(end, t);
 			end
 		end
-		fprintf(fd, 's\t%s\t%s\t%i\t%i\t%.2f\n', l(j).gene.chr, l(j).gene.strand, seg(s, 1), seg(s, 2), weight*l(j).cov_scale);
+		fprintf(fd, 's\t%s\t%s\t%i\t%i\t%.2f\n', l(j).gene.chr, l(j).gene.strand, seg(s, 1), seg(s, 2), weight*l(j).cov_scale(end));
 	end
-	[s1, s2] = find(l(j).seg_admat>=0);
+	sa = l(j).seg_admat(:,:,end);
+	[s1, s2] = find(sa>=0);
 	for i=1:length(s1)
 		if s1(i)>=s2(i)
 			continue;
@@ -33,10 +32,10 @@ for j = 1:length(l)
 		for t = 1:length(l(j).transcripts)
 			if ismember(s1(i), l(j).transcripts{t}) && ismember(s2(i), l(j).transcripts{t}) && ~any(ismember(s1(i)+1:s2(i)-1, l(j).transcripts{t}))
 				
-				weight = weight+l(j).weights(t);
+				weight = weight+l(j).weights(end, t);
 			end
 		end
-		fprintf(fd, 'i\t%s\t%s\t%i\t%i\t%.2f\n', l(j).gene.chr, l(j).gene.strand, seg(s1(i), 2), seg(s2(i), 1), weight*l(j).cov_scale);
+		fprintf(fd, 'i\t%s\t%s\t%i\t%i\t%.2f\n', l(j).gene.chr, l(j).gene.strand, seg(s1(i), 2), seg(s2(i), 1), weight*l(j).cov_scale(end));
 		
 	end
 end

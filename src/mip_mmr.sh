@@ -8,15 +8,18 @@
 #
 #
 
-
-sample=2
+if [ -z $1 ]; then
+	sample=2
+else
+	sample=$1
+fi
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
 #out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
-out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_all_no_junc_sample${sample}
+out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}
 #out_dir=~/tmp
 #fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
@@ -30,6 +33,7 @@ mkdir -p $out_dir
 dir=`dirname $0`
 # create covered regions
 fn_regions=${out_dir}/regions.flat
+#fn_regions=~/tmp/sample_regin.flat
 if [ ! -f $fn_regions ]
 then
 	echo run define_regions => $fn_regions
@@ -39,7 +43,7 @@ then
 fi
 
 # create segment graph and store in file
-fn_graph=${out_dir}/graph.bin
+fn_graph=${out_dir}/graph_gtf.bin
 
 fn_gtf=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
 #fn_gtf=~/tmp/sample.gtf
@@ -49,7 +53,7 @@ then
 	echo generate graph on bam file $fn_bam_all
 	echo
 	#opts="--mismatches 3 --min-exonic-len 5"
-	$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --max-junk 100000 --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 $fn_bam_all
+	$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --max-junk 200000 --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 	#$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 $fn_bam_all
 	#$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 	#gdb $dir/generate_segment_graph
@@ -68,9 +72,7 @@ fi
 #$dir/generate_segment_graph $fn_graph --regions $fn_regions --seg-filter 0.05 --region-filter 0 --gtf $fn_gtf $fn_bam_all
 #$dir/generate_segment_graph $fn_graph --few-regions --regions $fn_regions --seg-filter 0.05 --region-filter 100 $fn_bam_all
 
-#exit 1;
-
-for iter in `seq 1 3`
+for iter in `seq 1 1`
 do
 	echo $iter	
 	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.mmr.iter$iter.bam
@@ -109,7 +111,7 @@ do
 	# and expected intron counts for each intron;
 	# treat bam files as separate samples
 	##############################	
-	mip_dir=$out_dir/res_iter${iter}/
+	mip_dir=$out_dir/res_iter${iter}_gtf/
 	mkdir -p $mip_dir
 	MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
 	#MAT="matlab -nojvm -nodesktop -nosplash"

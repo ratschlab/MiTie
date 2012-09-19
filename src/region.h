@@ -98,9 +98,9 @@ class Region
 
 		int compute_pair_mat();
 
-		vector<int> get_parents(int node);
+		vector<int> get_parents(int node, bool no_neighbors);
 
-		vector<int> get_children(int node);
+		vector<int> get_children(int node, bool no_neighbors);
 
 		void print_segments_and_coverage(_IO_FILE*& fd);
 
