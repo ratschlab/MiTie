@@ -818,10 +818,10 @@ if ~use_LP_covloss,
 					[ll, lq, rl, rq] = get_coefficients_lq(val, param.lambda);
 				end
 
-        		Q(x1,x1) = rq*C.exon_cov*(len(j)/readlen*cov_scale(i))^2;
-        		Q(x2,x2) = lq*C.exon_cov*(len(j)/readlen*cov_scale(i))^2;
-        		f(x1) = rl*C.exon_cov*len(j)/readlen*cov_scale(i);
-        		f(x2) = ll*C.exon_cov*len(j)/readlen*cov_scale(i);
+        		Q(x1,x1) = 1/r*rq*C.exon_cov*(len(j)/readlen*cov_scale(i))^2;
+        		Q(x2,x2) = 1/r*lq*C.exon_cov*(len(j)/readlen*cov_scale(i))^2;
+        		f(x1) = 1/r*rl*C.exon_cov*len(j)/readlen*cov_scale(i);
+        		f(x2) = 1/r*ll*C.exon_cov*len(j)/readlen*cov_scale(i);
 			elseif strcmp(param.loss, 'l2')
 				Q(x1,x1) = len(j)*C.exon_cov*beta;
         		Q(x2,x2) = len(j)*C.exon_cov*beta;
@@ -848,10 +848,10 @@ for i=1:r
 			end
 
 		
-			Q(x1,x1) = rq*C.introns*(cov_scale(i))^2;
-			Q(x2,x2) = lq*C.introns*(cov_scale(i))^2; 
-			f(x1) = rl*C.introns*cov_scale(i);
-			f(x2) = ll*C.introns*cov_scale(i); 
+			Q(x1,x1) = 1/r*rq*C.introns*(cov_scale(i))^2;
+			Q(x2,x2) = 1/r*lq*C.introns*(cov_scale(i))^2; 
+			f(x1) = 1/r*rl*C.introns*cov_scale(i);
+			f(x2) = 1/r*ll*C.introns*cov_scale(i); 
 		elseif strcmp(param.loss, 'l2')
 			Q(x1,x1) = C.introns*cov_scale(i)/sum(cov_scale);
 			Q(x2,x2) = C.introns*cov_scale(i)/sum(cov_scale); 
