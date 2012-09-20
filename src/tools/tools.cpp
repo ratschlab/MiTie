@@ -71,6 +71,9 @@ vector<Region*> parse_regions(char* fn_regions)
 		regions.push_back(reg);
 		delete[] strand; 
 	}
+
+	fclose(fd);
+
 	return regions;
 }
 void write_regions(vector<Region*> regions, FILE* fd)

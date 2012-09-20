@@ -604,6 +604,8 @@ int main(int argc, char* argv[])
 			{
 				printf("get reads from %i bam files for region %s:%i->%i\n", (int)c.bam_files.size(), reg->chr, reg->start, reg->stop);
 
+				for (int i=0; i<(int)c.bam_files.size(); i++)
+					printf("bf: %s", c.bam_files[i]);
 				// get reads for the large region
 				int num_bam = c.bam_files.size();
 				//int num_bam = 1;
@@ -708,6 +710,7 @@ int main(int argc, char* argv[])
 	for (int i=0; i<regions.size(); i++)
 		delete regions[i];
 	
+	fclose(fd_null);
 	delete reg;
 	//fclose(fd_out);
 	ofs->close();

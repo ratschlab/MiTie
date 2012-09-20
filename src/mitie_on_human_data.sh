@@ -39,6 +39,7 @@ mkdir -p $dir_log
 mkdir -p $dir_reg
 
 fn_graph=${out_dir}/graphs_xxx
+fn_graph=
 
 if [ ! -f $fn_graph ]
 then
@@ -60,13 +61,13 @@ then
 		fn_log=$dir_log/log$cnt
 		if [ ! -f $fn_gr ]; then
 			echo $line > ${fn_reg}
-			echo "$dir/generate_segment_graph $fn_gr $opts --regions $fn_reg --few-regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam" | qsub -pe parallel 1 -o $fn_log -cwd -l h_vmem=${mem_req}G -j y -p 31 -N gen_graph
+			echo "$dir/generate_segment_graph $fn_gr $opts --regions $fn_reg --few-regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001 $fn_bam" | qsub -o $fn_log -cwd -l h_vmem=${mem_req}G -j y -p 31 -N gen_graph
 		fi
-		num_jobs=`qstat | grep gen_ | wc -l`
-		while [ "$num_jobs" -gt 2500 ]; do
+		num_jobs=`qstat | wc -l`
+		while [ "$num_jobs" -gt "2500" ]; do
 			echo "too many jobs in queue ($num_jobs), waiting..."
 			sleep 120
-			num_jobs=`qstat | grep gen_ | wc -l`
+			num_jobs=`qstat | wc -l`
 		done
 	done < $fn_regions
 
@@ -83,7 +84,6 @@ then
 else
 	echo $fn_graph exists
 fi
-exit 1
 
 
 ##############################	
@@ -92,6 +92,11 @@ mip_dir=$out_dir/MiTie_pred/
 mkdir -p $mip_dir
 MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
 addpaths="addpath matlab; "
-${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+for fn_gr in $dir_graph/graph*.bin; do
+	if [ -s $fn_gr ]; then 
+		echo ls -l $fn_gr
+		${MAT} -r "dbstop error; $addpaths mip_paths; denovo_encode('$fn_gr', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+	fi
+done
 
 

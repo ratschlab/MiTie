@@ -34,11 +34,15 @@ for j = 1:length(agene.exons)
 end
 
 % take care of multiple pairings
-[assignment,cost] = munkres((1-pairings));
-num = 0; 
-for j = 1:length(agene.exons)
-	for k = 1:length(pgene.exons)
-		num = num + (assignment(j,k)==1 && pairings(j,k)==1);
+if length(agene.exons)==1
+	num = double(any(pairings==1));
+else
+	[assignment,cost] = munkres((1-pairings));
+	num = 0; 
+	for j = 1:length(agene.exons)
+		for k = 1:length(pgene.exons)
+			num = num + (assignment(j,k)==1 && pairings(j,k)==1);
+		end
 	end
 end
 

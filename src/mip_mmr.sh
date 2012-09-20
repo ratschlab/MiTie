@@ -53,7 +53,9 @@ then
 	echo generate graph on bam file $fn_bam_all
 	echo
 	#opts="--mismatches 3 --min-exonic-len 5"
-	$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --max-junk 200000 --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	$dir/generate_segment_graph $fn_graph.tmp $opt --split-chr --regions $fn_regions --max-junk 200000 --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
+	#valgrind --leak-check=full --show-reachable=yes $dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --max-junk 200000 --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 $fn_bam_all
+	#exit -1
 	#$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 $fn_bam_all
 	#$dir/generate_segment_graph $fn_graph.tmp $opt --regions $fn_regions --gtf-offset 50000 --seg-filter 0.05 --region-filter 50 --tss-tts-pval 0.0001 --gtf $fn_gtf $fn_bam_all
 	#gdb $dir/generate_segment_graph
@@ -72,7 +74,7 @@ fi
 #$dir/generate_segment_graph $fn_graph --regions $fn_regions --seg-filter 0.05 --region-filter 0 --gtf $fn_gtf $fn_bam_all
 #$dir/generate_segment_graph $fn_graph --few-regions --regions $fn_regions --seg-filter 0.05 --region-filter 100 $fn_bam_all
 
-for iter in `seq 1 1`
+for iter in `seq 1 2`
 do
 	echo $iter	
 	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.mmr.iter$iter.bam
@@ -88,7 +90,7 @@ do
 		LOSS_FILE=/fml/ag-raetsch/home/akahles/git/software/RNAgeeq/mm_resolve/threaded_oop_mip/poisson_3.flat
 		THREADS=6
 		OUTFILE=$HOME/tmp/mmr_iter$iter.bam
-		ITER=2
+		ITER=1
 		$mmr -o $OUTFILE -t $THREADS -z -S -I $ITER -f -F 1 -p -b -m -s $seg_list_iter -l $LOSS_FILE -r 75 -v $INPUT || exit -1;
 		
 		samtools sort $OUTFILE ${fn_bam_iter%.bam} && samtools index $fn_bam_iter

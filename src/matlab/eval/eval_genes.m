@@ -77,8 +77,6 @@ for j = 1:length(agenes)
 
 	[num, m, c] = exon_eval(agenes(j), pgene);
 
-	%keyboard
-
 	if cnt1+length(m)>length(matched)
 		matched = [matched -ones(size(matched))];
 		rank = [rank -ones(size(rank))];
