@@ -582,8 +582,10 @@ int main(int argc, char* argv[])
 				strand_prev = regions[i]->strand;
 				printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 				delete reg;
-				reg = new Region(regions[i]);
-				reg->start = regions[i]->start;
+				//reg = new Region(regions[i]);
+				//reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
+				//reg->start = regions[i]->start;
+				reg = new Region(regions[i]->start, regions[i]->start, chr_prev, strand_prev);
 				set_chr_num(reg, header);
 				reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 			}
@@ -592,11 +594,13 @@ int main(int argc, char* argv[])
 			{
 				int prev_st = reg->stop;
 				delete reg;
-				reg = new Region(regions[i]);
-				reg->start = regions[i]->start;
+				//reg = new Region(regions[i]);
+				//reg->start = regions[i]->start;
+				reg = new Region(regions[i]->start, regions[i]->stop, chr_prev, strand_prev);
 				set_chr_num(reg, header);
-				reg->stop = std::max(prev_st+c.max_junk, regions[i]->stop); 
+				reg->stop = std::max(prev_st+c.max_junk, regions[i]->stop);
 				reg->stop = std::min(reg->stop, (int) header->target_len[reg->chr_num]);
+
 				get_reads = true;
 			}
 
@@ -636,6 +640,8 @@ int main(int argc, char* argv[])
 			// if regions overlapp, decrement the read pointer accordingly
 			if (regions[i]->start<last_stop)
 			{
+				if (curr == reg->reads.end() && curr != reg->reads.begin())
+					curr--;
 				while (curr != reg->reads.begin() && (*curr)->start_pos>=regions[i]->start)
 					curr--;
 			}
@@ -643,7 +649,7 @@ int main(int argc, char* argv[])
 
 			printf("add reads to region(%s%c:%i-%i)\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
 			int num_reads = 0;
-			while (curr<reg->reads.end())
+			while (curr != reg->reads.end())
 			{
 				if ((*curr)->start_pos>=regions[i]->stop)
 					break;

@@ -84,7 +84,7 @@ while 1
 		fprintf('\rsubmit gene:%i, mult:%i  ', genes(k).id, j)
 		opts.addpaths = {fileparts(which('mip_paths')), fileparts(which('create_mip_simple_pair'))};
 		opts.resubmit = 3;
-		opts.priority = 17;
+		opts.priority = 117;
 		opts.mem_req_resubmit = [15000 30000 45000];
 		opts.time_req_resubmit = [1e6 1e6 1e6];
 		

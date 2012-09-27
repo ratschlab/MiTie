@@ -72,7 +72,8 @@ Region::Region(int pstart, int pstop, char* pchr, char pstrand)
 	stop = pstop;
 	strand = pstrand;
 	chr_num = NULL;
-	chr = pchr;
+	chr = new char[strlen(pchr)+1];
+	strcpy(chr, pchr);
 	seq = NULL;
 	coverage = NULL;
 	intron_coverage = NULL;
