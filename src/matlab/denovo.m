@@ -157,13 +157,16 @@ while 1
 			end
 			PAR.param.lambda = round(PAR.param.lambda);
 		end
-		%create_mip_simple_pair(PAR);
+
+		create_mip_simple_pair(PAR);
 	
-		cnt = cnt+1;
-		jobinfo(cnt) = rproc('create_mip_simple_pair', PAR, mem_req, opts, time_req);
+		%cnt = cnt+1;
+		%jobinfo(cnt) = rproc('create_mip_simple_pair', PAR, mem_req, opts, time_req);
 	end
 end
-[jobinfo,num_crashed] = rproc_wait(jobinfo, 10, 1,-1, 1);
+if cnt>0
+	[jobinfo,num_crashed] = rproc_wait(jobinfo, 10, 1,-1, 1);
+end
 return
 
 
