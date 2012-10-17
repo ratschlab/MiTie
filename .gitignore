@@ -10,3 +10,4 @@ generate_segment_graph
 tools/samtools/bcftools/bcftools
 libbam.a
 samtools
+.branch
