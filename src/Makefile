@@ -1,4 +1,10 @@
 
+#### please adjust these paths or define the variables accordingly before starting make
+export CPLEX_LIB ?= /fml/ag-raetsch/share/software/ilog/cplex91/lib/x86-64_RHEL3.0_3.2/static_pic/
+export CPLEX_INC ?= /fml/ag-raetsch/share/software/ilog/cplex91/include/ilcplex
+export MEX_BIN ?= /fml/ag-raetsch/share/software/matlab-7.6/bin/mex
+
+
 #CXX = g++ -O9
 CXX = g++ -g
 NGS = tools/ngs
@@ -12,14 +18,10 @@ TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.c
 INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL}
 
 #### Mex stuff
-export MEX_BIN ?= /fml/ag-raetsch/share/software/matlab-7.6/bin/mex
 MATLAB_INCDIR ?= /fml/ag-raetsch/share/software/matlab/extern/include
 MEX_UTILS = tools/mex/
 
 
-#### please adjust these paths to your cplex library and header files
-export CPLEX_LIB ?= /fml/ag-raetsch/share/software/ilog/cplex91/lib/x86-64_RHEL3.0_3.2/static_pic/
-export CPLEX_INC ?= /fml/ag-raetsch/share/software/ilog/cplex91/include/ilcplex
 
 
 all: subfolders define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio load_regions_bin.mexa64
