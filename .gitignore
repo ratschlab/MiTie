@@ -2,3 +2,11 @@
 *.mexa64
 *.o
 *.mex
+*.swo
+ath_count_reads_in_region
+compute_cov_corr
+define_regions
+generate_segment_graph
+tools/samtools/bcftools/bcftools
+libbam.a
+samtools
