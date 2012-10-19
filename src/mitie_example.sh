@@ -45,7 +45,11 @@ ${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_ba
 
 
 # collect predictions and write gtf file
-${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir'); exit"
+fn_genes_mat="$mip_dir/res_genes.mat";
+add_weights=0;
+mmr=1;
+write_gtf=1;
+${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir', '$fn_genes_mat', $add_weights, $mmr, $write_gtf); exit"
 
-echo you can find the resulting gene prediction in $mip_dir/res_genes.mat
+echo you can find the resulting transcript prediction in $mip_dir/res_genes.gtf
 

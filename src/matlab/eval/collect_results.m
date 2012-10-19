@@ -1,10 +1,13 @@
-function genes = collect_results(res_dir, fn_save, add_weights, mmr)
+function genes = collect_results(res_dir, fn_save, add_weights, mmr, write_gtf_flag)
 
 if nargin<3
 	add_weights=0;
 end
 if nargin<4
 	mmr = 1;
+end
+if nargin<5
+	write_gtf_flag = 0;
 end
 
 if isstruct(res_dir)
@@ -88,4 +91,17 @@ end
 
 if ~isstruct(res_dir)
 	save(fn_save, 'genes');
+end
+
+if write_gtf_flag
+	for j = 1:length(genes)
+		genes(j).name = sprintf('gene%i', j);
+		genes(j).transcripts = {};
+		for k = 1:length(genes(j).exons)
+			genes(j).transcripts{k} = sprintf('%s_iso%i', genes(j).name, k);
+		end
+	end
+	gtf_fname = sprintf('%s/res_genes.gtf', res_dir);
+	source = 'MiTie';
+	write_gtf(genes, gtf_fname, source)	
 end
