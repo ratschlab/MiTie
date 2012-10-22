@@ -41,7 +41,8 @@ echo
 fn_graph_gtf=${out_dir}/graphs_gtf.bin
 fn_gtf=testdata/Homo_sapiens.GRCh37.68.chr20.gtf
 
-$dir/generate_segment_graph ${fn_graph_gtf}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
+valgrind --leak-check=full $dir/generate_segment_graph ${fn_graph_gtf}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
+exit 0
 mv ${fn_graph_gtf}.tmp $fn_graph_gtf
 
 # perform transcript predictions
@@ -58,7 +59,6 @@ ${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_ba
 mip_dir_gtf=$out_dir/MiTie_pred_gtf/
 mkdir -p $mip_dir_gtf
 ${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph_gtf', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir_gtf'); exit"
-
 
 # collect predictions and write gtf file
 ##############################	

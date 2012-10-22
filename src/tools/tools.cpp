@@ -70,6 +70,7 @@ vector<Region*> parse_regions(char* fn_regions)
 		Region* reg = new Region(start, stop, chr, strand[0]);
 		regions.push_back(reg);
 		delete[] strand; 
+		delete[] chr;
 	}
 
 	fclose(fd);

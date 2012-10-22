@@ -491,6 +491,8 @@ int main(int argc, char* argv[])
 			for (int i=0; i<regions.size(); i++)
 				if (regions[i]->start>-1)
 					tmp.push_back(regions[i]);
+				else
+					delete regions[i];
 
 			regions = tmp;
 		}
