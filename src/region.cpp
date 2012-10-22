@@ -999,6 +999,7 @@ void Region::update_coverage_information()
 			seg->first = transcripts[i][j].second+1;
 			seg->second = transcripts[i][j+1].first-1;
 			trans_introns.push_back(*seg);
+			delete seg;
 		}
 	}
 	// match transcript introns with RNA-seq introns

@@ -107,13 +107,13 @@ vector<Region*> parse_gtf(char* gtf_file)
 			exit(-1);
 		}
 		string transcript_id(tr_id);
+		delete[] tr_id;
 
 		char* type = fields[2];
 		int start = atoi(fields[3]);
 		int stop = atoi(fields[4]);
 		char strand = fields[6][0];
-		char* chr = new char[100];
-		strcpy(chr, fields[0]);
+		char* chr = fields[0];
 
 		// parse exons
 		if (strcmp(type, "exon")==0)
@@ -133,6 +133,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 				reg->transcripts.push_back(vec);
 			}
 			reg->transcripts[0].push_back(*seg);
+			delete seg;
 		}
 		//else
 		//{
@@ -156,5 +157,51 @@ vector<Region*> parse_gtf(char* gtf_file)
 		regions.push_back(reg);
 	}
 
+	// merge overlapping transcripts into genes
+	bool change = true;
+	int iter = 0;
+	while (change)
+	{
+		printf("parse_gtf: merge iteration: %i size:%i\n", iter++, (int) regions.size());
+		if (iter>10)
+			break;
+		change = false;	
+
+		vector<vector<int> > ov_list = region_overlap(regions, regions);
+		for (int i=0; i<regions.size(); i++)
+		{
+			for (int j=0; j<ov_list[i].size(); j++)
+			{
+				// self overlap
+				if (ov_list[i][j]==i)
+					continue;
+				if (strcmp(regions[i]->chr, regions[ov_list[i][j]]->chr)!=0)
+					continue;
+				if (regions[i]->strand != regions[ov_list[i][j]]->strand)
+					continue;
+				if (regions[ov_list[i][j]]->start==-1 || regions[i]->start==-1)
+					continue;
+
+				Region* r1 = regions[i];
+				Region* r2 = regions[ov_list[i][j]];
+				change = true;
+				// append transcripts of r2 to r1
+				r1->transcripts.insert(r1->transcripts.end(), r2->transcripts.begin(), r2->transcripts.end()); 
+
+				r1->start = std::min(r1->start, r2->start);
+				r1->stop = std::max(r1->stop, r2->stop);
+				r2->start = -1;
+			}
+		}
+		// remove merged regions
+		vector<Region*> tmp;
+		for (int i=0; i<regions.size(); i++)
+			if (regions[i]->start>-1)
+				tmp.push_back(regions[i]);
+			else
+				delete regions[i];
+
+		regions = tmp;
+	}
 	return regions;
 }

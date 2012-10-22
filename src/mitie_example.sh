@@ -24,18 +24,27 @@ then
 fi
 
 # create segment graph and store in file
+##############################	
 fn_graph=${out_dir}/graphs.bin
 opts="--few-regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001"
 
 echo
-echo generate graph on bam file $fn_bam
+echo generate graph on bam file $fn_bam without annotation
 echo
 
 $dir/generate_segment_graph ${fn_graph}.tmp $opts --regions $fn_regions $fn_bam
 mv ${fn_graph}.tmp $fn_graph
 
+echo
+echo generate graph on bam file $fn_bam with annotation
+echo
+fn_graph=${out_dir}/graphs_gtf.bin
+fn_gtf=testdata/Homo_sapiens.GRCh37.68.chr20.gtf
 
-##############################	
+$dir/generate_segment_graph ${fn_graph}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
+mv ${fn_graph}.tmp $fn_graph
+
+
 ##############################	
 mip_dir=$out_dir/MiTie_pred/
 mkdir -p $mip_dir
