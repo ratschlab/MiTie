@@ -38,27 +38,41 @@ mv ${fn_graph}.tmp $fn_graph
 echo
 echo generate graph on bam file $fn_bam with annotation
 echo
-fn_graph=${out_dir}/graphs_gtf.bin
+fn_graph_gtf=${out_dir}/graphs_gtf.bin
 fn_gtf=testdata/Homo_sapiens.GRCh37.68.chr20.gtf
 
-$dir/generate_segment_graph ${fn_graph}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
-mv ${fn_graph}.tmp $fn_graph
+$dir/generate_segment_graph ${fn_graph_gtf}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
+mv ${fn_graph_gtf}.tmp $fn_graph_gtf
 
-
+# perform transcript predictions
 ##############################	
+MAT="matlab -nojvm -nodesktop -nosplash"
+addpaths="addpath matlab; "
+
+# without annotation
 mip_dir=$out_dir/MiTie_pred/
 mkdir -p $mip_dir
-MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
-addpaths="addpath matlab; "
-${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+#${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+
+# with annotation
+mip_dir_gtf=$out_dir/MiTie_pred_gtf/
+mkdir -p $mip_dir_gtf
+${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph_gtf', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir_gtf'); exit"
 
 
 # collect predictions and write gtf file
-fn_genes_mat="$mip_dir/res_genes.mat";
+##############################	
 add_weights=0;
 mmr=1;
 write_gtf=1;
-${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir', '$fn_genes_mat', $add_weights, $mmr, $write_gtf); exit"
 
-echo you can find the resulting transcript prediction in $mip_dir/res_genes.gtf
+# without annotation
+fn_genes_mat="$mip_dir/res_genes.mat";
+#${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir', '$fn_genes_mat', $add_weights, $mmr, $write_gtf); exit"
+
+# with annotation
+fn_genes_mat="$mip_dir_gtf/res_genes.mat";
+${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir_gtf', '$fn_genes_mat', $add_weights, $mmr, $write_gtf); exit"
+
+echo you can find the resulting transcript prediction in $mip_dir/res_genes.gtf and $mip_dir_gtf/res_genes.gtf
 

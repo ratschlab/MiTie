@@ -79,8 +79,6 @@ end
 
 if ~mmr
 	genes = half_open_to_closed(genes);
-else
-	%genes = genes([genes.strand] == '-');
 end
 names = {'exons_orig', 'introns', 'splicegraph', 'tss_info', 'tss_conf', 'cleave_info', 'cleave_conf', 'polya_info', 'cleave_conf', 'is_alt', 'is_alt_spliced', 'is_valid', 'transcript_complete', 'is_complete', 'is_correctly_gff3_referenced', 'confgenes_id', 'anno_id', 'cdsStop_conf', 'cdsStop_info', 'polya_conf', 'tis_conf', 'tis_info', 'exons_confirmed', 'cds_exons', 'utr5_exons', 'utr3_exons', 'transcript_info', 'transcript_status', 'transcript_valid', 'transcript_coding'};
 for j = 1:length(names)

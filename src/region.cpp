@@ -422,10 +422,12 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	// add splice sites, tss, and tts from transcripts
 	for (int i=0; i<transcripts.size(); i++)
 	{
+		printf("\n");
 		starts.push_back(transcripts[i].front().first-1);
 		stops.push_back(transcripts[i].back().second);
 		for (int j=0; j<transcripts[i].size(); j++)
 		{
+			printf("exon%i:, [%i, %i]\n", j, transcripts[i][j].first, transcripts[i][j].second);
 			pos.push_back(transcripts[i][j].first-1);
 			pos.push_back(transcripts[i][j].second);
 		}
@@ -739,16 +741,23 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		}
 		transcript_paths.push_back(path);
 		// print
-		//for (int exon=0; exon<transcripts[i].size(); exon++)
-		//	printf("exon: %i->%i\n", transcripts[i][exon].first, transcripts[i][exon].second );
+		for (int exon=0; exon<transcripts[i].size(); exon++)
+			printf("exon: %i->%i\n", transcripts[i][exon].first, transcripts[i][exon].second );
 
-		//for (int seg=0; seg<segments.size(); seg++)
-		//	printf("segment: %i->%i\n", segments[seg].first, segments[seg].second);
+		for (int seg=0; seg<segments.size(); seg++)
+			printf("segment%i: %i->%i\n", seg, segments[seg].first, segments[seg].second);
 
-		//printf("path:  ");
-		//for (int p=0; p<path.size(); p++)
-		//	printf("%i ", path[p]);
-		//printf("\n");
+		printf("path:  ");
+		for (int p=0; p<path.size(); p++)
+		{
+			printf("%i\n", path[p]);
+			if (p>0)
+			{
+				printf("\t%.3f\n", admat[path[p-1]+1][path[p]+1]);
+				assert(admat[path[p-1]+1][path[p]+1]>=NEIGHBOR);
+			}
+		}
+		printf("\n");
 		
 
 		// recompute pair mat
@@ -1010,7 +1019,10 @@ void Region::update_coverage_information()
 		for (int j=0; j<unique_introns.size(); j++)
 		{
 			if (trans_introns[i].first==unique_introns[j].first && trans_introns[i].second==unique_introns[j].second)
+			{
 				matched = true;
+				break;
+			}
 		}
 		if (!matched)
 		{
@@ -1020,13 +1032,9 @@ void Region::update_coverage_information()
 		else
 			match_cnt++;
 	}
-	if (trans_introns.size()>5 && unique_introns.size()>5 && match_cnt<2)
+	if (true)//(trans_introns.size()>5 && unique_introns.size()>trans_introns.size()+5 && match_cnt<2)
 	{
-		printf("Warning: annotated introns do not match RNA-seq introns\n");
-		for (int i=0; i<trans_introns.size(); i++)
-		{
-			printf("%i->%i\n", trans_introns[i].first, trans_introns[i].second);
-		}
+		//printf("Warning: annotated introns do not match RNA-seq introns\n");
 		for (int i=0; i<unique_introns.size(); i++)
 		{
 			printf("%i->%i (%i)\n", unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
@@ -1438,7 +1446,15 @@ int Region::read_binary(std::ifstream* ifs)
 		admat[j][k] = val[i];
 		admat[k][j] = val[i];
 	}
-	
+	// restore connections of neighboring segments
+	for (int i=1; i<segments.size(); i++)
+	{
+		if (segments[i-1].second+1==segments[i].first)
+		{
+			admat[i][i+1] = NEIGHBOR;
+		}
+	}
+		
 	fd_out = stdout;
 
 	// transcript paths
@@ -1453,7 +1469,11 @@ int Region::read_binary(std::ifstream* ifs)
 			ifs->read((char *) &path[0], len*sizeof(int));
 
 			for (int j=0; j<path.size(); j++)
+			{
 				assert(path[j]<segments.size());
+				if (j>0)
+					assert(admat[path[j-1]+1][path[j]+1]>=NEIGHBOR);
+			}
 			transcript_paths.push_back(path);
 		}
 	}

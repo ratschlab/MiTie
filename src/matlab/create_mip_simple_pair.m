@@ -195,7 +195,7 @@ b2 = zeros(r*t,1);
 A2 = sparse(A2);
 	
 % 
-% this takes the connectivity of the splice graph makes 
+% this takes the connectivity of the splice graph and makes 
 % sure that segment j is followed by any of the segments 
 % it is connected to in the splice graph G=(N,E)
 %
@@ -906,15 +906,13 @@ end
 % set all but the first weight to zero
 % these constraints will be removed one by one 
 % during the solving
-cnt = 0;
 %A20 = zeros(r*(t-1), num_var);
 %b20 = zeros(r*(t-1), 1);
 A20 = zeros(t-1, num_var);
 b20 = zeros(t-1, 1);
 for x = t:-1:length(predef_trans)+2
-	cnt = cnt+1;
 	for j = 1:s
-		A20(cnt, U_idx((j-1)*t+x)) = 1;
+		A20(x-1, U_idx((j-1)*t+x)) = 1;
 	end
 	%for i=1:r
 	%	cnt = cnt+1;
@@ -1021,13 +1019,20 @@ if use_cluster
 	end
 end
 
+if ~isempty(strfind(how, 'No integer feasible solution exists'))
+	keyboard
+end
+
+sA20 = size(A20, 1);
+A = A(1:size(A, 1)-sA20, :);
+b = b(1:size(A, 1));
 if ~(all(A*result-b<=1e-3)),
     how=[how '~all(A*result-b<=1e-3)'] 
-	%keyboard
+	keyboard
 end ;
 if ~all(result>=lb-1e-3 & result<=ub+1e-3)
     how=[how '~all(result>=lb-1e-3 & result<=ub+1e-3)'] 
-	%keyboard
+	keyboard
 end 
 if ~all(abs(res_U)<1e-1|abs(res_U-1)<1e-1)
     how=[how '~all(abs(res_U)<1e-1|abs(res_U-1)<1e-1)'] 
