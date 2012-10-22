@@ -1,0 +1,16 @@
+chr20	processed_transcript	exon	327527	327786	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000492242"; exon_number "1"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-002";
+chr20	processed_transcript	exon	329893	330007	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000492242"; exon_number "2"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-002";
+chr20	processed_transcript	exon	333854	334324	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000492242"; exon_number "3"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-002";
+chr20	protein_coding	exon	327668	327786	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382291"; exon_number "1"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-005";
+chr20	protein_coding	exon	329893	330007	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382291"; exon_number "2"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-005";
+chr20	protein_coding	exon	330282	330476	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382291"; exon_number "3"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-005";
+chr20	protein_coding	exon	333854	335512	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382291"; exon_number "4"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-005";
+chr20	protein_coding	exon	327749	327786	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382285"; exon_number "1"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-003";
+chr20	protein_coding	exon	328078	328156	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382285"; exon_number "2"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-003";
+chr20	protein_coding	exon	329893	330007	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382285"; exon_number "3"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-003";
+chr20	protein_coding	exon	330282	330476	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382285"; exon_number "4"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-003";
+chr20	protein_coding	exon	333854	334473	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000382285"; exon_number "5"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-003";
+chr20	processed_transcript	exon	328944	329036	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000470439"; exon_number "1"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-004";
+chr20	processed_transcript	exon	329893	330007	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000470439"; exon_number "2"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-004";
+chr20	processed_transcript	exon	330282	330476	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000470439"; exon_number "3"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-004";
+chr20	processed_transcript	exon	333854	334147	.	+	.	 gene_id "ENSG00000125841"; transcript_id "ENST00000470439"; exon_number "4"; gene_name "NRSN2"; gene_biotype "protein_coding"; transcript_name "NRSN2-004";

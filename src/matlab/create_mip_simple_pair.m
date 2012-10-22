@@ -905,14 +905,16 @@ end
 
 % set all but the first weight to zero
 % these constraints will be removed one by one 
-% during the solving
+% during the solving; the last constraint will be removed first
 %A20 = zeros(r*(t-1), num_var);
 %b20 = zeros(r*(t-1), 1);
+cnt = 0;
 A20 = zeros(t-1, num_var);
 b20 = zeros(t-1, 1);
 for x = t:-1:length(predef_trans)+2
+	cnt = cnt+1;
 	for j = 1:s
-		A20(x-1, U_idx((j-1)*t+x)) = 1;
+		A20(cnt, U_idx((j-1)*t+x)) = 1;
 	end
 	%for i=1:r
 	%	cnt = cnt+1;

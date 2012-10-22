@@ -68,7 +68,7 @@ write_gtf=1;
 
 # without annotation
 fn_genes_mat="$mip_dir/res_genes.mat";
-#${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir', '$fn_genes_mat', $add_weights, $mmr, $write_gtf); exit"
+${MAT} -r "dbstop error; $addpaths mip_paths; collect_results('$mip_dir', '$fn_genes_mat', $add_weights, $mmr, $write_gtf); exit"
 
 # with annotation
 fn_genes_mat="$mip_dir_gtf/res_genes.mat";
