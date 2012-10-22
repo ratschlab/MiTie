@@ -12,10 +12,13 @@ function denovo(fn_graph, fn_bam, out_dir, C, idx)
 % out_dir:	output directory name
 %
 
+% change this flag to run transcript predictions 
+% for each gene distributed on a cluster
+parallel = 0;
+
 
 % model selection parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% GP opt num_transcripts:994.4662   pairs:99.8423   intron:99.6441   exon:99.7242    lambda:1.0000
 if nargin<4
 	C.num_transcripts = 500;
 	C.introns = 100; 
@@ -158,10 +161,12 @@ while 1
 			PAR.param.lambda = round(PAR.param.lambda);
 		end
 
-		create_mip_simple_pair(PAR);
-	
-		%cnt = cnt+1;
-		%jobinfo(cnt) = rproc('create_mip_simple_pair', PAR, mem_req, opts, time_req);
+		if ~parallel
+			create_mip_simple_pair(PAR);
+		else
+			cnt = cnt+1;
+			jobinfo(cnt) = rproc('create_mip_simple_pair', PAR, mem_req, opts, time_req);
+		end
 	end
 end
 if cnt>0
