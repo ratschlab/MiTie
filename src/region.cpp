@@ -422,12 +422,10 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	// add splice sites, tss, and tts from transcripts
 	for (int i=0; i<transcripts.size(); i++)
 	{
-		printf("\n");
 		starts.push_back(transcripts[i].front().first-1);
 		stops.push_back(transcripts[i].back().second);
 		for (int j=0; j<transcripts[i].size(); j++)
 		{
-			printf("exon%i:, [%i, %i]\n", j, transcripts[i][j].first, transcripts[i][j].second);
 			pos.push_back(transcripts[i][j].first-1);
 			pos.push_back(transcripts[i][j].second);
 		}
@@ -442,43 +440,6 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	}
 	else
 	{
-		if (false)
-		{
-			// merge introns with just one position offset
-			vector<segment> tmp_introns;
-			vector<int> tmp_counts;
-			if (unique_introns.size()>0)
-			{
-				tmp_introns.push_back(unique_introns[0]);
-				tmp_counts.push_back(intron_counts[0]);
-			}
-			for (int i=1; i<unique_introns.size(); i++)
-			{
-				bool match = unique_introns[i].first==unique_introns[i-1].first+1 && unique_introns[i].second==unique_introns[i-1].second+1;
-				if (match && intron_counts[i]>intron_counts[i-1])
-				{
-					printf("merge introns: %i->%i (%i), %i->%i (%i)\n", unique_introns[i-1].first, unique_introns[i-1].second, intron_counts[i-1], unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
-					tmp_introns.back().first = unique_introns[i].first;
-					tmp_introns.back().second = unique_introns[i].second;
-					tmp_counts.back() += intron_counts[1];
-				}
-				else if (match && intron_counts[i]<intron_counts[i-1])
-				{
-					printf("merge introns: %i->%i (%i), %i->%i (%i)\n", unique_introns[i-1].first, unique_introns[i-1].second, intron_counts[i-1], unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
-					tmp_introns.back().first = unique_introns[i-1].first;
-					tmp_introns.back().second = unique_introns[i-1].second;
-					tmp_counts.back() += intron_counts[1];
-				}
-				else
-				{
-					tmp_introns.push_back(unique_introns[i]);
-					tmp_counts.push_back(intron_counts[i]);
-				}
-			}
-			unique_introns = tmp_introns;
-			intron_counts = tmp_counts;
-		}
-
 		pos.push_back(start-1);
 		for (int i=0; i<unique_introns.size(); i++)
 		{
@@ -741,23 +702,23 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		}
 		transcript_paths.push_back(path);
 		// print
-		for (int exon=0; exon<transcripts[i].size(); exon++)
-			printf("exon: %i->%i\n", transcripts[i][exon].first, transcripts[i][exon].second );
+		//for (int exon=0; exon<transcripts[i].size(); exon++)
+		//	printf("exon: %i->%i\n", transcripts[i][exon].first, transcripts[i][exon].second );
 
-		for (int seg=0; seg<segments.size(); seg++)
-			printf("segment%i: %i->%i\n", seg, segments[seg].first, segments[seg].second);
+		//for (int seg=0; seg<segments.size(); seg++)
+		//	printf("segment%i: %i->%i\n", seg, segments[seg].first, segments[seg].second);
 
-		printf("path:  ");
+		//printf("path:  ");
 		for (int p=0; p<path.size(); p++)
 		{
-			printf("%i\n", path[p]);
+			//printf("%i\n", path[p]);
 			if (p>0)
 			{
-				printf("\t%.3f\n", admat[path[p-1]+1][path[p]+1]);
+				//printf("\t%.3f\n", admat[path[p-1]+1][path[p]+1]);
 				assert(admat[path[p-1]+1][path[p]+1]>=NEIGHBOR);
 			}
 		}
-		printf("\n");
+		//printf("\n");
 		
 
 		// recompute pair mat
@@ -1032,9 +993,9 @@ void Region::update_coverage_information()
 		else
 			match_cnt++;
 	}
-	if (true)//(trans_introns.size()>5 && unique_introns.size()>trans_introns.size()+5 && match_cnt<2)
+	if (trans_introns.size()>5 && unique_introns.size()>trans_introns.size()+5 && match_cnt<2)
 	{
-		//printf("Warning: annotated introns do not match RNA-seq introns\n");
+		printf("Warning: annotated introns do not match RNA-seq introns\n");
 		for (int i=0; i<unique_introns.size(); i++)
 		{
 			printf("%i->%i (%i)\n", unique_introns[i].first, unique_introns[i].second, intron_counts[i]);

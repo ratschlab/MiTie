@@ -159,11 +159,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		double* trm = mxGetPr(trans_mat);
 		for (int i=0; i<num_trans; i++)
 		{
-			printf("load_regions_bin: path%i\n", i);
 			for (int k=0; k<regions[j]->transcript_paths[i].size(); k++)
 			{
 				int p = regions[j]->transcript_paths[i][k];
-				printf(" %i ", p);
 				if (p>=num_seg || p<0)
 				{
 					printf("Error: trans: %i, segment: %i num_seg: %i\n", i, p, num_seg);
@@ -171,7 +169,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 				}
 				trm[p*num_trans+i] = 1;
 			}
-			printf("\n");
 		}
 		mxSetFieldByNumber(plhs[0], j, transcripts_field, trans_mat);
 

@@ -52,7 +52,7 @@ addpaths="addpath matlab; "
 # without annotation
 mip_dir=$out_dir/MiTie_pred/
 mkdir -p $mip_dir
-#${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
 
 # with annotation
 mip_dir_gtf=$out_dir/MiTie_pred_gtf/

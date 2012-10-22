@@ -418,6 +418,8 @@ int main(int argc, char* argv[])
 
 			process_gtf_region(gtf_regions[i]);
 			gtf_regions[i]->clear_reads();
+			delete[] gtf_regions[i]->coverage;
+
 		}
 		printf("done\n");
 	}

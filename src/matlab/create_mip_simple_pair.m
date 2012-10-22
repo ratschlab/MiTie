@@ -1020,7 +1020,8 @@ if use_cluster
 end
 
 if ~isempty(strfind(how, 'No integer feasible solution exists'))
-	keyboard
+	%keyboard
+	how
 end
 
 sA20 = size(A20, 1);
@@ -1028,11 +1029,11 @@ A = A(1:size(A, 1)-sA20, :);
 b = b(1:size(A, 1));
 if ~(all(A*result-b<=1e-3)),
     how=[how '~all(A*result-b<=1e-3)'] 
-	keyboard
+	%keyboard
 end ;
 if ~all(result>=lb-1e-3 & result<=ub+1e-3)
     how=[how '~all(result>=lb-1e-3 & result<=ub+1e-3)'] 
-	keyboard
+	%keyboard
 end 
 if ~all(abs(res_U)<1e-1|abs(res_U-1)<1e-1)
     how=[how '~all(abs(res_U)<1e-1|abs(res_U-1)<1e-1)'] 
