@@ -41,8 +41,7 @@ echo
 fn_graph_gtf=${out_dir}/graphs_gtf.bin
 fn_gtf=testdata/Homo_sapiens.GRCh37.68.chr20.gtf
 
-valgrind --leak-check=full $dir/generate_segment_graph ${fn_graph_gtf}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
-exit 0
+$dir/generate_segment_graph ${fn_graph_gtf}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
 mv ${fn_graph_gtf}.tmp $fn_graph_gtf
 
 # perform transcript predictions
