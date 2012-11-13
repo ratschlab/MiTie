@@ -1002,7 +1002,7 @@ void Region::update_coverage_information()
 		}
 	}
 
-	// remove previous coverage intormation
+	// remove previous coverage information
 	for (int i=0; i<admat.size(); i++)
 		for (int j=0; j<admat.size(); j++)
 			if (admat[i][j]>=CONNECTION)
