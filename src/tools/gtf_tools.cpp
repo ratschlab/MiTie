@@ -110,8 +110,6 @@ vector<Region*> parse_gtf(char* gtf_file)
 		delete[] tr_id;
 
 		char* type = fields[2];
-		int start = atoi(fields[3]);
-		int stop = atoi(fields[4]);
 		char strand = fields[6][0];
 		char* chr = fields[0];
 
@@ -168,12 +166,12 @@ vector<Region*> parse_gtf(char* gtf_file)
 		change = false;	
 
 		vector<vector<int> > ov_list = region_overlap(regions, regions);
-		for (int i=0; i<regions.size(); i++)
+		for (uint i=0; i<regions.size(); i++)
 		{
-			for (int j=0; j<ov_list[i].size(); j++)
+			for (uint j=0; j<ov_list[i].size(); j++)
 			{
 				// self overlap
-				if (ov_list[i][j]==i)
+				if (ov_list[i][j]==(int) i)
 					continue;
 				if (strcmp(regions[i]->chr, regions[ov_list[i][j]]->chr)!=0)
 					continue;
@@ -195,7 +193,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 		}
 		// remove merged regions
 		vector<Region*> tmp;
-		for (int i=0; i<regions.size(); i++)
+		for (uint i=0; i<regions.size(); i++)
 			if (regions[i]->start>-1)
 				tmp.push_back(regions[i]);
 			else

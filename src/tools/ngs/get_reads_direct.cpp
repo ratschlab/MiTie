@@ -126,7 +126,7 @@ int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int
 					if ((rr%1000 < subsample))
 					{
 						//CRead* read = new CRead();
-						if (reads->size()<num_reads+1)
+						if ((int) reads->size()<num_reads+1)
 						{
 							int num_new;
 							if (num_reads>1e6)
