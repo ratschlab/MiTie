@@ -8,12 +8,12 @@ int count_num_paths(vector<vector<float> > admat, int node1, int node2)
 		return 0;
 	if (node2==node1)
 		return 1;
-	if (node1>=admat.size())
+	if (node1>=(int) admat.size())
 	{
 		fprintf(stderr, "node1 out of bounds");
 		exit(1);
 	}
-	if (node2>=admat.size())
+	if (node2>=(int) admat.size())
 	{
 		fprintf(stderr, "node2 out of bounds");
 		exit(1);

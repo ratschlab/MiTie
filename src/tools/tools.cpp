@@ -79,7 +79,7 @@ vector<Region*> parse_regions(char* fn_regions)
 }
 void write_regions(vector<Region*> regions, FILE* fd)
 {
-	for (int i=0; i<regions.size(); i++)
+	for (uint i=0; i<regions.size(); i++)
 	{
 		fprintf(fd, "%s\t%c\t%i\t%i\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
 	}
@@ -166,9 +166,9 @@ void scan(interval_t f, vector<interval_t>* Wf, interval_t g, vector<interval_t>
 vector<int> interval_overlap(vector<int> starts1, vector<int> stops1, vector<int> starts2, vector<int>stops2)
 {	
 	int num_intervals1 = starts1.size();
-	assert(stops1.size()==num_intervals1);
+	assert((int) stops1.size()==num_intervals1);
 	int num_intervals2 = starts2.size();
-	assert(stops2.size()==num_intervals2);
+	assert((int) stops2.size()==num_intervals2);
 
 	vector<interval_t> intervals1;
 	for (int i=0; i<num_intervals1; i++)
@@ -250,12 +250,12 @@ vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> re
 	vector<int> starts2;
 	vector<int> stops2;
 
-	for (int i=0; i<regions1.size(); i++)
+	for (uint i=0; i<regions1.size(); i++)
 	{
 		starts1.push_back(regions1[i]->start);
 		stops1.push_back(regions1[i]->stop);
 	}
-	for (int i=0; i<regions2.size(); i++)
+	for (uint i=0; i<regions2.size(); i++)
 	{
 		starts2.push_back(regions2[i]->start);
 		stops2.push_back(regions2[i]->stop);
@@ -265,7 +265,7 @@ vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> re
 
 	//printf("overlap.size(): %i\n", (int) ov.size());
 	vector<vector<int> > ov_list(regions1.size());
-	for (int i=0; i<ov.size(); i+=2)
+	for (uint i=0; i<ov.size(); i+=2)
 	{
 		//printf("(%i,%i) %i->%i, %i->%i\n", ov[i], ov[i+1], regions1[ov[i]]->start, regions1[ov[i]]->stop, regions2[ov[i+1]]->start, regions2[ov[i+1]]->stop);
 		ov_list[ov[i]].push_back(ov[i+1]);

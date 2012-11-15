@@ -14,10 +14,10 @@
 /** default constructor*/
 Region::Region()
 {
-	start = NULL; 
-	stop = NULL;
-	strand = NULL;
-	chr_num = NULL;
+	start = -1; 
+	stop = -1;
+	strand = '\0';
+	chr_num = -1;
 	chr = NULL;
 	seq = NULL;
 	coverage = NULL;
@@ -71,7 +71,7 @@ Region::Region(int pstart, int pstop, char* pchr, char pstrand)
 	start = pstart; 
 	stop = pstop;
 	strand = pstrand;
-	chr_num = NULL;
+	chr_num = -1;
 	chr = new char[strlen(pchr)+1];
 	strcpy(chr, pchr);
 	seq = NULL;
@@ -153,9 +153,9 @@ void Region::print(_IO_FILE*& fd)
 	fprintf(fd, "region start:\t%i\n", start);
 	fprintf(fd, "region stop:\t%i\n", stop);
 	fprintf(fd, "region strand:\t%c\n", strand);
-	if (chr_num)
+	if (chr_num>0)
 		fprintf(fd, "region chr_num:\t%i\n", chr_num);
-	if (gio && chr_num)
+	if (gio && chr_num>0)
 		fprintf(fd, "region chr:\t%s\n", gio->get_contig_name(chr_num));
 	else if (chr)
 		fprintf(fd, "region chr:\t%s\n", chr);
@@ -166,7 +166,7 @@ char* Region::get_region_str()
 	char* reg_str = new char[1000];
 	if (chr)
 		sprintf(reg_str, "%s:%i-%i", chr, start, stop);
-	else if (gio && chr_num)
+	else if (gio && chr_num>0)
 		sprintf(reg_str, "%s:%i-%i", gio->get_contig_name(chr_num), start, stop);
 	else
 	{
@@ -186,10 +186,10 @@ void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filte
     	char* fn_bam = bam_files[i];
 	    fprintf(fd_out, "getting reads from file: %s\n", fn_bam);
 		get_reads_from_bam(fn_bam, reg_str, &all_reads, strand, subsample);
-		fprintf(fd_out, "#reads: %d\n", (int) all_reads.size());
+		fprintf(fd_out, "#reads: %lu\n", all_reads.size());
 	}
 	delete[] reg_str; 
-	fprintf(fd_out, "number of reads (not filtered): %d\n", (int) all_reads.size());
+	fprintf(fd_out, "number of reads (not filtered): %lu\n", all_reads.size());
 	/* filter reads
 	* **************/
 	//int exon_len_filter = 8;
@@ -199,7 +199,7 @@ void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filte
 	int exon_filter = 0;
 	int mismatch_filter = 0;
 	int multi_filter= 0;
-	for (int i=0; i<all_reads.size(); i++)
+	for (uint i=0; i<all_reads.size(); i++)
 	{
 		bool take = true;
 		if (all_reads[i].max_intron_len()>=intron_len_filter)
@@ -226,7 +226,7 @@ void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filte
 	    if (take)
 	        reads.push_back(&all_reads[i]);
 	}
-	fprintf(fd_out, "number of reads: %d\n", (int) reads.size());
+	fprintf(fd_out, "number of reads: %lu\n", reads.size());
 	fprintf(fd_out, "Filter: intron_len:%i, min_exon_len:%i, mismatch:%i, multi_mapper:%i\n", intron_filter, exon_filter, mismatch_filter, multi_filter);
 }
 
@@ -239,7 +239,7 @@ void Region::compute_coverage()
 	memset(coverage, 0, num_pos*sizeof(uint32_t));
 	//for (int i=0; i<num_pos; i++)
 	//	coverage[i] = 0;
-	for (int i=0; i<reads.size(); i++)
+	for (uint i=0; i<reads.size(); i++)
 	{
 		// add read contribution to coverage
 		reads[i]->get_coverage(start, stop, coverage);
@@ -268,7 +268,7 @@ float Region::get_coverage_global(int pstart, int pstop)
 
 float Region::get_coverage_seg(int i)
 {
-	assert(i<segments.size());
+	assert(i<(int) segments.size());
 	if (seg_cov.size()==0)
 	{
 		compute_seg_cov();
@@ -279,7 +279,7 @@ float Region::get_coverage_seg(int i)
 void Region::compute_seg_cov()
 {
 	seg_cov.clear();
-	for (int s=0; s<segments.size(); s++)
+	for (uint s=0; s<segments.size(); s++)
 		seg_cov.push_back(get_coverage_global(segments[s].first, segments[s].second));
 }
 
@@ -291,7 +291,7 @@ void Region::compute_intron_coverage()
 
 	for (int i=0; i<num_pos; i++)
 		intron_coverage[i] = 0;
-	for (int i=1; i<unique_introns.size(); i++)
+	for (uint i=1; i<unique_introns.size(); i++)
 	{
 		int from_pos = std::max(start, unique_introns[i].first);
         int to_pos = std::min(stop, unique_introns[i].second);
@@ -305,7 +305,7 @@ void Region::compute_intron_coverage()
 int Region::get_intron_conf(int intron_start, int intron_stop)
 {
 	//printf("get_intron_conf for %i -> %i\n", intron_start, intron_stop);
-	for (int i=1; i<unique_introns.size(); i++)
+	for (uint i=1; i<unique_introns.size(); i++)
 	{
 		//if (unique_introns[i].first==intron_start || unique_introns[i].second==intron_stop)
 		//printf("found intron %i -> %i\n", unique_introns[i].first, unique_introns[i].second);
@@ -318,7 +318,7 @@ int Region::get_intron_conf(int intron_start, int intron_stop)
 int Region::get_read_starts(int from, int to)
 {
 	int ret = 0;
-	for (int i=0; i<reads.size(); i++)
+	for (uint i=0; i<reads.size(); i++)
 		if (reads[i]->start_pos>=from && reads[i]->start_pos<=to)
 			ret++;
 	return ret;
@@ -326,7 +326,7 @@ int Region::get_read_starts(int from, int to)
 int Region::get_read_ends(int from, int to)
 {
 	int ret = 0;
-	for (int i=0; i<reads.size(); i++)
+	for (uint i=0; i<reads.size(); i++)
 		if (reads[i]->get_last_position()>=from && reads[i]->get_last_position()<=to)
 			ret++;
 	return ret;
@@ -336,7 +336,7 @@ void Region::find_tss_and_cleave(vector<int>* pos, vector<int>* starts, vector<i
 	// process read starts and ends
 	vector<int> rstarts;
 	vector<int> rends;
-	for (int i=0; i<reads.size(); i++)
+	for (uint i=0; i<reads.size(); i++)
 	{
 		rstarts.push_back(reads[i]->start_pos);
 		rends.push_back(reads[i]->get_last_position());
@@ -420,11 +420,11 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	vector<int> stops;
 
 	// add splice sites, tss, and tts from transcripts
-	for (int i=0; i<transcripts.size(); i++)
+	for (uint i=0; i<transcripts.size(); i++)
 	{
 		starts.push_back(transcripts[i].front().first-1);
 		stops.push_back(transcripts[i].back().second);
-		for (int j=0; j<transcripts[i].size(); j++)
+		for (uint j=0; j<transcripts[i].size(); j++)
 		{
 			pos.push_back(transcripts[i][j].first-1);
 			pos.push_back(transcripts[i][j].second);
@@ -441,14 +441,8 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	else
 	{
 		pos.push_back(start-1);
-		for (int i=0; i<unique_introns.size(); i++)
+		for (uint i=0; i<unique_introns.size(); i++)
 		{
-			// this is how introns are defined:
-			//       ^
-			//     /   \
-			//    |     |
-			//NNNNGC...AGNNN
-			//printf("introns: %i->%i (%i)\n", unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
 			if (unique_introns[i].first>start && unique_introns[i].first<stop)
 				pos.push_back(unique_introns[i].first-1);// last exonic position
 			if (unique_introns[i].second>start && unique_introns[i].second<stop)
@@ -502,7 +496,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		compute_admat(starts, stops);
 		// filter segments without coverage
 		vector<segment> seg_filtered;
-		for (int i=0; i<segments.size(); i++)
+		for (uint i=0; i<segments.size(); i++)
 		{
 			if (!(segments[i].first<=segments[i].second))
 			{
@@ -531,16 +525,16 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 
 				// remove all connections to the current segment
 				vector<vector<float> > admat_wo = admat;
-				for (int j=0; j<admat.size(); j++)
+				for (uint j=0; j<admat.size(); j++)
 				{
 					admat_wo[i+1][j] = NO_CONNECTION;
 					admat_wo[j][i+1] = NO_CONNECTION;
 				}
 
 
-				for (int j=0; j<i; j++)
+				for (uint j=0; j<i; j++)
 				{
-					for (int k=i+1; k<pair_mat.size(); k++)
+					for (uint k=i+1; k<pair_mat.size(); k++)
 					{
 						if (j==k)
 							continue;
@@ -581,7 +575,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		// filter segments without coverage
 
 		seg_filtered.clear();
-		for (int i=0; i<segments.size(); i++)
+		for (uint i=0; i<segments.size(); i++)
 		{
 
 			bool no_parents = get_parents(i+1, false).empty();
@@ -607,7 +601,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	// remove short tss and tts segment next to splice sites
 	// those originate most likely from wrong alignments of 
 	// reads that should be spliced
-	int seg=0;
+	uint seg=0;
 	while (seg<segments.size())
 	{
 		//printf("checking segment: %i->%i\n", segments[seg].first, segments[seg].second);
@@ -647,7 +641,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		if (discard)
 		{
 			vector<segment> seg_filtered;
-			for (int j=0; j<segments.size(); j++)
+			for (uint j=0; j<segments.size(); j++)
 			{
 				if (j!=seg)
 					seg_filtered.push_back(segments[j]);
@@ -660,10 +654,10 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 	}
 
 	// compute transcript paths
-	for (int i=0; i<transcripts.size(); i++)
+	for (uint i=0; i<transcripts.size(); i++)
 	{
 		vector<int> path; 
-		int seg = 0; 
+		uint seg = 0; 
 		while (segments[seg].first!=transcripts[i][0].first)
 		{
 			seg++;
@@ -672,7 +666,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		assert(seg<segments.size());
 
 		path.push_back(seg);
-		int exon = 0;
+		uint exon = 0;
 		while (exon<transcripts[i].size())
 		{
 			assert(segments[seg].first==transcripts[i][exon].first);
@@ -709,7 +703,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 		//	printf("segment%i: %i->%i\n", seg, segments[seg].first, segments[seg].second);
 
 		//printf("path:  ");
-		for (int p=0; p<path.size(); p++)
+		for (uint p=0; p<path.size(); p++)
 		{
 			//printf("%i\n", path[p]);
 			if (p>0)
@@ -728,8 +722,8 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 bool Region::is_annotated(int i)
 {
 	bool ret = false;
-	for (int k=0; k<transcripts.size(); k++)
-		for (int j=0; j<transcripts[k].size(); j++)
+	for (uint k=0; k<transcripts.size(); k++)
+		for (uint j=0; j<transcripts[k].size(); j++)
 			if (transcripts[k][j].first<=segments[i].first && transcripts[k][j].second>=segments[i].second)
 				ret = true;
 	return ret;
@@ -737,7 +731,7 @@ bool Region::is_annotated(int i)
 bool Region::is_donor_ss(int i)
 {
 	bool ret = false;
-	for (int j=i+1; j<=segments.size(); j++)
+	for (uint j=i+1; j<=segments.size(); j++)
 	{
 		if (admat[i][j]>NO_CONNECTION && segments[i-1].second<segments[j-1].first-1)
 			ret = true;
@@ -756,13 +750,13 @@ bool Region::is_acceptor_ss(int i)
 }
 bool Region::is_initial(int i)
 {
-	assert(i<admat[0].size());
+	assert(i < (int) admat[0].size());
 	return admat[0][i]>NO_CONNECTION || i==1;
 }
 bool Region::is_terminal(int i)
 {
 	int num_seg = segments.size();
-	assert(i<admat[num_seg].size());
+	assert(i < (int) admat[num_seg].size());
 	return admat[num_seg+1][i]>NO_CONNECTION || i==num_seg;
 }
 vector<int> Region::find_max_path()
@@ -770,7 +764,7 @@ vector<int> Region::find_max_path()
 	// find path with highest expression
 	int max_seg = -1;
 	float max_cov = -1;
-	for (int i=0; i<segments.size(); i++)
+	for (uint i=0; i<segments.size(); i++)
 	{
 		float cov = get_coverage_global(segments[i].first, segments[i].second);
 		if (cov>max_cov)
@@ -791,7 +785,7 @@ vector<int> Region::find_max_path()
 		assert(parents.size()>0);
 		float max_cov = -3;
 		int next = -1;
-		for (int j=0; j<parents.size(); j++)
+		for (uint j=0; j<parents.size(); j++)
 		{
 			int k = parents[j];
 			float cov=-1;
@@ -827,7 +821,7 @@ vector<int> Region::find_max_path()
 		vector<int> children = get_children(i, false);	
 		float max_cov = -1;
 		int next = -1;
-		for (int j=0; j<children.size(); j++)
+		for (uint j=0; j<children.size(); j++)
 		{
 			int k = children[j];
 			float cov=-1;
@@ -859,31 +853,31 @@ vector<int> Region::find_max_path()
 
 void Region::add_bias_counts(vector<int>* vec)
 {
-	int num_bins = vec->size();
+	//int num_bins = vec->size();
 	vector<float> exonic_cov;
 
 	vector<int> path = find_max_path();
 	//printf("\n");
-	for (int i=0; i<path.size(); i++)
+	for (uint i=0; i<path.size(); i++)
 	{
 		int j=path[i];
 		for (int p=segments[j].first; p<segments[j].second; p++)
 		{
-			float cov = get_coverage_global(p, p);
+			//float cov = get_coverage_global(p, p);
 			exonic_cov.push_back(p);
 	//		printf("%.1f ", cov);
 		}
 	}
 	//printf("\n");
 
-	int exonic_len = exonic_cov.size();
-	float step = exonic_len/num_bins;
+	//int exonic_len = exonic_cov.size();
+	//float step = exonic_len/num_bins;
 
 }
 
 void Region::print_segments_and_coverage(_IO_FILE*& fd)
 {
-	for (int i=0; i<segments.size(); i++) 
+	for (uint i=0; i<segments.size(); i++) 
 	{
 		float cov = get_coverage_global(segments[i].first, segments[i].second);
 		fprintf(fd, "%i\t%i\t%.4f\n", segments[i].first, segments[i].second, cov);
@@ -893,16 +887,16 @@ void Region::print_segments_and_coverage(_IO_FILE*& fd)
 void Region::compute_admat(vector<int> starts, vector<int> stops)
 {
 	// check that segments are sorted
-	for (int i=1; i<segments.size(); i++)
+	for (uint i=1; i<segments.size(); i++)
 		assert(segments[i].first>=segments[i-1].second);
 
 	// allocate memory and set all entries to NO_CONNECTION
 	int num_seg = segments.size();
 	admat.resize(num_seg+2); // source and sink node
-	for (int i=0; i<admat.size(); i++)
+	for (uint i=0; i<admat.size(); i++)
 	{
 		admat[i].resize(num_seg+2);
-		for (int j=0; j<admat.size(); j++)
+		for (uint j=0; j<admat.size(); j++)
 			admat[i][j] = NO_CONNECTION;
 	}
 
@@ -910,7 +904,7 @@ void Region::compute_admat(vector<int> starts, vector<int> stops)
 	update_coverage_information();
 
 	// connect neighboring segments
-	for (int j=1; j<segments.size(); j++)
+	for (uint j=1; j<segments.size(); j++)
 	{
 		if (segments[j-1].second+1==segments[j].first)
 		{
@@ -922,16 +916,16 @@ void Region::compute_admat(vector<int> starts, vector<int> stops)
 			//printf("not connecting neighbor (%i->%i) %i, %i\n", segments[j-1].second, segments[j].first, j, j+1);
 	}
 	// connect nodes to source and sink
-	for (int j=0; j<segments.size(); j++)
+	for (uint j=0; j<segments.size(); j++)
 	{
 		vector<int> parents = get_parents(j+1, false);	
 		vector<int> children = get_children(j+1, false);	
 		bool is_start=false;
-		for (int k=0; k<starts.size(); k++)
+		for (uint k=0; k<starts.size(); k++)
 			if(segments[j].first==starts[k]+1)
 				is_start = true;
 		bool is_stop=false;
-		for (int k=0; k<stops.size(); k++)
+		for (uint k=0; k<stops.size(); k++)
 			if(segments[j].second==stops[k])
 				is_stop = true;
 
@@ -956,7 +950,7 @@ void Region::update_coverage_information()
 
 	// add connections from transcripts
 	vector<segment> trans_introns;
-	for (int i=0; i<transcripts.size(); i++)
+	for (uint i=0; i<transcripts.size(); i++)
 	{
 		int num_exons = transcripts[i].size();
 		for (int j=0; j<num_exons-1; j++)
@@ -974,10 +968,10 @@ void Region::update_coverage_information()
 	}
 	// match transcript introns with RNA-seq introns
 	int match_cnt = 0;
-	for (int i=0; i<trans_introns.size(); i++)
+	for (uint i=0; i<trans_introns.size(); i++)
 	{
 		bool matched = false;
-		for (int j=0; j<unique_introns.size(); j++)
+		for (uint j=0; j<unique_introns.size(); j++)
 		{
 			if (trans_introns[i].first==unique_introns[j].first && trans_introns[i].second==unique_introns[j].second)
 			{
@@ -996,26 +990,26 @@ void Region::update_coverage_information()
 	if (trans_introns.size()>5 && unique_introns.size()>trans_introns.size()+5 && match_cnt<2)
 	{
 		printf("Warning: annotated introns do not match RNA-seq introns\n");
-		for (int i=0; i<unique_introns.size(); i++)
+		for (uint i=0; i<unique_introns.size(); i++)
 		{
 			printf("%i->%i (%i)\n", unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
 		}
 	}
 
 	// remove previous coverage information
-	for (int i=0; i<admat.size(); i++)
-		for (int j=0; j<admat.size(); j++)
+	for (uint i=0; i<admat.size(); i++)
+		for (uint j=0; j<admat.size(); j++)
 			if (admat[i][j]>=CONNECTION)
 				admat[i][j] = CONNECTION;
 
 	// add counts for introns
-	for (int i=0; i<unique_introns.size(); i++)
+	for (uint i=0; i<unique_introns.size(); i++)
 	{
 		int start = unique_introns[i].first-1;
 		int stop = unique_introns[i].second+1;
 		int seg1=-1;
 		int seg2=-1;
-		for (int j=0; j<segments.size(); j++)
+		for (uint j=0; j<segments.size(); j++)
 		{
 			if (segments[j].second==start)
 			{
@@ -1051,7 +1045,6 @@ int Region::compute_pair_mat()
 		reads_sorted = true;
 	}
 	vector<int> pair_ids;
-	int num_pos = stop-start+1;
 	bool no_pair_filter = true;
 	
 	int take_cnt = 0;
@@ -1062,10 +1055,10 @@ int Region::compute_pair_mat()
 	for (int i=0; i<((int) reads.size())-1; i++) 
 	{
 		//printf("reads[%i]->read_id: %s\n", i, reads[i]->read_id);
-		int j = i+1;
+		uint j = i+1;
 		while(j<reads.size() && strcmp(reads[i]->read_id, reads[j]->read_id) == 0) 
 		{
-			if ((reads[i]->left && reads[j]->right) || (reads[j]->left && reads[i]->right) && (reads[i]->reverse != reads[j]->reverse)) 
+			if (((reads[i]->left && reads[j]->right) || (reads[j]->left && reads[i]->right)) && (reads[i]->reverse != reads[j]->reverse)) 
 			{
 				if (reads[i]->get_last_position()==-1 || reads[j]->get_last_position()==-1)
 					break;
@@ -1113,14 +1106,14 @@ int Region::compute_pair_mat()
 
 	//pair_mat = zeros(size(segments, 1));
 	pair_mat.clear();
-	for (int i=0; i<segments.size(); i++)
+	for (uint i=0; i<segments.size(); i++)
 	{
 		vector<int> row(segments.size(), 0);
 		pair_mat.push_back(row);
 	}
 
 	//for p = 1:size(pairs, 2)
-	for (int i=0; i<pair_ids.size(); i+=2)
+	for (uint i=0; i<pair_ids.size(); i+=2)
 	{
 	//	if read_stops(pairs(1, p)+1)<read_stops(pairs(2, p)+1)
 	//		r1 = pairs(1, p)+1;
@@ -1147,7 +1140,7 @@ int Region::compute_pair_mat()
 		int en1 = -1;
 		int st2 = -1;
 		int en2 = -1;
-		for (int j=0; j<segments.size(); j++)
+		for (uint j=0; j<segments.size(); j++)
 		{
 			if (segments[j].second<reads[rid1]->start_pos)
 				continue;
@@ -1215,6 +1208,7 @@ int Region::compute_pair_mat()
 	//	end
 	//end
 	}
+	return 0;
 }
 
 
@@ -1243,7 +1237,7 @@ vector<int> Region::get_children(int node, bool no_neighbors)
 		thresh = NEIGHBOR;
 
 	vector<int> children;
-	for (int j=node+1; j<=segments.size(); j++)
+	for (uint j=node+1; j<=segments.size(); j++)
 	{
 		if (admat[j][node]>=thresh)
 			children.push_back(j);
@@ -1258,9 +1252,9 @@ void Region::write_segment_graph(_IO_FILE*& fd)
 	int num_seg = segments.size();
 	fprintf(fd, "segments\t%i\n", num_seg);
 	print_segments_and_coverage(fd);
-	for (int i=0; i<admat.size(); i++)
+	for (uint i=0; i<admat.size(); i++)
 	{
-		for (int j=0; j<admat.size(); j++)
+		for (uint j=0; j<admat.size(); j++)
 		{
 			if (admat[i][j]>NEIGHBOR)
 				fprintf(fd, "%i\t%i\n", i+1, j+1);
@@ -1408,7 +1402,7 @@ int Region::read_binary(std::ifstream* ifs)
 		admat[k][j] = val[i];
 	}
 	// restore connections of neighboring segments
-	for (int i=1; i<segments.size(); i++)
+	for (uint i=1; i<segments.size(); i++)
 	{
 		if (segments[i-1].second+1==segments[i].first)
 		{
@@ -1429,9 +1423,9 @@ int Region::read_binary(std::ifstream* ifs)
 			vector<int> path(len, 0);
 			ifs->read((char *) &path[0], len*sizeof(int));
 
-			for (int j=0; j<path.size(); j++)
+			for (uint j=0; j<path.size(); j++)
 			{
-				assert(path[j]<segments.size());
+				assert(path[j]<(int)segments.size());
 				if (j>0)
 					assert(admat[path[j-1]+1][path[j]+1]>=NEIGHBOR);
 			}
@@ -1445,7 +1439,7 @@ int Region::read_binary(std::ifstream* ifs)
 		return 0;
 
 	pair_mat.clear();
-	for (int i=0; i<segments.size(); i++)
+	for (uint i=0; i<segments.size(); i++)
 	{
 		vector<int> row(segments.size(), 0);
 		pair_mat.push_back(row);
@@ -1479,16 +1473,16 @@ void Region::compute_intron_list()
    	intron_counts.clear();
 
 	vector<int> introns;
-	for (int i=0; i<reads.size(); i++)
+	for (uint i=0; i<reads.size(); i++)
 	{
 		reads[i]->get_introns(&introns);
     }
-	for (int i=0; i<introns.size(); i+=2)
+	for (uint i=0; i<introns.size(); i+=2)
 	{
 		segment intr(introns[i], introns[i+1]);
 		intron_list.push_back(intr);
 	}
-	fprintf(fd_out, "found %i introns\n", (int) intron_list.size());
+	fprintf(fd_out, "found %lu introns\n", intron_list.size());
 	
 	// sort by intron start
 	sort(intron_list.begin(), intron_list.end(), compare_second);
@@ -1497,7 +1491,7 @@ void Region::compute_intron_list()
 	{
     	unique_introns.push_back(intron_list[0]);
 		intron_counts.push_back(1);
-    	for (int i=1; i<intron_list.size(); i++)
+    	for (uint i=1; i<intron_list.size(); i++)
     	{
 			//printf("intron: %i->%i\n", intron_list[i].first, intron_list[i].second);
     	    if (intron_list[i].first!=intron_list[i-1].first || intron_list[i].second!=intron_list[i-1].second)
@@ -1547,18 +1541,18 @@ void Region::compute_intron_list()
 	//		same_start.clear();
 	//	}
 	//}
-	fprintf(fd_out, "found %i unique introns\n", (int) unique_introns.size());
+	fprintf(fd_out, "found %lu unique introns\n", unique_introns.size());
 
 #ifdef READ_DEBUG
 	//check unique list
 	printf("DEBUG: Check 'unique introns'-list contains all introns\n");
-	int idx = 0;
+	uint idx = 0;
 	for (int i=0; i<intron_list.size(); i++)
 	{
 		bool match = false;
 		while (unique_introns[idx].first<intron_list[i].first && idx<unique_introns.size())
 			idx++;
-		int idx2 = idx;
+		uint idx2 = idx;
 		while (unique_introns[idx2].first==intron_list[i].first && idx2<unique_introns.size())
 		{
 			if (unique_introns[idx2].second==intron_list[i].second)
@@ -1570,7 +1564,7 @@ void Region::compute_intron_list()
 #endif
 
 	int sum = 0;
-	for (int i=0; i<intron_counts.size(); i++)
+	for (uint i=0; i<intron_counts.size(); i++)
 		sum+=intron_counts[i]; 
 	//if (sum!=intron_list.size())
 	//{
@@ -1584,6 +1578,6 @@ void Region::compute_intron_list()
 	//		printf("uintron: %i->%i\t%i\n", unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
 	//	}
 	//}
-	assert(sum==intron_list.size());
+	assert(sum==(int)intron_list.size());
 }
 
