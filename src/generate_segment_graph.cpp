@@ -218,7 +218,7 @@ void process_gtf_region(Region* region)
 		return;
 	}
 	int num_pos = region->stop-region->start+1;
-	printf("allocate mem array of length %i\n", num_pos);
+	//printf("allocate mem array of length %i\n", num_pos);
 	int* map = new int[num_pos];
 	if (!map)
 	{
@@ -363,7 +363,7 @@ int main(int argc, char* argv[])
 	std::ofstream* ofs = new std::ofstream();
 	ofs->open(c.fn_out, std::ios::binary);
 
-	if (!ofs)
+	if (!ofs.is_open())
 	{
 		fprintf(stderr, "[%s] Could not open file: %s for writing\n", argv[0], c.fn_out);
 		return -2;
@@ -419,7 +419,7 @@ int main(int argc, char* argv[])
 		printf("process gtf regions ... \n");
 		for (int i=0; i<gtf_regions.size(); i++)
 		{
-			printf("\rprocess region %i (%i)", i, (int) gtf_regions.size());
+			printf("\rprocess gtf region %i (%i)", i, (int) gtf_regions.size());
 			set_chr_num(gtf_regions[i], header);
 			int chr_len = header->target_len[gtf_regions[i]->chr_num];
 			gtf_regions[i]->start = std::max(0, gtf_regions[i]->start-c.gtf_offset);
@@ -476,7 +476,7 @@ int main(int argc, char* argv[])
 				}
 				last_stop = gtf_regions[i]->stop;
 
-				printf("add reads to gtf_region(%s%c:%i-%i)\n", gtf_regions[i]->chr, gtf_regions[i]->strand, gtf_regions[i]->start, gtf_regions[i]->stop);
+				//printf("add reads to gtf_region(%s%c:%i-%i)\n", gtf_regions[i]->chr, gtf_regions[i]->strand, gtf_regions[i]->start, gtf_regions[i]->stop);
 				int num_reads = 0;
 				while (curr != reg->reads.end())
 				{
@@ -490,7 +490,7 @@ int main(int argc, char* argv[])
 					}
 					curr++;
 				}
-				printf("added %i reads\n", num_reads);
+				//printf("added %i reads\n", num_reads);
 			}
 			else
 			{
@@ -649,6 +649,7 @@ int main(int argc, char* argv[])
 	//char* chr_prev = (char*) "xxx";
 	last_stop=0;
 	chr_prev = (char*) "xxx";
+	reg = NULL;
 
 	for (int i=0; i<regions.size(); i++)
 	{

@@ -29,11 +29,10 @@ for f in $fn_pred; do
 	mkdir -p $out_dir
 	opts="--seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001"
 
-	rm $fn_graph
+	#rm $fn_graph
 
 	if [ ! -f $fn_graph ]
 	then
-		#valgrind --leak-check=full $dir/generate_segment_graph ${fn_graph}.tmp $opts --gtf $fn_gtf $fn_bam
 		$dir/generate_segment_graph ${fn_graph}.tmp $opts --gtf $fn_gtf $fn_bam
 		mv ${fn_graph}.tmp $fn_graph
 	fi

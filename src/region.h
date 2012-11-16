@@ -15,6 +15,8 @@
 #include <vector>
 	using std::vector;
 #include <fstream>
+#include <string>
+	using std::string;
 
 typedef pair<int, int> segment;
 #define NO_CONNECTION -2
@@ -46,6 +48,7 @@ class Region
 		vector<vector<float> > admat;
 		vector<vector<int> > pair_mat;
 		vector<vector<segment> > transcripts;
+		vector<string> transcript_names;
 		vector<vector<int> > transcript_paths;
 		FILE* fd_out;
 
