@@ -9,6 +9,10 @@ vector<char*> get_fields(char* line);
 
 vector<Region*> parse_gtf(char* gtf_file);
 
+vector<Region*> parse_gff(char* gtf_file);
+
 bool compare_second(segment s1, segment s2);
+
+const char* determine_format(char* filename);
 
 #endif

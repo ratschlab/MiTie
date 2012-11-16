@@ -63,6 +63,81 @@ vector<char*> get_fields(char* line)
 	return ret;
 }
 
+const char* determine_format(char* filename)
+{
+	FILE* fd = fopen(filename, "r");
+	if (!fd)
+	{
+		printf("could not open file: %s\n", filename);
+		exit(-1);
+	}
+
+	int cnt = 0;
+	int trid_cnt = 0;
+	int parent_cnt = 0;
+	const char* ret = "unknown";
+
+	while (~feof(fd))
+	{
+		char line[1000];
+		if (fgets(line, 1000, fd)==NULL) break;
+
+		cnt++;
+
+		vector<char*> fields = get_fields(line);
+
+		if (fields.size()<9)
+			continue;
+
+		char* tr_id = strstr(fields[8], "transcript_id");
+		if (tr_id)
+			trid_cnt++;
+
+		char* parent = strstr(fields[8], "Parent");
+		if (parent)
+			parent_cnt++;
+
+		if (parent_cnt>10 && trid_cnt==0)
+		{
+			ret = "gff3";
+			break;
+		}
+
+		if (parent_cnt==0 && trid_cnt>10)
+		{
+			ret = "gtf"; 
+			break;
+		}
+
+		if (cnt>100)
+			break;
+	}
+	return ret;
+}
+
+vector<Region*> parse_gff(char* gtf_file)
+{
+	FILE* fd = fopen(gtf_file, "r");
+	if (!fd)
+	{
+		printf("could not open file: %s\n", gtf_file);
+		exit(-1);
+	}
+	int cnt = 0;
+	map<string, Region*> transcripts;
+	while (~feof(fd))
+	{
+		char line[1000];
+		if (fgets(line, 1000, fd)==NULL) break;
+
+		if (++cnt%1000==0)
+			printf("\rreading line %i (%i transcripts)", cnt, (int) transcripts.size());
+
+		vector<char*> fields = get_fields(line);
+
+	}
+}
+
 vector<Region*> parse_gtf(char* gtf_file)
 {
 	
@@ -83,11 +158,6 @@ vector<Region*> parse_gtf(char* gtf_file)
 			printf("\rreading line %i (%i transcripts)", cnt, (int) transcripts.size());
 
 		vector<char*> fields = get_fields(line);
-
-
-
-		//for (int i=0; i<fields.size(); i++)
-		//	printf("%s\n", fields[i]);	
 
 		if (fields.size()!=9)
 		{
