@@ -1,5 +1,5 @@
 function write_gtf(genes, gtf_fname, source)
-%	write_fluxsim_gtf(genes, gtf_fname, source)
+%	write_gtf(genes, gtf_fname, source)
 %
 % -- input --
 % genes: struct defining genes with start, stops (0-based), exons etc.

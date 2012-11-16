@@ -218,6 +218,7 @@ void process_gtf_region(Region* region)
 		return;
 	}
 	int num_pos = region->stop-region->start+1;
+	//printf("allocate mem array of length %i\n", num_pos);
 	int* map = new int[num_pos];
 	if (!map)
 	{
@@ -362,7 +363,7 @@ int main(int argc, char* argv[])
 	std::ofstream* ofs = new std::ofstream();
 	ofs->open(c.fn_out, std::ios::binary);
 
-	if (!ofs)
+	if (!ofs.is_open())
 	{
 		fprintf(stderr, "[%s] Could not open file: %s for writing\n", argv[0], c.fn_out);
 		return -2;
@@ -393,16 +394,32 @@ int main(int argc, char* argv[])
 	FILE* fd_null = fopen("/dev/null", "w");
 
 	vector<Region*> gtf_regions;
+	char strand_prev;
+	vector<CRead*>::iterator curr; 
+	Region* reg = NULL;
+	int last_stop=0;
+	char* chr_prev = (char*) "xxx";
+
+
 	if (c.fn_gtf)
 	{
 		printf("loading regions form gtf file: %s\n", c.fn_gtf);
 		gtf_regions = parse_gtf(c.fn_gtf);
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
+		if (c.reads_by_chr)
+		{
+			for (int i=0; i<gtf_regions.size(); i++)
+			{
+				set_chr_num(gtf_regions[i], header);
+			}
+			sort(gtf_regions.begin(), gtf_regions.end(), compare_chr_and_strand);
+		}
+
 		printf("process gtf regions ... \n");
 		for (int i=0; i<gtf_regions.size(); i++)
 		{
-			printf("\rprocess region %i (%i)", i, (int) gtf_regions.size());
+			printf("\rprocess gtf region %i (%i)", i, (int) gtf_regions.size());
 			set_chr_num(gtf_regions[i], header);
 			int chr_len = header->target_len[gtf_regions[i]->chr_num];
 			gtf_regions[i]->start = std::max(0, gtf_regions[i]->start-c.gtf_offset);
@@ -414,14 +431,82 @@ int main(int argc, char* argv[])
 				gtf_regions[i]->strand = '0';
 			
 			gtf_regions[i]->fd_out = fd_null;
-			gtf_regions[i]->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
+			if (c.reads_by_chr)// more fast if many regions are considered
+			{
+				bool get_reads = false;
+				if (strcmp(gtf_regions[i]->chr, chr_prev)!=0 || (gtf_regions[i]->strand != strand_prev && c.strand_specific) || reg->stop<gtf_regions[i]->stop)
+				{
+					get_reads = true;
+					chr_prev = gtf_regions[i]->chr;
+					strand_prev = gtf_regions[i]->strand;
+					printf("starting with chr: %s%c\n", chr_prev, strand_prev);
+					delete reg;
+					reg = new Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
+					set_chr_num(reg, header);
+					reg->stop = std::min(gtf_regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
+				}
+
+				if (get_reads)
+				{
+					printf("get reads from %i bam files for region %s:%i->%i\n", (int)c.bam_files.size(), reg->chr, reg->start, reg->stop);
+
+					// get reads for the large region
+					int num_bam = c.bam_files.size();
+					if (!c.strand_specific)
+						reg->strand = '0';
+			
+					reg->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
+
+					printf("sort reads by start position ... \n");
+					sort(reg->reads.begin(), reg->reads.end(), CRead::compare_by_start_pos);
+					printf("done\n");
+
+					curr = reg->reads.begin();
+					last_stop=0;
+				}
+
+				// get reads from chromosom region
+				// if regions overlapp, decrement the read pointer accordingly
+				if (gtf_regions[i]->start<last_stop)
+				{
+					if (curr == reg->reads.end() && curr != reg->reads.begin())
+						curr--;
+					while (curr != reg->reads.begin() && (*curr)->start_pos>=gtf_regions[i]->start)
+						curr--;
+				}
+				last_stop = gtf_regions[i]->stop;
+
+				//printf("add reads to gtf_region(%s%c:%i-%i)\n", gtf_regions[i]->chr, gtf_regions[i]->strand, gtf_regions[i]->start, gtf_regions[i]->stop);
+				int num_reads = 0;
+				while (curr != reg->reads.end())
+				{
+					if ((*curr)->start_pos>=gtf_regions[i]->stop)
+						break;
+
+					if ((*curr)->start_pos>=gtf_regions[i]->start && (*curr)->get_last_position()<gtf_regions[i]->stop)
+					{
+						gtf_regions[i]->reads.push_back(*curr);
+						num_reads++;
+					}
+					curr++;
+				}
+				//printf("added %i reads\n", num_reads);
+			}
+			else
+			{
+				gtf_regions[i]->get_reads(&c.bam_files[0], num_bam, c.intron_len_filter, c.filter_mismatch, c.exon_len_filter, c.mm_filter);
+			}
 
 			process_gtf_region(gtf_regions[i]);
-			gtf_regions[i]->clear_reads();
+			if (c.reads_by_chr)
+				gtf_regions[i]->reads.clear();
+			else
+				gtf_regions[i]->clear_reads();
 			delete[] gtf_regions[i]->coverage;
 
 		}
 		printf("done\n");
+		delete reg;
 	}
 	int num_gtf = gtf_regions.size();
 	// add gtf regions
@@ -560,11 +645,12 @@ int main(int argc, char* argv[])
 	vector<int> bias_vector(100, 0);
 	//filter regions
 	int cnt = 0;
-	int last_stop=0;
-	char* chr_prev = (char*) "xxx";
-	char strand_prev;
-	vector<CRead*>::iterator curr; 
-	Region* reg = NULL;
+	//int last_stop=0;
+	//char* chr_prev = (char*) "xxx";
+	last_stop=0;
+	chr_prev = (char*) "xxx";
+	reg = NULL;
+
 	for (int i=0; i<regions.size(); i++)
 	{
 		if (c.reads_by_chr)// more fast if many regions are considered

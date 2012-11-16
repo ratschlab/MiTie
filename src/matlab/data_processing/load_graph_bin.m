@@ -26,6 +26,12 @@ for j = 1:length(genes)
 		end
 	end
 
+	% loop over samples and make sure that all connections 
+	% can be found in each sample
+	for s = 1:size(genes(j).seg_admat, 3)
+		
+	end
+
 
 	% create pair list
 	if ~isempty(genes(j).pair_mat)

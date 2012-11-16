@@ -120,7 +120,7 @@ vector<Region*> parse_gff(char* gtf_file)
 	FILE* fd = fopen(gtf_file, "r");
 	if (!fd)
 	{
-		printf("could not open file: %s\n", gtf_file);
+		printf("Could not open file: %s\n", gtf_file);
 		exit(-1);
 	}
 	int cnt = 0;
@@ -134,7 +134,6 @@ vector<Region*> parse_gff(char* gtf_file)
 			printf("\rreading line %i (%i transcripts)", cnt, (int) transcripts.size());
 
 		vector<char*> fields = get_fields(line);
-
 	}
 }
 
@@ -157,6 +156,9 @@ vector<Region*> parse_gtf(char* gtf_file)
 		if (++cnt%1000==0)
 			printf("\rreading line %i (%i transcripts)", cnt, (int) transcripts.size());
 
+		if (line[0] == '#') // disregard comments
+			continue;
+
 		vector<char*> fields = get_fields(line);
 
 		if (fields.size()!=9)
@@ -170,15 +172,6 @@ vector<Region*> parse_gtf(char* gtf_file)
 			continue;
 		}
 
-		char* tr_id = get_attribute(fields[8], "transcript_id");
-		if (!tr_id)
-		{
-			printf("Could not find transcript_id: %s\n", fields[8]);
-			exit(-1);
-		}
-		string transcript_id(tr_id);
-		delete[] tr_id;
-
 		char* type = fields[2];
 		char strand = fields[6][0];
 		char* chr = fields[0];
@@ -186,6 +179,15 @@ vector<Region*> parse_gtf(char* gtf_file)
 		// parse exons
 		if (strcmp(type, "exon")==0)
 		{
+			char* tr_id = get_attribute(fields[8], "transcript_id");
+			if (!tr_id)
+			{
+				printf("Could not find transcript_id: %s\n", fields[8]);
+				exit(-1);
+			}
+			string transcript_id(tr_id);
+			delete[] tr_id;
+
 			int start = atoi(fields[3]);
 			int stop = atoi(fields[4]);
 			//printf("exons: %i->%i\n", start, stop);	
@@ -214,6 +216,9 @@ vector<Region*> parse_gtf(char* gtf_file)
 	for (it=transcripts.begin(); it!=transcripts.end(); it++)
 	{
 		Region* reg = it->second;
+		string transcript_id = it->first;
+		
+		reg->transcript_names.push_back(transcript_id);
 
 		// sort exons
 		sort(reg->transcripts[0].begin(), reg->transcripts[0].end(), compare_second);
@@ -228,6 +233,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 	// merge overlapping transcripts into genes
 	bool change = true;
 	int iter = 0;
+	printf("\n");
 	while (change)
 	{
 		printf("parse_gtf: merge iteration: %i size:%i\n", iter++, (int) regions.size());
@@ -255,6 +261,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 				change = true;
 				// append transcripts of r2 to r1
 				r1->transcripts.insert(r1->transcripts.end(), r2->transcripts.begin(), r2->transcripts.end()); 
+				r1->transcript_names.insert(r1->transcript_names.end(), r2->transcript_names.begin(), r2->transcript_names.end()); 
 
 				r1->start = std::min(r1->start, r2->start);
 				r1->stop = std::max(r1->stop, r2->stop);

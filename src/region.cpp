@@ -10,6 +10,8 @@
 #include <vector>
 	using std::vector;
 #include <fstream>
+#include <string.h>
+	using std::string;
 
 /** default constructor*/
 Region::Region()
@@ -996,7 +998,7 @@ void Region::update_coverage_information()
 		}
 	}
 
-	// remove previous coverage intormation
+	// remove previous coverage information
 	for (uint i=0; i<admat.size(); i++)
 		for (uint j=0; j<admat.size(); j++)
 			if (admat[i][j]>=CONNECTION)
@@ -1321,6 +1323,13 @@ int Region::write_binary(std::ofstream* ofs)
 			ofs->write((char *) &transcript_paths[i][0], len*sizeof(int));
 		}
 	}
+	assert(transcript_paths.size()==transcript_names.size());
+	for (int i=0; i<num_trans; i++)
+	{
+		int len = transcript_names[i].length();
+		ofs->write((char *) &len, sizeof(int));
+		ofs->write(transcript_names[i].c_str(), len*sizeof(char));
+	}
 
 	// pair matrix
 	len = pair_mat.size();
@@ -1431,6 +1440,15 @@ int Region::read_binary(std::ifstream* ifs)
 			}
 			transcript_paths.push_back(path);
 		}
+	}
+	for (int i=0; i<num_trans; i++)
+	{
+		int len;
+		ifs->read((char *) &len, sizeof(int));
+		char name[len+1];
+		ifs->read(name, len*sizeof(char));
+		string sname(name, len);
+		transcript_names.push_back(sname);
 	}
 
 	//pair_mat

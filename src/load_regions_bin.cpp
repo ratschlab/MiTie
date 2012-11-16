@@ -78,8 +78,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	//ifs.close();
 	//r->write_segment_graph(stdout);
 
-	const char *field_names[] = {"chr", "strand", "start", "stop", "segments", "coverage", "seg_admat", "transcripts", "pair_mat"};
-	int nof_fields = 9;
+	const char *field_names[] = {"chr", "strand", "start", "stop", "segments", "coverage", "seg_admat", "transcripts", "transcript_names", "pair_mat"};
+	int nof_fields = 10;
 
 	int num = regions.size();
 	printf("\nparsed %i regions from file\n", num);
@@ -96,6 +96,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	int coverage_field = mxGetFieldNumber(plhs[0], "coverage");
 	int seg_admat_field = mxGetFieldNumber(plhs[0], "seg_admat");
 	int transcripts_field = mxGetFieldNumber(plhs[0], "transcripts");
+	int transcripts_names_field = mxGetFieldNumber(plhs[0], "transcript_names");
 	int pair_field = mxGetFieldNumber(plhs[0], "pair_mat");
 
 
@@ -171,6 +172,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			}
 		}
 		mxSetFieldByNumber(plhs[0], j, transcripts_field, trans_mat);
+		
+		//transcript names
+		mxArray* names_cell = mxCreateCellArray(1, &num_trans);
+		for (int i=0; i<num_trans; i++)
+		{
+			const char* name = regions[j]->transcript_names[i].c_str();
+			mxArray* sname = mxCreateString(name);
+			mxSetCell(names_cell, i, sname);
+		}
 
 		// segment adjacency matrix
 		int len = regions[j]->pair_mat.size();

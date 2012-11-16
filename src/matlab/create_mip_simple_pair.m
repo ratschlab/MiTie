@@ -32,11 +32,6 @@ end ;
 
 param.len_cutoff = min(param.len_cutoff, sum(len));
 
-% GR: removed this as it defeats the purpose ... 
-%if isfield(param, 'len_cutoff')
-%	param.len_cutoff=min(param.len_cutoff, sum(len));
-%end
-
 use_LP_covloss=0;
 sort_novel_transcripts=1; % this reduces the run time significantly
 
