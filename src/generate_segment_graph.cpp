@@ -363,7 +363,7 @@ int main(int argc, char* argv[])
 	std::ofstream* ofs = new std::ofstream();
 	ofs->open(c.fn_out, std::ios::binary);
 
-	if (!ofs.is_open())
+	if (!ofs->is_open())
 	{
 		fprintf(stderr, "[%s] Could not open file: %s for writing\n", argv[0], c.fn_out);
 		return -2;
@@ -417,10 +417,11 @@ int main(int argc, char* argv[])
 		}
 
 		printf("process gtf regions ... \n");
-		for (int i=0; i<gtf_regions.size(); i++)
+		for (int i=0; i<gtf_regions.size() && c.gtf_offset>0; i++)
 		{
 			printf("\rprocess gtf region %i (%i)", i, (int) gtf_regions.size());
 			set_chr_num(gtf_regions[i], header);
+
 			int chr_len = header->target_len[gtf_regions[i]->chr_num];
 			gtf_regions[i]->start = std::max(0, gtf_regions[i]->start-c.gtf_offset);
 			gtf_regions[i]->stop = std::min(chr_len-1, gtf_regions[i]->stop+c.gtf_offset);

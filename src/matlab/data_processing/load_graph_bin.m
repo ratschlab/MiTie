@@ -28,10 +28,10 @@ for j = 1:length(genes)
 
 	% loop over samples and make sure that all connections 
 	% can be found in each sample
+	all_connections = sum(genes(j).seg_admat>-1, 3)>0; % all connections that have RNA-seq evidence in any sample
 	for s = 1:size(genes(j).seg_admat, 3)
-		
+		genes(j).seg_admat(:,:,s) = max(genes(j).seg_admat(:,:,s), all_connections*2-2); 
 	end
-
 
 	% create pair list
 	if ~isempty(genes(j).pair_mat)

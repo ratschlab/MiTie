@@ -54,3 +54,6 @@ eval_pacbio: eval_pacbio.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
 
 load_regions_bin.mexa64: load_regions_bin.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
 	${MEX_BIN} -g -O load_regions_bin.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
+
+load_regions_bin_MAGIC.mexa64: load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
+	${MEX_BIN} -g -O load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
