@@ -403,8 +403,17 @@ int main(int argc, char* argv[])
 
 	if (c.fn_gtf)
 	{
-		printf("loading regions form gtf file: %s\n", c.fn_gtf);
-		gtf_regions = parse_gtf(c.fn_gtf);
+		const char* format = determine_format(c.fn_gtf);
+		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
+		if (strcmp(format, "gtf")==0)
+			gtf_regions = parse_gtf(c.fn_gtf);
+		else if (strcmp(format, "gff3")==0)
+			genes = parse_gff(fn_gtf);
+		else
+		{
+			printf("could not determine format of annotation file: %s\n", fn_gtf);
+			exit(-1)
+		}
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
 		if (c.reads_by_chr)

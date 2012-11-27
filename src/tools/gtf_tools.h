@@ -2,6 +2,8 @@
 #define _GTF_TOOLS_H__
 #include <assert.h>
 #include "region.h"
+#include <map>
+	using std::map;
 
 char* get_attribute(char* line, const char* tag);
 
@@ -10,6 +12,12 @@ vector<char*> get_fields(char* line);
 vector<Region*> parse_gtf(char* gtf_file);
 
 vector<Region*> parse_gff(char* gtf_file);
+
+void write_gff(vector<Region*> regions, char* fname, const char* source);
+
+vector<Region*> regions_from_map(map<string, Region*> transcripts);
+
+vector<Region*> merge_overlapping_regions(vector<Region*> regions);
 
 bool compare_second(segment s1, segment s2);
 

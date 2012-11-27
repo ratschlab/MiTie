@@ -50,6 +50,7 @@ class Region
 		vector<vector<segment> > transcripts;
 		vector<string> transcript_names;
 		vector<vector<int> > transcript_paths;
+		vector<vector<int> > coding_flag; //flag for each exon in each transcript: 4:CDS, 3: 3'UTR 5:5'UTR
 		FILE* fd_out;
 
 		Genome* gio; 
