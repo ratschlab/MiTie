@@ -33,7 +33,8 @@ for f in $fn_pred; do
 
 	if [ ! -f $fn_graph ]
 	then
-		$dir/generate_segment_graph ${fn_graph}.tmp $opts --gtf $fn_gtf $fn_bam
+		echo $dir/generate_segment_graph ${fn_graph}.tmp $opts --gtf $fn_gtf $fn_bam
+		#$dir/generate_segment_graph ${fn_graph}.tmp $opts --gtf $fn_gtf $fn_bam
 		mv ${fn_graph}.tmp $fn_graph
 	fi
 done
@@ -43,5 +44,5 @@ for f in $fn_pred; do
 	mip_dir=${out_dir}/pred/
 	mkdir -p $mip_dir
 	fn_graph=${out_dir}/graphs.bin
-	${MAT} -r "$addpaths denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+	${MAT} -r "$addpaths transcript_predictions('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
 done

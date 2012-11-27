@@ -68,7 +68,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			regions.push_back(r);
 		else
 		{
-			printf("could not read from file %s, %i\n", fname, ret);
+			printf("read from file %s, %i, read %lu regions\n", fname, ret, regions.size());
 			delete r;
 			break;
 		}
@@ -96,7 +96,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	int coverage_field = mxGetFieldNumber(plhs[0], "coverage");
 	int seg_admat_field = mxGetFieldNumber(plhs[0], "seg_admat");
 	int transcripts_field = mxGetFieldNumber(plhs[0], "transcripts");
-	int transcripts_names_field = mxGetFieldNumber(plhs[0], "transcript_names");
+	int transcript_names_field = mxGetFieldNumber(plhs[0], "transcript_names");
 	int pair_field = mxGetFieldNumber(plhs[0], "pair_mat");
 
 
@@ -175,12 +175,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		
 		//transcript names
 		mxArray* names_cell = mxCreateCellArray(1, &num_trans);
-		for (int i=0; i<num_trans; i++)
+		for (int i=0; i<regions[j]->transcript_names.size(); i++)
 		{
 			const char* name = regions[j]->transcript_names[i].c_str();
 			mxArray* sname = mxCreateString(name);
 			mxSetCell(names_cell, i, sname);
 		}
+		mxSetFieldByNumber(plhs[0], j, transcript_names_field, names_cell);
 
 		// segment adjacency matrix
 		int len = regions[j]->pair_mat.size();

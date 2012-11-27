@@ -1441,15 +1441,16 @@ int Region::read_binary(std::ifstream* ifs)
 			transcript_paths.push_back(path);
 		}
 	}
-	for (int i=0; i<num_trans; i++)
-	{
-		int len;
-		ifs->read((char *) &len, sizeof(int));
-		char name[len+1];
-		ifs->read(name, len*sizeof(char));
-		string sname(name, len);
-		transcript_names.push_back(sname);
-	}
+
+	//for (int i=0; i<num_trans; i++)
+	//{
+	//	int len;
+	//	ifs->read((char *) &len, sizeof(int));
+	//	char name[len+1];
+	//	ifs->read(name, len*sizeof(char));
+	//	string sname(name, len);
+	//	transcript_names.push_back(sname);
+	//}
 
 	//pair_mat
 	ifs->read((char *) &len, sizeof(int));
@@ -1467,7 +1468,7 @@ int Region::read_binary(std::ifstream* ifs)
 	int pairs[num_pairs];
 	ifs->read((char *) pairs, num_pairs*sizeof(int));
 	ifs->read((char *) &len, sizeof(int));
-	int pair_cnt[len];
+	int* pair_cnt = new int[len];
 	ifs->read((char *) pair_cnt, len*sizeof(int));
 
 	assert(num_pairs==2*len);
@@ -1482,6 +1483,7 @@ int Region::read_binary(std::ifstream* ifs)
 	//	}
 	//	pair_mat[j][k] = pair_cnt[i/2];
 	//}
+	delete[] pair_cnt;
 	return 0;
 }
 void Region::compute_intron_list()
