@@ -109,7 +109,7 @@ const char* determine_format(char* filename)
 			break;
 		}
 
-		if (cnt>100)
+		if (cnt>100000)
 			break;
 	}
 	return ret;

@@ -186,7 +186,7 @@ void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filte
 	for (int i=0; i<num_bam_files; i++)
 	{
     	char* fn_bam = bam_files[i];
-	    fprintf(fd_out, "getting reads from file: %s\n", fn_bam);
+	    fprintf(fd_out, "getting reads from file %i: %s\n", i, fn_bam);
 		get_reads_from_bam(fn_bam, reg_str, &all_reads, strand, subsample);
 		fprintf(fd_out, "#reads: %lu\n", all_reads.size());
 	}
@@ -1323,6 +1323,8 @@ int Region::write_binary(std::ofstream* ofs)
 			ofs->write((char *) &transcript_paths[i][0], len*sizeof(int));
 		}
 	}
+
+	// transcript names
 	assert(transcript_paths.size()==transcript_names.size());
 	for (int i=0; i<num_trans; i++)
 	{
@@ -1365,6 +1367,7 @@ int Region::read_binary(std::ifstream* ifs)
 	if (len<=0)
 	{
 		fprintf(stderr, "read_binary: could not read from file: len:%i\n", len);
+		fprintf(stderr, "read_binary: start:%i stop\n", start, stop);
 		return -1;
 	}
 	chr = new char[len+1];
@@ -1442,15 +1445,15 @@ int Region::read_binary(std::ifstream* ifs)
 		}
 	}
 
-	//for (int i=0; i<num_trans; i++)
-	//{
-	//	int len;
-	//	ifs->read((char *) &len, sizeof(int));
-	//	char name[len+1];
-	//	ifs->read(name, len*sizeof(char));
-	//	string sname(name, len);
-	//	transcript_names.push_back(sname);
-	//}
+	for (int i=0; i<num_trans; i++)
+	{
+		int len;
+		ifs->read((char *) &len, sizeof(int));
+		char name[len+1];
+		ifs->read(name, len*sizeof(char));
+		string sname(name, len);
+		transcript_names.push_back(sname);
+	}
 
 	//pair_mat
 	ifs->read((char *) &len, sizeof(int));
