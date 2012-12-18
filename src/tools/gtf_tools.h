@@ -13,6 +13,8 @@ vector<Region*> parse_gtf(char* gtf_file);
 
 vector<Region*> parse_gff(char* gtf_file);
 
+vector<Region*> parse_gff(char* gtf_file, const char* link_tag);
+
 void write_gff(vector<Region*> regions, char* fname, const char* source);
 
 vector<Region*> regions_from_map(map<string, Region*> transcripts);
@@ -22,5 +24,7 @@ vector<Region*> merge_overlapping_regions(vector<Region*> regions);
 bool compare_second(segment s1, segment s2);
 
 const char* determine_format(char* filename);
+
+const char* determine_format(char* filename, const char* gff_link_tag);
 
 #endif

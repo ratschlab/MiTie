@@ -62,8 +62,11 @@ vector<char*> get_fields(char* line)
 	}
 	return ret;
 }
-
 const char* determine_format(char* filename)
+{
+	return determine_format(filename, "Parent");
+}
+const char* determine_format(char* filename, const char* gff_link_tag)
 {
 	FILE* fd = fopen(filename, "r");
 	if (!fd)
@@ -93,7 +96,7 @@ const char* determine_format(char* filename)
 		if (tr_id)
 			trid_cnt++;
 
-		char* parent = strstr(fields[8], "Parent");
+		char* parent = strstr(fields[8], gff_link_tag);
 		if (parent)
 			parent_cnt++;
 
@@ -135,7 +138,7 @@ char* get_gff_attribute(char* line, const char* tag)
 	{
 		if (start+i>=line+strlen(line))
 		{
-			printf("%p, %p\n", start+i, line+strlen(line));
+			//printf("%p, %p\n", start+i, line+strlen(line));
 			break;
 		}
 
@@ -150,6 +153,11 @@ char* get_gff_attribute(char* line, const char* tag)
 }
 
 vector<Region*> parse_gff(char* gtf_file)
+{
+	return parse_gff(gtf_file, "Parent");
+}
+
+vector<Region*> parse_gff(char* gtf_file, const char* link_tag)
 {
 	FILE* fd = fopen(gtf_file, "r");
 	if (!fd)
@@ -180,7 +188,7 @@ vector<Region*> parse_gff(char* gtf_file)
 		// parse exons
 		if (strcmp(type, "five_prime_UTR")==0 || strcmp(type, "three_prime_UTR")==0 || strcmp(type, "CDS")==0)
 		{
-			char* tr_id = get_gff_attribute(fields[8], "Parent");
+			char* tr_id = get_gff_attribute(fields[8], link_tag);
 			if (!tr_id)
 			{
 				printf("Could not find ID: %s\n", fields[8]);
