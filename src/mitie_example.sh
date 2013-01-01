@@ -1,12 +1,12 @@
 #!/bin/bash
 #
 
-#fn_bam_brain=/fml/ag-raetsch/nobackup2/projects/mip_spladder/alignments/human/ILM_S.Brain.mmr.sorted.bam
-#fn_bam_uhr=/fml/ag-raetsch/nobackup2/projects/mip_spladder/alignments/human/ILM_S.UHR.mmr.sorted.bam
-#fn_bam_brain_all=/fml/ag-raetsch/nobackup2/projects/mip_spladder/alignments/human/ILM_S.Brain.sorted.bam
-#fn_bam_uhr_all=/fml/ag-raetsch/nobackup2/projects/mip_spladder/alignments/human/ILM_S.UHR.sorted.bam
+#fn_bam_brain=/cbio/grlab/nobackup2/projects/mip_spladder/alignments/human/ILM_S.Brain.mmr.sorted.bam
+#fn_bam_uhr=/cbio/grlab/nobackup2/projects/mip_spladder/alignments/human/ILM_S.UHR.mmr.sorted.bam
+#fn_bam_brain_all=/cbio/grlab/nobackup2/projects/mip_spladder/alignments/human/ILM_S.Brain.sorted.bam
+#fn_bam_uhr_all=/cbio/grlab/nobackup2/projects/mip_spladder/alignments/human/ILM_S.UHR.sorted.bam
 
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/chris_mason/MiTie
+#out_dir=/cbio/grlab/nobackup/projects/mip/chris_mason/MiTie
 
 fn_bam="testdata/*toy.bam"
 

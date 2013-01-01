@@ -1,11 +1,11 @@
 #!/bin/bash
 
 
-#fn_pred="/fml/ag-raetsch/nobackup/projects/rgasp/mgene_predictions/elegans/lsl/RNA_seq_strand_specific/output_cleave_12/genome_wide_predictions/genes_31-Mar-2010.mat /fml/ag-raetsch/nobackup/projects/rgasp/mgene_predictions/elegans/lsl/RNA_seq_label_nc_better_label_filter_reads20_0/output/genome_wide_predictions/genes_07-Jul-2011.mat"
-fn_pred="/fml/ag-raetsch/nobackup/projects/rgasp/mgene_predictions/elegans/lsl/RNA_seq_label_nc_better_label_filter_reads20_0/output/genome_wide_predictions/genes_07-Jul-2011.mat"
+#fn_pred="/cbio/grlab/nobackup/projects/rgasp/mgene_predictions/elegans/lsl/RNA_seq_strand_specific/output_cleave_12/genome_wide_predictions/genes_31-Mar-2010.mat /cbio/grlab/nobackup/projects/rgasp/mgene_predictions/elegans/lsl/RNA_seq_label_nc_better_label_filter_reads20_0/output/genome_wide_predictions/genes_07-Jul-2011.mat"
+fn_pred="/cbio/grlab/nobackup/projects/rgasp/mgene_predictions/elegans/lsl/RNA_seq_label_nc_better_label_filter_reads20_0/output/genome_wide_predictions/genes_07-Jul-2011.mat"
 
 
-MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
+MAT="/cbio/grlab/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
 addpaths="dbstop error; addpath matlab; mip_paths;"
 
 for f in $fn_pred; do
@@ -16,7 +16,7 @@ for f in $fn_pred; do
 	fi
 done
 
-fn_bam="/fml/ag-raetsch/nobackup/projects/sequencing_runs/worm-Dec09/reads/elegans/polyA_left_sam_stranded.mapped.2.bam /fml/ag-raetsch/nobackup/projects/sequencing_runs/worm-Dec09/reads/elegans/polyA_right_sam_stranded.mapped.2.bam"
+fn_bam="/cbio/grlab/nobackup/projects/sequencing_runs/worm-Dec09/reads/elegans/polyA_left_sam_stranded.mapped.2.bam /cbio/grlab/nobackup/projects/sequencing_runs/worm-Dec09/reads/elegans/polyA_right_sam_stranded.mapped.2.bam"
 
 
 # create segment graph and store in file

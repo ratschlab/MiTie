@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_gtf_sample${sample} /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_sample${sample} /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_fixes_sample${sample} /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_filter_sample${sample} /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_no_shrink_sample${sample} /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
+# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_gtf_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.sorted.paired.bam $sample
+# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
+# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_fixes_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
+# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_filter_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
+# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_no_shrink_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
 #
 #
 
@@ -13,19 +13,19 @@ if [ -z $1 ]; then
 else
 	sample=$1
 fi
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
-#out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
-out_dir=/fml/ag-raetsch/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}
+#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
+#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
+#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
+#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
+#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
+#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
+out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}
 #out_dir=~/tmp
-#fn_bam_all=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
+#fn_bam_all=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
 for s in `seq 1 $sample`; do
-	fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.bam"
-	#fn_bam_all="$fn_bam_all /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam"
+	fn_bam_all="$fn_bam_all /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.bam"
+	#fn_bam_all="$fn_bam_all /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam"
 done
 
 mkdir -p $out_dir
@@ -45,7 +45,7 @@ fi
 # create segment graph and store in file
 fn_graph=${out_dir}/graph_gtf.bin
 
-fn_gtf=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
+fn_gtf=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
 #fn_gtf=~/tmp/sample.gtf
 if [ ! -f $fn_graph ]
 then
@@ -77,7 +77,7 @@ fi
 for iter in `seq 1 3`
 do
 	echo $iter	
-	fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.mmr.iter$iter.bam
+	fn_bam_iter=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.mmr.iter$iter.bam
 
 	##############################	
 	# mmr
@@ -85,9 +85,9 @@ do
 	##############################	
 	if [ "$iter" -gt "1" ]; then
 		mmr=$HOME/svn/projects/rnageeq/mm_resolve/threaded_oop_mip/mmr
-		INPUT=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.ID_sorted.paired.bam
+		INPUT=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.no_junc.ID_sorted.paired.bam
 		seg_list_iter=$out_dir/segment_list_$(($iter - 1)).txt
-		LOSS_FILE=/fml/ag-raetsch/home/akahles/git/software/RNAgeeq/mm_resolve/threaded_oop_mip/poisson_3.flat
+		LOSS_FILE=/cbio/grlab/home/akahles/git/software/RNAgeeq/mm_resolve/threaded_oop_mip/poisson_3.flat
 		THREADS=6
 		OUTFILE=$HOME/tmp/mmr_iter$iter.bam
 		ITER=3
@@ -99,14 +99,14 @@ do
 	fi
 
 	if [ "$iter" -lt "2" ]; then
-		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.no_junc.sorted.paired.best.bam
+		fn_bam_iter=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.no_junc.sorted.paired.best.bam
 		for s in `seq 2 $sample`; do
-			fn_bam_iter="$fn_bam_iter /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.best.bam"
+			fn_bam_iter="$fn_bam_iter /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.best.bam"
 		done
 	else
-		fn_bam_iter=/fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.no_junc.mmr.iter$iter.bam
+		fn_bam_iter=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.no_junc.mmr.iter$iter.bam
 		for s in `seq 2 $sample`; do
-			fn_bam_iter="$fn_bam_iter /fml/ag-raetsch/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.mmr.iter$iter.bam"
+			fn_bam_iter="$fn_bam_iter /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.mmr.iter$iter.bam"
 		done	
 	fi
 	#if [ ! -f $fn_bam_iter ]; then
@@ -122,7 +122,7 @@ do
 	##############################	
 	mip_dir=$out_dir/res_iter${iter}_gtf/
 	mkdir -p $mip_dir
-	MAT="/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
+	MAT="/cbio/grlab/share/software/matlab-7.6/bin/matlab -nojvm -nodesktop -nosplash"
 	#MAT="matlab -nojvm -nodesktop -nosplash"
 	addpaths="addpath matlab; "
 	echo "dbstop error; $addpaths; denovo('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir'); exit"
