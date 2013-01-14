@@ -14,8 +14,7 @@ function transcript_predictions(fn_graph, fn_bam, out_dir, C, idx, quantify)
 
 % change this flag to run transcript predictions 
 % for each gene distributed on a cluster
-parallel = 0
-
+parallel = 1
 
 % model selection parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -45,7 +44,7 @@ param.lambda = 1;
 if quantify
 	param.number_of_additional_transcripts=0;
 else
-	param.number_of_additional_transcripts=5;
+	param.number_of_additional_transcripts=3;
 end
 param.use_predef_trans=1;
 param.len_cutoff=120*2;
