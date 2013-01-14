@@ -46,6 +46,9 @@ define_regions: define_regions.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOO
 generate_segment_graph: generate_segment_graph.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
 	$(CXX) generate_segment_graph.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o generate_segment_graph
 
+infer_transcript_ends: infer_transcript_ends.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
+	$(CXX) infer_transcript_ends.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o infer_transcript_ends
+
 ath_count_reads_in_region: ath_count_reads_in_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
 	$(CXX) ath_count_reads_in_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o ath_count_reads_in_region
 
