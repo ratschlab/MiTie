@@ -1367,7 +1367,7 @@ int Region::read_binary(std::ifstream* ifs)
 	if (len<=0)
 	{
 		fprintf(stderr, "read_binary: could not read from file: len:%i\n", len);
-		fprintf(stderr, "read_binary: start:%i stop\n", start, stop);
+		fprintf(stderr, "read_binary: start:%i stop:%i\n", start, stop);
 		return -1;
 	}
 	chr = new char[len+1];

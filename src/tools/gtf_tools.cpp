@@ -11,6 +11,7 @@
 #include <algorithm>
 #include "region.h"
 #include "tools.h"
+#include <limits> 
 
 char* get_attribute(char* line, const char* tag)
 {
@@ -94,11 +95,17 @@ const char* determine_format(char* filename, const char* gff_link_tag)
 
 		char* tr_id = strstr(fields[8], "transcript_id");
 		if (tr_id)
+		{
+			ret = "gtf";
 			trid_cnt++;
+		}
 
 		char* parent = strstr(fields[8], gff_link_tag);
 		if (parent)
+		{
+			ret = "gff3";
 			parent_cnt++;
+		}
 
 		if (parent_cnt>10 && trid_cnt==0)
 		{
@@ -237,9 +244,36 @@ vector<Region*> parse_gff(char* gtf_file, const char* link_tag)
 	return regions;
 }
 
-void write_gff(vector<Region*> regions, char* fname, const char* source)
+void write_gff(FILE* fd, Region* region, const char* source)
 {
-	
+	int start = std::numeric_limits<int>::max();
+	int end = 0;
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		if (region->transcripts[i].front().first<start)
+			start = region->transcripts[i].front().first;
+		if (region->transcripts[i].back().second>end)
+			end = region->transcripts[i].back().second;
+	}
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		start = region->transcripts[i].front().first;
+		end = region->transcripts[i].back().second;
+		fprintf(fd, "%s\t%s\tmRNA\t%i\t%i\t.\t%c\t.\tID=%s\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
+		for (uint j=0; j<region->transcripts[i].size(); j++)
+		{
+			char tag[1000];
+			if (region->coding_flag[i][j]==3)
+				sprintf(tag, "three_prime_UTR"); 
+			else if (region->coding_flag[i][j]==4)
+				sprintf(tag, "CDS"); 
+			else if (region->coding_flag[i][j]==5)
+				sprintf(tag, "five_prime_UTR"); 
+			start = region->transcripts[i][j].first;
+			end = region->transcripts[i][j].second;
+			fprintf(fd, "%s\t%s\t%s\t%i\t%i\t.\t%c\t.\tParent=%s\n", region->chr, source, tag, start, end, region->strand, region->transcript_names[i].c_str());
+		}
+	}
 }
 
 vector<Region*> regions_from_map(map<string, Region*> transcripts)

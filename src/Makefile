@@ -14,7 +14,7 @@ SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses
 GENOME = tools/genome/
 GENOME_TOOLS = ${GENOME}/genome.cpp ${GENOME}/genome_tools.cpp
 TOOLS_DIR = tools/
-TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp 
+TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}math_tools.cpp 
 INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL}
 
 #### Mex stuff
