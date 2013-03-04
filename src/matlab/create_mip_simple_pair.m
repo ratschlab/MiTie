@@ -100,8 +100,13 @@ nC = length(C_idx);	assert(nC==t*c*r);
 nD = length(D_idx); assert(nD==c*r*2);
 
 
-%                          A1      A2    A3     A4+A5+A6 A8+A9  A10+A11+A12
-expected_num_constrains = 2*s*r + s*t + 2*s*t + 3*r*s*t + 2*t + 3*r*t*c; 
+ss = s*10;
+%                          A1      A2    A3     A4+A5+A6 A8+A9  A10+A11+A12	 A13+A14   A15   A18
+expected_num_constrains = 2*s*r + s*t + 2*s*t + 3*r*s*t + 2*t +   3*r*t*c  + 2*r*t*c + r*c + t*ss; 
+
+%ss: number of segments not connected to segment x, but within an intron from x to another segment
+%	usually much smaller than s^2, but approaching s^2 if there are many introns spanning large parts 
+% 	of the gene 
 
 
 %%%
