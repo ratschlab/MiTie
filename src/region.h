@@ -86,6 +86,7 @@ class Region
 	
 		void load_genomic_sequence(); 			
 
+		void get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter);
 		void get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter, bool mm_filter);
 
 		void compute_coverage();
