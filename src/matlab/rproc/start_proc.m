@@ -13,7 +13,7 @@ end ;
 
 if nargin<2, rm_flag = 1 ; end ;
 
-%addpath(['/fml/ag-raetsch/share/software/matlab_tools/rproc']) ;
+%addpath(['/cbio/grlab/share/software/matlab_tools/rproc']) ;
 load(fname, 'ProcName', 'P1', 'dirctry', 'options') ;
 cd(dirctry) ;
 
@@ -47,15 +47,38 @@ end ;
 retval1=[] ;
 retval2=[] ;
 err=[] ;
+
+nout=nargout(ProcName) 
+
 try
-  disp('trying two return arguments') ;
-  [retval1,retval2]=feval(ProcName, P1) ;
+
+    if nout>=2,
+        disp('trying two return arguments') ;
+        [retval1,retval2]=feval(ProcName, P1) ;
+    elseif nout>=1,
+        disp('trying one return arguments') ;
+        [retval1]=feval(ProcName, P1) ;
+    elseif nout>=0,
+        disp('trying zero return arguments') ;
+        feval(ProcName, P1) ;
+    else
+        disp('trying variable return arguments') ;
+        retval{:}=feval(ProcName, P1) ;
+        if length(retval)>=1,
+            retval1=retval{1} ;
+        end 
+        if length(retval)>=2,
+            retval2=retval{2} ;
+        end 
+    end
+
 catch
   err=lasterror ;
 
   if equal(err.identifier,'MATLAB:TooManyOutputs') || ...
-        equal(err.identifier,'MATLAB:LS:TooManyOutputArguments') || ...
-        (isfield(err, 'message') && length(err.message)>=48 && equal(err.message(1:48), 'error: element number 2 undefined in return list'))
+     equal(err.identifier,'MATLAB:LS:TooManyOutputArguments') || ...
+     (isfield(err, 'message') && length(err.message)>=48 && equal(err.message(1:48), 'error: element number 2 undefined in return list')) || ...
+     (isfield(err, 'message') && length(err.message)>=41 && equal(err.message(1:41), 'element number 2 undefined in return list'))
     err = [] ;
     try
       disp('trying one return arguments') ;
@@ -65,7 +88,8 @@ catch
       err=lasterror ;
       if equal(err.identifier,'MATLAB:TooManyOutputs')  || ... 
             equal(err.identifier,'MATLAB:LS:TooManyOutputArguments') || ...
-            (isfield(err, 'message') && length(err.message)>=48 && equal(err.message(1:48), 'error: element number 1 undefined in return list'))
+            (isfield(err, 'message') && length(err.message)>=48 && equal(err.message(1:48), 'error: element number 1 undefined in return list')) || ...
+            (isfield(err, 'message') && length(err.message)>=41 && equal(err.message(1:41), 'element number 1 undefined in return list'))
         err=[] ;
         try
           disp('trying without return arguments') ;
@@ -76,6 +100,9 @@ catch
       end ;
     end 
   else
+    isfield(err, 'message')
+      length(err.message)>=41
+      equal(err.message(1:41), 'element number 2 undefined in return list')
     disp(err.message);
     disp(err.identifier);
     for i=1:length(err.stack)
@@ -84,18 +111,13 @@ catch
   end 
 end 
 
-if isempty(err) && (~(isfield(options, 'no_result_file') && options.no_result_file==1)))%|| equal(err.identifier, 'MATLAB:TooManyOutputs') || equal(err.identifier,'MATLAB:LS:TooManyOutputArguments') || ...
-  %(isfield(err, 'message') && length(err.message)>=48 && equal(err.message(1:48), 'error: element number 2 undefined in return list')) || ...
-  %    (isfield(err, 'message') && length(err.message)>=48 && equal(err.message(1:48), 'error: element number 1 undefined in return list'))
+
+if isempty(err) && (~(isfield(options, 'no_result_file') && options.no_result_file==1))
   disp(['saving results to ' fname(1:end-4) '_result.mat']) ;
   save([fname(1:end-4) '_result.mat'], 'retval1', 'retval2', '-v7') ;
-elseif isfield(options, 'no_result_file') && options.no_result_file==1
-	unix(sprintf('touch %s', [fname(1:end-4) '_result.mat']));
 end ;
-  
-if ~isempty(err) %&& ~equal(err.identifier, 'MATLAB:TooManyOutputs') && ...
-      %~equal(err.identifier,'MATLAB:LS:TooManyOutputArguments') && ...
-      %~equal(err.identifier,'RPROC:rerun')
+
+if ~isempty(err) % && ~equal(err.identifier,'RPROC:rerun')
   warning(['execution of ' ProcName ' failed']) ;
   err.identifier
   err.message
