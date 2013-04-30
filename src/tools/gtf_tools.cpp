@@ -427,8 +427,11 @@ vector<Region*> parse_gtf(char* gtf_file)
 				transcripts[transcript_id] = reg;
 				vector<segment> vec;
 				reg->transcripts.push_back(vec);
+				vector<int> flags;
+				reg->coding_flag.push_back(flags);
 			}
 			reg->transcripts[0].push_back(*seg);
+			reg->coding_flag[0].push_back(-1);
 			delete seg;
 		}
 		//else
