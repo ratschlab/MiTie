@@ -8,7 +8,7 @@ if nargin<2, num_cpus = 1 ; end ;
 
 [engine, environment] = determine_engine() ;
 if isequal(environment, 'internal')
-  envstr1 = 'ILOG_LICENSE_FILE=/fml/ag-raetsch/share/software/ilog/licenses/access-academic.ilm';
+  envstr1 = 'ILOG_LICENSE_FILE=/cbio/grlab/share/software/ilog/licenses/access-academic.ilm';
   %envstr1 = 'ILOG_LICENSE_FILE=/fml/ag-raetsch/share/software/ilog/licenses/access-820980.ilm' ;
   envstr2 = 'ILOG_LICENSE_FILE=/fml/ag-raetsch/share/software/ilog/licenses/access-703040.ilm' ;
   envstr3 = 'ILOG_LICENSE_FILE=/fml/ag-raetsch/share/software/ilog/licenses/access-587380.ilm' ;

@@ -60,7 +60,7 @@ gene_cnt = 0;
 % open binary file
 while 1
 
-	num = 500;
+	num = 10;
 	if ~isempty(fn_bam)
 		genes = load_graph_bin(fn_graph, num, fn_bam);
 	else
@@ -166,7 +166,7 @@ while 1
 			PAR.param.lambda = round(PAR.param.lambda);
 		end
 
-		if ~parallel
+		if 1%~parallel
 			create_mip_simple_pair(PAR);
 		else
 			cnt = cnt+1;

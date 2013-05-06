@@ -1,7 +1,11 @@
 function [x2, how] = solve_mip(Q, c, A, b, lb, ub, binary_idx, n_of_equalities, time_limit, r, t, s, U_idx, num_predef)
 
 %addpath ~/svn/tools/cplex/cplex101
-addpath ~/svn/tools/cplex/cplex91
+%addpath ~/svn/tools/cplex/cplex91
+%addpath /cbio/grlab/share/software/ilog/cplex91
+%addpath /cbio/grlab/share/git/tools/cplex
+addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab/cplex_gun %use correct version of cplex_license
+addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab %use correct version of cplex_license
 
 disp('calling solve_mip')
 
@@ -14,7 +18,7 @@ lpenv
 
 % get license 
 if isempty(lpenv)
-    lpenv=cplex_license(1,0)
+    lpenv=cplex_license(1,1)
 end ;
 
 if lpenv==0,
@@ -106,7 +110,11 @@ else
 		cnt = cnt+1;
 
 		if ~isempty(strfind(how2, 'Time limit exceeded'))
-			relgap = getmiprelgap(lpenv, p_lp);
+			if exist('getmiprelgap', 'file')==3
+				relgap = getmiprelgap(lpenv, p_lp);
+			else
+				relgap = 0.99;
+			end
 			if isempty(x2) || relgap<0.1
 				x2 = x;
 				how = how2;

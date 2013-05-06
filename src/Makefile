@@ -2,7 +2,7 @@
 #### please adjust these paths or define the variables accordingly before starting make
 export CPLEX_LIB ?= /fml/ag-raetsch/share/software/ilog/cplex91/lib/x86-64_RHEL3.0_3.2/static_pic/
 export CPLEX_INC ?= /fml/ag-raetsch/share/software/ilog/cplex91/include/ilcplex
-export MEX_BIN ?= /fml/ag-raetsch/share/software/matlab-7.6/bin/mex
+export MEX_BIN ?= /cbio/grlab/share/software/matlab/matlab_R2012b/bin/mex
 
 
 #CXX = g++ -O9

@@ -408,11 +408,11 @@ int main(int argc, char* argv[])
 		if (strcmp(format, "gtf")==0)
 			gtf_regions = parse_gtf(c.fn_gtf);
 		else if (strcmp(format, "gff3")==0)
-			genes = parse_gff(fn_gtf);
+			gtf_regions = parse_gff(c.fn_gtf);
 		else
 		{
-			printf("could not determine format of annotation file: %s\n", fn_gtf);
-			exit(-1)
+			printf("could not determine format of annotation file: %s\n", c.fn_gtf);
+			exit(-1);
 		}
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
