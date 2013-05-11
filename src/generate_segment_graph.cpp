@@ -202,7 +202,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			c->bam_files.push_back(argv[i]);
 		}	
 	}
-	assert(c->bam_files.size()>0);
+	assert(c->bam_files.size()>0 || c->fn_gtf);
 	if (!c->fn_regions && !c->fn_gtf)
 	{
 		printf("either --gtf, or --fn-regions, or both have to be specified\n");
@@ -368,6 +368,37 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "[%s] Could not open file: %s for writing\n", argv[0], c.fn_out);
 		return -2;
 	}
+	
+	vector<Region*> gtf_regions;
+	if (c.fn_gtf && c.bam_files.size()==0 )
+	{
+		// compute graph for annotation only
+		const char* format = determine_format(c.fn_gtf);
+		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
+		if (strcmp(format, "gtf")==0)
+			gtf_regions = parse_gtf(c.fn_gtf);
+		else if (strcmp(format, "gff3")==0)
+			gtf_regions = parse_gff(c.fn_gtf);
+		else
+		{
+			printf("could not determine format of annotation file: %s\n", c.fn_gtf);
+			exit(-1);
+		}
+		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
+
+		int i=0;
+		gtf_regions[i]->fd_out = stdout;
+		//regions[i]->fd_out = fd_null;
+		gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
+
+		// write region in binary file
+		gtf_regions[i]->write_binary(ofs);
+
+		// cleanup
+		ofs->close();
+		delete ofs;
+		return 0;
+	}
 
 	bamFile fd = bam_open(c.bam_files[0], "r");
 	if (fd==0)
@@ -393,7 +424,6 @@ int main(int argc, char* argv[])
 
 	FILE* fd_null = fopen("/dev/null", "w");
 
-	vector<Region*> gtf_regions;
 	char strand_prev;
 	vector<CRead*>::iterator curr; 
 	Region* reg = NULL;

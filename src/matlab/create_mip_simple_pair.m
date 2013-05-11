@@ -808,9 +808,9 @@ if ~use_LP_covloss,
 			if strcmp(param.loss, 'nb') || strcmp(param.loss, 'poisson')
 				%[left, right] = get_coefficients(val);
 				if strcmp(param.loss, 'poisson')
-					[ll, lq, rl, rq] = get_coefficients_lq(val, -1);
+					[ll, lq, rl, rq] = get_coefficients_lq(val, 1, 0, 0);
 				else
-					[ll, lq, rl, rq] = get_coefficients_lq(val, param.lambda);
+					[ll, lq, rl, rq] = get_coefficients_lq(val, param.eta1, param.eta2, param.lambda);
 				end
 
         		Q(x1,x1) = 1/r*rq*C.exon_cov*(len(j)/readlen*cov_scale(i))^2;
@@ -837,9 +837,9 @@ for i=1:r
 
 		if strcmp(param.loss, 'nb') || strcmp(param.loss, 'poisson')
 			if strcmp(param.loss, 'poisson')
-				[ll, lq, rl, rq] = get_coefficients_lq(val, -1);
+				[ll, lq, rl, rq] = get_coefficients_lq(val, 1, 0, 0);
 			else
-				[ll, lq, rl, rq] = get_coefficients_lq(val, param.lambda);
+				[ll, lq, rl, rq] = get_coefficients_lq(val, param.eta1, param.eta2, param.lambda);
 			end
 
 		
@@ -1076,15 +1076,13 @@ for k = 1:length(predef_trans)
 	end
 	fprintf('\n')
 end
-function [ll, lq, rl, rq] = get_coefficients_lq(obs, lambda)
+function [ll, lq, rl, rq] = get_coefficients_lq(obs, eta1, eta2, lambda)
 
 	%load('/fml/ag-raetsch/nobackup/projects/mip/human_sim/nb_fit/var0.02.mat', 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
 	%load('/fml/ag-raetsch/nobackup/projects/mip/human_sim/nb_fit/var0.02_fit0.1x-3x.mat', 'xpos', 'left_l', 'left_q', 'right_l', 'right_q') one of the files was accidently overwritten
-	if lambda==-1
-		load(sprintf('param/only_poisson'), 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
-	else
-		load(sprintf('param/poisson_%i', lambda), 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
-	end
+
+	fname = create_loss_parameters(eta1, eta2, lambda, '~/tmp');
+	load(fname, 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
 
 	% find bin
 	for j=1:length(xpos)
