@@ -421,11 +421,10 @@ vector<Region*> parse_gtf(char* gtf_file)
 				transcripts[transcript_id] = reg;
 				vector<segment> vec;
 				reg->transcripts.push_back(vec);
-				vector<int> flags;
-				reg->coding_flag.push_back(flags);
-
 			}
 			reg->transcripts[0].push_back(*seg);
+
+			transcript_id.clear();
 			delete seg;
 		}
 		//else
@@ -481,11 +480,30 @@ vector<Region*> parse_gtf(char* gtf_file)
 		}
 
 		// erase exons flagges with -1
+		// and fix coding flags
 		vector<segment> trans;
+		int last_flag = -1;
 		for (tit = reg->transcripts[0].begin(); tit != reg->transcripts[0].end(); tit++)
 		{
 			if (tit->flag != -1)
 				trans.push_back(*tit);
+
+			// gtf files do not distinguish between 5' and 3' UTRs 
+			if (reg->strand == '+')
+			{
+				if ((last_flag == 4 || last_flag == 3) && tit->flag == 5)
+				{
+					tit->flag = 3; 
+				}
+			}
+			if (reg->strand == '-')
+			{
+				if ((last_flag == -1 || last_flag == 3) && tit->flag == 5)
+				{
+					tit->flag = 3; 
+				}
+			}
+			last_flag = tit->flag;
 		}
 		//reg->transcripts[0].clear();
 		reg->transcripts[0] = trans;
