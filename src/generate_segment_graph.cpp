@@ -372,6 +372,7 @@ int main(int argc, char* argv[])
 	vector<Region*> gtf_regions;
 	if (c.fn_gtf && c.bam_files.size()==0 )
 	{
+		// this is used e.g. when we only want to quantify known transcripts
 		// compute graph for annotation only
 		const char* format = determine_format(c.fn_gtf);
 		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
@@ -386,13 +387,15 @@ int main(int argc, char* argv[])
 		}
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
-		int i=0;
-		gtf_regions[i]->fd_out = stdout;
-		//regions[i]->fd_out = fd_null;
-		gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
+		for (uint i=0;i<gtf_regions.size(); i++)
+		{
+			//gtf_regions[i]->fd_out = stdout;
+			regions[i]->fd_out = fd_null;
+			gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
 
-		// write region in binary file
-		gtf_regions[i]->write_binary(ofs);
+			// write region in binary file
+			gtf_regions[i]->write_binary(ofs);
+		}
 
 		// cleanup
 		ofs->close();

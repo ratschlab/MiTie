@@ -6,7 +6,7 @@ function fn_save = create_loss_parameters(eta1, eta2, lambda, dir_name)
 %
 % var = eta1*mu+eta2*mu^2
 
-fn_save = sprintf('%s/loss_param_lambda-%i_eta1-%.2f_eta2-%.2f', dir_name, lambda, eta1, eta2);
+fn_save = sprintf('%s/loss_param_lambda-%i_eta1-%.2f_eta2-%.2f.mat', dir_name, lambda, eta1, eta2);
 
 if fexist(fn_save)
 	return
@@ -83,7 +83,7 @@ for obs=xpos ;
 	    XX=X(:,idx1)' ;
 	    YY=Y(idx1)-offset;
 	    WW=WWA(idx1) ;
-		if (exist('fmincon')==2)
+		if 0%(exist('fmincon')==2)
 	   		w1 = fmincon(@(w) mean(WW'.*((XX*w-YY).^2)),w1,[],[], [], [], [1e-10 10], [10 1e-10]) 
 		else
 			w1 = my_min(XX, YY, WW, [1e-10 10], [10 1e-10])
@@ -101,7 +101,7 @@ for obs=xpos ;
 	    XX=X(:,idx2)' ;
 	    YY=Y(idx2)-offset ;
 	    WW=WWA(idx2);
-		if (exist('fmincon')==2)
+		if 0%(exist('fmincon')==2)
 	    	w2 = fmincon(@(w) mean(WW'.*((XX*w-YY).^2)),w2,[],[], [], [], [1e-10 0.5], [10 1e-10])
 		else
 			w2 = my_min(XX, YY, WW, [1e-10 0.5], [10 1e-10])
@@ -136,6 +136,7 @@ function w_best = my_min(XX, YY, WW, box1, box2)
 	eps = 1e-15;
 	w = [box1(1); box2(1)];
 	best = mean(WW'.*((XX*w-YY).^2));
+	best_orig = best;
 	w_best = w;
 	iter = 0;
 	% weighted least squares
@@ -143,6 +144,7 @@ function w_best = my_min(XX, YY, WW, box1, box2)
 		steps1 = box1(1):(box1(2)-box1(1))/10:box1(2);
 		steps2 =  box2(1):(box2(2)-box2(1))/10:box2(2);
 
+		best = best_orig;
 		for val1 = steps1
 			for val2 = steps2
 				w = [val1; val2];

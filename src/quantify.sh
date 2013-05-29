@@ -75,7 +75,8 @@ MAT="/cbio/grlab/share/software/matlab/matlab_R2012b/bin/matlab -nojvm -nodeskto
 addpaths="addpath matlab; "
 quantify=1
 echo "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit"
-${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit"
+#${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit"
+#echo "debug_on_error(1); $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit" | octave
 
 ##############################	
 # eval mip
