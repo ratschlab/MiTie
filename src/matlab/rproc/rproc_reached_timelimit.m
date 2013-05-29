@@ -15,7 +15,11 @@ function [result, jobwalltime] = rproc_reached_timelimit(jobinfo)
     jobwalltime = -1 ; 
     return ; 
   end ;
-  assert(jobwalltime>0 & jobwalltime<10000*3600) ; % sanity checks
+  if ~(jobwalltime>0 & jobwalltime<10000*3600) ; % sanity checks
+      warning('invalid output from qacct\n')
+      jobwalltime = -1 ;
+      return ;
+  end 
   if jobwalltime > jobinfo.time*60
     result = true ;
   end ;

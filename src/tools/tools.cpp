@@ -42,7 +42,7 @@ vector<Region*> parse_regions(char* fn_regions)
 	FILE* fd = fopen(fn_regions, "r");
 	if (!fd)
 	{
-		fprintf(stderr, "Could not open file: %s for reading\n", fn_regions);
+		fprintf(stderr, "tools: Could not open file: %s for reading\n", fn_regions);
 	
 	}
 	int num_bytes = 1000;
@@ -64,7 +64,7 @@ vector<Region*> parse_regions(char* fn_regions)
 		int num_read = sscanf(line, "%s\t%s\t%i\t%i", chr, strand, &start, &stop);
 		if (num_read!=4)
 		{
-			fprintf(stderr, "Error parsing line: %s\n", line);
+			fprintf(stderr, "tools: Error parsing line: %s\n", line);
 			exit(-2);
 		}
 		Region* reg = new Region(start, stop, chr, strand[0]);
@@ -94,7 +94,7 @@ void set_chr_num(Region* reg, bam_header_t* header)
 			return;
 		}
 	}
-	fprintf(stderr, "Did not find chr name in header: %s\n", reg->chr);
+	fprintf(stderr, "tools: Did not find chr name in header: %s\n", reg->chr);
 	exit(-2);
 }
 

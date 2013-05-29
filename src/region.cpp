@@ -177,6 +177,10 @@ char* Region::get_region_str()
 	}
 	return reg_str;
 }
+void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter)
+{
+	get_reads(bam_files, num_bam_files, intron_len_filter, filter_mismatch, exon_len_filter, false);
+}
 
 void Region::get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter, bool mm_filter)
 {
@@ -1367,7 +1371,7 @@ int Region::read_binary(std::ifstream* ifs)
 	if (len<=0)
 	{
 		fprintf(stderr, "read_binary: could not read from file: len:%i\n", len);
-		fprintf(stderr, "read_binary: start:%i stop\n", start, stop);
+		fprintf(stderr, "read_binary: start:%i stop:%i\n", start, stop);
 		return -1;
 	}
 	chr = new char[len+1];

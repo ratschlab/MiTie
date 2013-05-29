@@ -18,7 +18,22 @@
 #include <string>
 	using std::string;
 
-typedef pair<int, int> segment;
+//typedef pair<int, int> segment;
+class segment{
+	public:
+		segment(){first = 0; second = 0; flag = -1;};
+		segment(int f, int s){first = f; second = s; flag=-1;};
+		int first;
+		int second;
+		int flag;//4:CDS, 3: 3'UTR 5:5'UTR
+
+		friend bool operator== (const segment& lhs, const segment& rhs)
+		{return lhs.first==rhs.first && lhs.second==rhs.second;}
+
+		friend bool operator<  (const segment& lhs, const segment& rhs)
+		{return lhs.first<rhs.first || (!(rhs.first<lhs.first) && lhs.second<rhs.second);}
+
+};
 #define NO_CONNECTION -2
 #define NEIGHBOR -1
 #define CONNECTION 0
@@ -50,7 +65,7 @@ class Region
 		vector<vector<segment> > transcripts;
 		vector<string> transcript_names;
 		vector<vector<int> > transcript_paths;
-		vector<vector<int> > coding_flag; //flag for each exon in each transcript: 4:CDS, 3: 3'UTR 5:5'UTR
+		//vector<vector<int> > coding_flag; //flag for each exon in each transcript: 4:CDS, 3: 3'UTR 5:5'UTR
 		FILE* fd_out;
 
 		Genome* gio; 
@@ -86,6 +101,7 @@ class Region
 	
 		void load_genomic_sequence(); 			
 
+		void get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter);
 		void get_reads(char** bam_files, int num_bam_files, int intron_len_filter, int filter_mismatch, int exon_len_filter, bool mm_filter);
 
 		void compute_coverage();
