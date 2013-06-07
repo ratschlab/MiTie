@@ -23,6 +23,7 @@ class segment{
 	public:
 		segment(){first = 0; second = 0; flag = -1;};
 		segment(int f, int s){first = f; second = s; flag=-1;};
+		segment(int f, int s, int fl){first = f; second = s; flag=fl;};
 		int first;
 		int second;
 		int flag;//4:CDS, 3: 3'UTR 5:5'UTR
@@ -127,6 +128,8 @@ class Region
 		virtual void print(_IO_FILE*& fd);
 
 		void write_segment_graph(_IO_FILE*& fd);
+
+		int write_HDF5();
 
 		int write_binary(std::ofstream* ofs);
 	

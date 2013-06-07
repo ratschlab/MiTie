@@ -19,7 +19,7 @@ if do_plot
 end
 
 % this is the observed coverage:
-xpos=[1 2 3 5 10 15 20 35 50 100 200 500 1000 5000 10000 30000] ;
+xpos=[0 1 2 3 5 10 15 20 35 50 100 200 500 1000 5000 10000 30000] ;
 
 s=0; 
 for obs=xpos ;
@@ -29,11 +29,12 @@ for obs=xpos ;
 	% mean of the negative binomial
 	%mus=(0.001):step:(obs*3+1);
 	%mus=(obs/10+0.001):step:(obs*3+5);
-	std_=sqrt(eta1*obs + eta2*obs^2);
-	mus=max(1, obs-2*std_):step:(obs+5*std_);
+	std_=sqrt(eta1*(obs+1) + eta2*obs^2);
+	mus=max(1, obs-5*std_):step:(obs+5*std_);
 
 	
 	Y4 = zeros(1, length(mus));
+	Y = zeros(1, length(mus));
 	for k=1:length(mus),
 		mu = mus(k);
 		var = eta1*mu + eta2*mu^2;
@@ -45,11 +46,19 @@ for obs=xpos ;
 		for i = 0:min(obs, 100)
 			pois = i*log(lambda) - lambda - factln(i); 
 			nb = factln(obs-i+r-1) - factln(obs-i) - factln(r-1) + r*log(1-p) + (obs-i)*log(p); 
-			Y4(k) = Y4(k) + exp(pois+nb); 
+			%Y4(k) = Y4(k) + exp(pois+nb); 
+
+			% using log(a+b) = log(a) + log(1+exp(log(b)-log(a)))
+			if i==0
+				Y(k) = nb+pois;
+			else
+				Y(k) = Y(k) + log(1+exp(nb+pois-Y(k)));
+			end
 		end
 	end ;
-	Y4(Y4<1e-200) = 1e-200;
-	Y = -log(Y4);
+	%Y4(Y4<1e-200) = 1e-200;
+	%Y = -log(Y4);
+	Y = -Y;
 
 	%clf
 	%plot(mus, Y), hold on, plot(mus, -log(Y4), 'r'); 
@@ -85,6 +94,8 @@ for obs=xpos ;
 	    WW=WWA(idx1) ;
 		if 0%(exist('fmincon')==2)
 	   		w1 = fmincon(@(w) mean(WW'.*((XX*w-YY).^2)),w1,[],[], [], [], [1e-10 10], [10 1e-10]) 
+		elseif isempty(idx1) || all(YY==0)
+			w1 = [1e-10; 1e-10];
 		else
 			w1 = my_min(XX, YY, WW, [1e-10 10], [10 1e-10])
 		end

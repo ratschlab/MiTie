@@ -369,6 +369,8 @@ int main(int argc, char* argv[])
 		return -2;
 	}
 	
+	FILE* fd_null = fopen("/dev/null", "w");
+
 	vector<Region*> gtf_regions;
 	if (c.fn_gtf && c.bam_files.size()==0 )
 	{
@@ -390,7 +392,7 @@ int main(int argc, char* argv[])
 		for (uint i=0;i<gtf_regions.size(); i++)
 		{
 			//gtf_regions[i]->fd_out = stdout;
-			regions[i]->fd_out = fd_null;
+			gtf_regions[i]->fd_out = fd_null;
 			gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
 
 			// write region in binary file
@@ -425,7 +427,6 @@ int main(int argc, char* argv[])
 	}
 	int num_reg = regions.size();
 
-	FILE* fd_null = fopen("/dev/null", "w");
 
 	char strand_prev;
 	vector<CRead*>::iterator curr; 

@@ -1269,7 +1269,138 @@ void Region::write_segment_graph(_IO_FILE*& fd)
 	fprintf(fd, "end\n");
 }
 
+#include "H5Cpp.h"
 
+#ifndef H5_NO_NAMESPACE
+    using namespace H5;
+#endif
+ 
+ 
+int Region::write_HDF5()
+{
+    /* First structure  and dataset*/
+	typedef struct meta_info {
+	int    num_graphs;
+	} meta_info;
+	
+
+	// Try block to detect exceptions raised by any of the calls inside it
+	try
+	{
+		/*
+		* Initialize the data
+		*/
+		meta_info  meta;
+		meta.num_graphs = 3;
+	
+		/*
+		* Turn off the auto-printing when failure occurs so that we can
+		* handle the errors appropriately
+		*/
+		Exception::dontPrint();
+		
+		/*
+		* Create the data space.
+		*/
+		int rank = 1;
+		hsize_t dim[] = {1};   /* Dataspace dimensions */
+		DataSpace space( rank, dim );
+		
+		/*
+		* Create the file.
+		*/
+		const H5std_string FILE_NAME( "~/tmp/hdf5_test.h5" );
+		H5File* file = new H5File(FILE_NAME, H5F_ACC_TRUNC );
+		
+		/*
+		* Create the memory datatype.
+		*/
+		CompType mtype1( sizeof(meta_info) );
+			const H5std_string member_name( "num_graphs_name" );
+		mtype1.insertMember(member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
+		
+		/*
+		* Create the dataset.
+		*/
+		DataSet*	dataset;
+		const	H5std_string DATASET_NAME( "ArrayOfStructures" );
+		dataset = new DataSet(file->createDataSet(DATASET_NAME, mtype1, space));
+		
+		/*
+		* Write data to the dataset;
+		*/
+		dataset->write( &meta, mtype1 );
+		
+		/*
+		* Release resources
+		*/
+		delete dataset;
+		delete file;
+		
+		/*
+		* Open the file and the dataset.
+		*/
+		file = new H5File( FILE_NAME, H5F_ACC_RDONLY );
+		dataset = new DataSet (file->openDataSet( DATASET_NAME ));
+		
+		/*
+		* Create a datatype for s2
+		*/
+		CompType mtype2( sizeof(meta) );
+		
+		mtype2.insertMember( member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
+		
+		/*
+		* Read two fields c and a from s1 dataset. Fields in the file
+		* are found by their names "c_name" and "a_name".
+		*/
+		meta_info s2[1];
+		dataset->read( s2, mtype2 );
+		
+		/*
+		* Display the fields
+		*/
+		printf("Field c : \n");
+		printf("%i ",s2[0].num_graphs);
+		printf(" \n");
+	
+		/*
+		* Release resources
+		*/
+		delete dataset;
+		delete file;
+	}  // end of try block
+	
+	// catch failure caused by the H5File operations
+	catch( FileIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	// catch failure caused by the DataSet operations
+	catch( DataSetIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	// catch failure caused by the DataSpace operations
+	catch( DataSpaceIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	// catch failure caused by the DataSpace operations
+	catch( DataTypeIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	return 0;
+}
 int Region::write_binary(std::ofstream* ofs)
 {
 	// region meta info
