@@ -288,7 +288,7 @@ vector<int> range(int lb, int ub)
 	return ret;
 }
 
-int make_qp(Region* graph, vector<vector<vector<float> > >* all_admat, vector<vector<vector<int> > >* all_pair_mat, vector<vector<float> >* all_seg_cov, const Config* config)
+int make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vector<vector<vector<int> > >* all_pair_mat, vector<vector<float> >* all_seg_cov, const Config* config)
 {
 
 	int len = 0;
@@ -394,14 +394,14 @@ int main(int argc, char* argv[])
 	}
 
 	// load graphs from binary file
-	vector<Region*> graphs; 
+	vector<Bam_Region*> graphs; 
 	int cnt = 0;
 	int num_return = 3;
 	while (ifs.good()&& cnt<num_return)
 	{
 		if ((cnt++)%100==0)
 			printf("\r %i", cnt);
-		Region* r = new Region();
+		Bam_Region* r = new Bam_Region();
 		int ret = r->read_binary(&ifs);
 		if (!ifs.eof() && ret==0)
 			graphs.push_back(r);
@@ -452,11 +452,12 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	char fn_hdf[1000];
+	sprintf(fn_hdf, "/cbio/grlab/home/jonas/tmp/test.h5");
 	for (int i=0; i<graphs.size(); i++)
-		graphs[i]->write_HDF5();
-	return 0;
+		graphs[i]->write_HDF5(fn_hdf);
 
-	for (uint j=0; j<graphs.size(); j++)
+	for (uint j=0; false && j<graphs.size(); j++)
 	{
 		// store coverage informaton for all samples
 		vector<vector<vector<float> > > all_admat;
@@ -497,6 +498,11 @@ int main(int argc, char* argv[])
 		union_connections(&all_admat);
 
 		make_qp(graphs[j], &all_admat, &all_pair_mat, &all_seg_cov, &c); 
+	}
+
+	for (uint j=0; j<graphs.size(); j++)
+	{
+		delete graphs[j];
 	}
 }
 

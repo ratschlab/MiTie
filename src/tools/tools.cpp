@@ -8,7 +8,7 @@
   using std::sort;
   using std::min;
   using std::max;
-#include <region.h>
+#include <bam_region.h>
 #include "bam.h"
 
 vector<char*> separate(char* str, char sep)
@@ -37,7 +37,7 @@ bool compare_second(segment intr1, segment intr2)
 	return (intr1.second<intr2.second);
 }
 
-vector<Region*> parse_regions(char* fn_regions)
+vector<Bam_Region*> parse_regions(char* fn_regions)
 {
 	FILE* fd = fopen(fn_regions, "r");
 	if (!fd)
@@ -47,7 +47,7 @@ vector<Region*> parse_regions(char* fn_regions)
 	}
 	int num_bytes = 1000;
 
-	vector<Region*> regions;
+	vector<Bam_Region*> regions;
 	while (!feof(fd))
 	{
 		char line[num_bytes]; 
@@ -67,7 +67,7 @@ vector<Region*> parse_regions(char* fn_regions)
 			fprintf(stderr, "tools: Error parsing line: %s\n", line);
 			exit(-2);
 		}
-		Region* reg = new Region(start, stop, chr, strand[0]);
+		Bam_Region* reg = new Bam_Region(start, stop, chr, strand[0]);
 		regions.push_back(reg);
 		delete[] strand; 
 		delete[] chr;
@@ -242,6 +242,35 @@ vector<int> interval_overlap(vector<int> starts1, vector<int> stops1, vector<int
 	return overlap;
 }
 
+vector<vector<int> > region_overlap(vector<Bam_Region*> regions1, vector<Bam_Region*> regions2)
+{
+	// compute overlap
+	vector<int> starts1;
+	vector<int> stops1;
+	vector<int> starts2;
+	vector<int> stops2;
+
+	for (uint i=0; i<regions1.size(); i++)
+	{
+		starts1.push_back(regions1[i]->start);
+		stops1.push_back(regions1[i]->stop);
+	}
+	for (uint i=0; i<regions2.size(); i++)
+	{
+		starts2.push_back(regions2[i]->start);
+		stops2.push_back(regions2[i]->stop);
+	}
+
+	vector<int> ov = interval_overlap(starts1, stops1, starts2, stops2);
+
+	vector<vector<int> > ov_list(regions1.size());
+	for (uint i=0; i<ov.size(); i+=2)
+	{
+		ov_list[ov[i]].push_back(ov[i+1]);
+	}
+	return ov_list;
+}
+
 vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> regions2)
 {
 	// compute overlap
@@ -263,11 +292,9 @@ vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> re
 
 	vector<int> ov = interval_overlap(starts1, stops1, starts2, stops2);
 
-	//printf("overlap.size(): %i\n", (int) ov.size());
 	vector<vector<int> > ov_list(regions1.size());
 	for (uint i=0; i<ov.size(); i+=2)
 	{
-		//printf("(%i,%i) %i->%i, %i->%i\n", ov[i], ov[i+1], regions1[ov[i]]->start, regions1[ov[i]]->stop, regions2[ov[i+1]]->start, regions2[ov[i+1]]->stop);
 		ov_list[ov[i]].push_back(ov[i+1]);
 	}
 	return ov_list;

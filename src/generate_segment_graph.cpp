@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <assert.h>
 #include "bam.h"
-#include "region.h"
+#include "bam_region.h"
 #include "get_reads_direct.h"
 #include <fstream>
 #include "gtf_tools.h"
@@ -210,7 +210,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	return 0;
 }
 
-void process_gtf_region(Region* region)
+void process_gtf_region(Bam_Region* region)
 {
 	if (region->transcripts.size()==0)
 	{
@@ -371,22 +371,30 @@ int main(int argc, char* argv[])
 	
 	FILE* fd_null = fopen("/dev/null", "w");
 
-	vector<Region*> gtf_regions;
+	vector<Bam_Region*> gtf_regions;
 	if (c.fn_gtf && c.bam_files.size()==0 )
 	{
 		// this is used e.g. when we only want to quantify known transcripts
 		// compute graph for annotation only
 		const char* format = determine_format(c.fn_gtf);
 		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
+		vector<Region*> tmp;
 		if (strcmp(format, "gtf")==0)
-			gtf_regions = parse_gtf(c.fn_gtf);
+			tmp = parse_gtf(c.fn_gtf);
 		else if (strcmp(format, "gff3")==0)
-			gtf_regions = parse_gff(c.fn_gtf);
+			tmp = parse_gff(c.fn_gtf);
 		else
 		{
 			printf("could not determine format of annotation file: %s\n", c.fn_gtf);
 			exit(-1);
 		}
+		// convert to Bam_Regions
+		for (int i=0; i<tmp.size(); i++)
+		{
+			gtf_regions.push_back(new Bam_Region(tmp[i]));
+			delete tmp[i];
+		}
+
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
 		for (uint i=0;i<gtf_regions.size(); i++)
@@ -418,7 +426,7 @@ int main(int argc, char* argv[])
 		return NULL;
 	}
 
-	vector<Region*> regions;
+	vector<Bam_Region*> regions;
 	if (c.fn_regions)
 	{
 		printf("loading regions from flat file: %s\n", c.fn_regions);
@@ -430,7 +438,7 @@ int main(int argc, char* argv[])
 
 	char strand_prev;
 	vector<CRead*>::iterator curr; 
-	Region* reg = NULL;
+	Bam_Region* reg = NULL;
 	int last_stop=0;
 	char* chr_prev = (char*) "xxx";
 
@@ -439,15 +447,23 @@ int main(int argc, char* argv[])
 	{
 		const char* format = determine_format(c.fn_gtf);
 		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
+		vector<Region*> tmp;
 		if (strcmp(format, "gtf")==0)
-			gtf_regions = parse_gtf(c.fn_gtf);
+			tmp = parse_gtf(c.fn_gtf);
 		else if (strcmp(format, "gff3")==0)
-			gtf_regions = parse_gff(c.fn_gtf);
+			tmp = parse_gff(c.fn_gtf);
 		else
 		{
 			printf("could not determine format of annotation file: %s\n", c.fn_gtf);
 			exit(-1);
 		}
+		// convert to Bam_Regions
+		for (int i=0; i<tmp.size(); i++)
+		{
+			gtf_regions.push_back(new Bam_Region(tmp[i]));
+			delete tmp[i];
+		}
+
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
 		if (c.reads_by_chr)
@@ -485,7 +501,7 @@ int main(int argc, char* argv[])
 					strand_prev = gtf_regions[i]->strand;
 					printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 					delete reg;
-					reg = new Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
+					reg = new Bam_Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
 					set_chr_num(reg, header);
 					reg->stop = std::min(gtf_regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 				}
@@ -616,7 +632,7 @@ int main(int argc, char* argv[])
 				}
 			}
 			// remove merged regions
-			vector<Region*> tmp;
+			vector<Bam_Region*> tmp;
 			for (int i=0; i<regions.size(); i++)
 				if (regions[i]->start>-1)
 					tmp.push_back(regions[i]);
@@ -668,7 +684,7 @@ int main(int argc, char* argv[])
 				}
 			}
 			// remove merged regions
-			vector<Region*> tmp;
+			vector<Bam_Region*> tmp;
 			for (int i=0; i<regions.size(); i++)
 				if (regions[i]->start>-1)
 					tmp.push_back(regions[i]);
@@ -716,10 +732,10 @@ int main(int argc, char* argv[])
 				strand_prev = regions[i]->strand;
 				printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 				delete reg;
-				//reg = new Region(regions[i]);
+				//reg = new Bam_Region(regions[i]);
 				//reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 				//reg->start = regions[i]->start;
-				reg = new Region(regions[i]->start, regions[i]->start, chr_prev, strand_prev);
+				reg = new Bam_Region(regions[i]->start, regions[i]->start, chr_prev, strand_prev);
 				set_chr_num(reg, header);
 				reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 			}
@@ -728,9 +744,9 @@ int main(int argc, char* argv[])
 			{
 				int prev_st = reg->stop;
 				delete reg;
-				//reg = new Region(regions[i]);
+				//reg = new Bam_Region(regions[i]);
 				//reg->start = regions[i]->start;
-				reg = new Region(regions[i]->start, regions[i]->stop, chr_prev, strand_prev);
+				reg = new Bam_Region(regions[i]->start, regions[i]->stop, chr_prev, strand_prev);
 				set_chr_num(reg, header);
 				reg->stop = std::max(prev_st+c.max_junk, regions[i]->stop);
 				reg->stop = std::min(reg->stop, (int) header->target_len[reg->chr_num]);

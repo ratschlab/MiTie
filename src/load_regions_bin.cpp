@@ -54,14 +54,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	}
 	FILE* fd_null = fopen("/dev/null", "w");
 
-	vector<Region*> regions; 
+	vector<Bam_Region*> regions; 
 	int cnt = 0;
 	//while (!ifs.eof()&& cnt<num_return)
 	while (ifs.good()&& cnt<num_return)
 	{
 		if ((cnt++)%100==0)
 			printf("\r %i", cnt);
-		Region* r = new Region();
+		Bam_Region* r = new Bam_Region();
 		int ret = r->read_binary(&ifs);
 		// TODO load reads and compute coverage and intron counts
 		if (!ifs.eof() && ret==0)
