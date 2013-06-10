@@ -715,6 +715,7 @@ void Region::generate_segment_graph(float seg_filter, float tss_pval)
 			if (p>0)
 			{
 				//printf("\t%.3f\n", admat[path[p-1]+1][path[p]+1]);
+				assert(path[p-1]<path[p]);
 				assert(admat[path[p-1]+1][path[p]+1]>=NEIGHBOR);
 			}
 		}
@@ -1283,92 +1284,148 @@ int Region::write_HDF5()
 	int    num_graphs;
 	} meta_info;
 	
-
 	// Try block to detect exceptions raised by any of the calls inside it
 	try
 	{
+		Exception::dontPrint();
+		const H5std_string FILE_NAME( "/cbio/grlab/home/jonas/tmp/hdf5_test.h5" );
+		H5File* file;
+		try 
+		{
+			// this failes if file does not exist
+			file = new H5File(FILE_NAME, H5F_ACC_RDWR);// read and write access to existing file
+		}
+		catch (Exception error)
+		{
+			file = new H5File(FILE_NAME, H5F_ACC_TRUNC);// overwrite existing data if file exists
+		}
+
+		// read the number of graphs currently stored in the file from the file's 
+		// meta data 
+		CompType minfo(sizeof(meta_info));
+		const H5std_string member_name( "num_graphs_name" );
+		minfo.insertMember( member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
+		
+		meta_info meta[1];
+		DataSet*	metadata;
+
+		const	H5std_string DATASET_NAME( "Graph_meta_info" );
+		
+		try 
+		{  // to determine if the dataset exists in the file
+			metadata = new DataSet(file->openDataSet(DATASET_NAME));
+			metadata->read( meta, minfo );
+		}
+		catch( FileIException not_found_error )
+		{
+			printf("Dataset is not found. creating it\n");
+			int rank = 1;
+			hsize_t dim[] = {1};   /* Dataspace dimensions */
+			DataSpace space( rank, dim );
+			metadata = new DataSet(file->createDataSet(DATASET_NAME, minfo, space));
+			meta[0].num_graphs = 0;
+		}
+		
+		printf("num graphs in file:%i \n", meta[0].num_graphs);
+
 		/*
 		* Initialize the data
 		*/
-		meta_info  meta;
-		meta.num_graphs = 3;
-	
-		/*
-		* Turn off the auto-printing when failure occurs so that we can
-		* handle the errors appropriately
-		*/
-		Exception::dontPrint();
+		meta[0].num_graphs += 1;
+		char group_name[1000];
+		sprintf(group_name, "/Graph_%i", meta[0].num_graphs);
+		Group* group = new Group(file->createGroup(group_name));
+
 		
-		/*
-		* Create the data space.
-		*/
-		int rank = 1;
-		hsize_t dim[] = {1};   /* Dataspace dimensions */
-		DataSpace space( rank, dim );
+		//Write number of graphs to file
+		metadata->write( &meta, minfo );
+
+
+		if (admat.size()>0)
+		{
+			// write admat to group
+			// first make it sparse
+			int len = admat.size();
+			vector<int> idx1;
+			vector<int> idx2;
+			vector<float> val;
+			for (int i=0; i<len; i++)
+			{
+				for (int j=i+1; j<len; j++)
+				{
+					if (admat[i][j]>=NEIGHBOR)
+					{
+						idx1.push_back(i);
+						idx2.push_back(j);
+						val.push_back(admat[i][j]);
+					}
+				}
+			}
+
+			hsize_t dims[1];
+			char d_name[1000];
+			dims[0] = idx1.size();
+			sprintf(d_name, "%s/admat_idx1", group_name);
+			DataSpace* s_admat = new DataSpace(1, dims);
+			DataSet* d_admat = new DataSet(file->createDataSet(d_name, PredType::NATIVE_INT, *s_admat));
+			d_admat->write(&idx1[0], PredType::NATIVE_INT);
+			delete s_admat;
+			delete d_admat;
+
+			sprintf(d_name, "%s/admat_idx2", group_name);
+			dims[0] = idx2.size();
+			s_admat = new DataSpace(1, dims);
+			d_admat = new DataSet(file->createDataSet(d_name, PredType::NATIVE_INT, *s_admat));
+			d_admat->write(&idx2[0], PredType::NATIVE_INT);
+			delete s_admat;
+			delete d_admat;
+
+			sprintf(d_name, "%s/admat_val", group_name);
+			dims[0] = val.size();
+			s_admat = new DataSpace(1, dims);
+			d_admat = new DataSet(file->createDataSet(d_name, PredType::NATIVE_FLOAT, *s_admat));
+			d_admat->write(&val[0], PredType::NATIVE_FLOAT);
+			delete s_admat;
+			delete d_admat;
+		}
+		if (segments.size()>0)
+		{
+			int seg[segments.size()][3];
+			for (int i=0; i<segments.size(); i++)
+			{
+				seg[i][0] = segments[i].first;
+				seg[i][1] = segments[i].second;
+				seg[i][2] = segments[i].flag;
+			}
+
+			int rank = 2;
+			hsize_t dims[2];
+			char d_name[1000];
+			dims[0] = segments.size();
+			dims[1] = 3;
+			sprintf(d_name, "%s/segments", group_name);
+			DataSpace* s_admat = new DataSpace(rank, dims);
+			DataSet* d_admat = new DataSet(file->createDataSet(d_name, PredType::NATIVE_INT, *s_admat));
+			d_admat->write(seg, PredType::NATIVE_INT);
+			delete s_admat;
+			delete d_admat;
+
+		}
+		if (transcript_names.size()>0)
+		{
 		
-		/*
-		* Create the file.
-		*/
-		const H5std_string FILE_NAME( "~/tmp/hdf5_test.h5" );
-		H5File* file = new H5File(FILE_NAME, H5F_ACC_TRUNC );
+		}
+		if (transcript_paths.size()>0)
+		{
 		
-		/*
-		* Create the memory datatype.
-		*/
-		CompType mtype1( sizeof(meta_info) );
-			const H5std_string member_name( "num_graphs_name" );
-		mtype1.insertMember(member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
-		
-		/*
-		* Create the dataset.
-		*/
-		DataSet*	dataset;
-		const	H5std_string DATASET_NAME( "ArrayOfStructures" );
-		dataset = new DataSet(file->createDataSet(DATASET_NAME, mtype1, space));
-		
-		/*
-		* Write data to the dataset;
-		*/
-		dataset->write( &meta, mtype1 );
+		}
 		
 		/*
 		* Release resources
 		*/
-		delete dataset;
+		delete metadata;
 		delete file;
 		
-		/*
-		* Open the file and the dataset.
-		*/
-		file = new H5File( FILE_NAME, H5F_ACC_RDONLY );
-		dataset = new DataSet (file->openDataSet( DATASET_NAME ));
-		
-		/*
-		* Create a datatype for s2
-		*/
-		CompType mtype2( sizeof(meta) );
-		
-		mtype2.insertMember( member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
-		
-		/*
-		* Read two fields c and a from s1 dataset. Fields in the file
-		* are found by their names "c_name" and "a_name".
-		*/
-		meta_info s2[1];
-		dataset->read( s2, mtype2 );
-		
-		/*
-		* Display the fields
-		*/
-		printf("Field c : \n");
-		printf("%i ",s2[0].num_graphs);
-		printf(" \n");
-	
-		/*
-		* Release resources
-		*/
-		delete dataset;
-		delete file;
 	}  // end of try block
 	
 	// catch failure caused by the H5File operations

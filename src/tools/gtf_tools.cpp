@@ -289,6 +289,11 @@ vector<Region*> regions_from_map(map<string, Region*> transcripts)
 		// sort exons
 		sort(reg->transcripts[0].begin(), reg->transcripts[0].end(), compare_second);
 
+		// warn if exons overlapp
+		for (int i=1; i<reg->transcripts[0].size(); i++)
+			if (reg->transcripts[0][i-1].second>=reg->transcripts[0][i].first)
+				printf("\nWarning: found overlapping exons in transcript %s: (%i %i) (%i %i)\n", transcript_id.c_str(), reg->transcripts[0][i-1].first, reg->transcripts[0][i-1].second, reg->transcripts[0][i].first, reg->transcripts[0][i].second);
+
 		// addjust start and stop
 		reg->start = reg->transcripts[0].front().first;
 		reg->stop = reg->transcripts[0].back().second;
