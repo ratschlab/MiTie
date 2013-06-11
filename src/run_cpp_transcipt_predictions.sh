@@ -17,7 +17,7 @@ mkdir -p $out_dir
 dir=`dirname $0`
 
 # create segment graph and store in file
-fn_graph=${out_dir}/graph_gtf.bin
+fn_graph=${out_dir}/graph_gtf.h5
 
 fn_gtf=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1.gtf
 #fn_gtf=~/tmp/sample.gtf
@@ -35,6 +35,8 @@ then
 	mv ${fn_graph}.tmp $fn_graph
 fi
 
+h5dump --dataset=Graph_meta_info  $fn_graph
+
 #valgrind --leak-check=full $dir/generate_segment_graph $fn_regions $fn_graph --seg-filter 0.05 --region-filter 0 --gtf $fn_gtf $fn_bam_all
 
 
@@ -46,5 +48,4 @@ fi
 ##############################	
 num_trans=0 # number of additional transcripts 
 ./transcript_prediction $fn_graph $fn_bam_all,$fn_bam_all $fn_bam_all $mip_dir --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda 
-
 

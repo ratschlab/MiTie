@@ -24,6 +24,8 @@
 #include "bgzf.h"
 #include "razf.h"
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+#define USE_HDF5 
+
 struct Config
 {
 	vector<char*> bam_files;
@@ -360,6 +362,7 @@ int main(int argc, char* argv[])
 	if (ret!=0)
 		return ret;
 
+#ifndef USE_HDF5
 	std::ofstream* ofs = new std::ofstream();
 	ofs->open(c.fn_out, std::ios::binary);
 
@@ -368,7 +371,8 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "[%s] Could not open file: %s for writing\n", argv[0], c.fn_out);
 		return -2;
 	}
-	
+#endif
+
 	FILE* fd_null = fopen("/dev/null", "w");
 
 	vector<Bam_Region*> gtf_regions;
@@ -404,12 +408,18 @@ int main(int argc, char* argv[])
 			gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
 
 			// write region in binary file
+#ifdef USE_HDF5 
+			gtf_regions[i]->write_HDF5(c.fn_out);
+#else
 			gtf_regions[i]->write_binary(ofs);
+#endif
 		}
 
+#ifndef USE_HDF5 
 		// cleanup
 		ofs->close();
 		delete ofs;
+#endif
 		return 0;
 	}
 
@@ -724,8 +734,10 @@ int main(int argc, char* argv[])
 					sprintf(fn_out, "%s_%s%c", c.fn_out, regions[i]->chr, regions[i]->strand);
 					if (fexist(fn_out))
 						continue;
+#ifndef USE_HDF5
 					ofs->close();
 					ofs->open(fn_out, std::ios::binary);
+#endif
 				}
 				get_reads = true;
 				chr_prev = regions[i]->chr;
@@ -848,7 +860,11 @@ int main(int argc, char* argv[])
 		//regions[i]->add_bias_counts(&bias_vector);
 
 		// write region in binary file
+#ifdef USE_HDF5
+		regions[i]->write_HDF5(c.fn_out); 
+#else
 		regions[i]->write_binary(ofs);
+#endif
 
 		// cleanup
 		if (c.reads_by_chr)
@@ -869,8 +885,10 @@ int main(int argc, char* argv[])
 	fclose(fd_null);
 	delete reg;
 	//fclose(fd_out);
+#ifndef USE_HDF5 
 	ofs->close();
 	delete ofs;
+#endif
 	bam_close(fd);
 	bam_header_destroy(header);
 

@@ -63,6 +63,26 @@ Bam_Region::~Bam_Region()
 	delete[] intron_coverage;
 }
 
+int Bam_Region::compute_num_paths()
+{
+	vector<int> initial;
+	vector<int> terminal;
+	initial.push_back(1);
+	terminal.push_back(admat.size()-2);
+	for (uint k=2; k<admat.size()-2; k++)
+	{
+		if (is_initial(k+1))
+			initial.push_back(k);
+		if (is_terminal(k+1))
+			terminal.push_back(k);
+	}
+	int num_paths = 0;
+	for (uint i=0; i<initial.size(); i++)
+		for (uint k=0; k<terminal.size(); k++)
+			num_paths += count_num_paths(admat, initial[i]+1, terminal[k]+1);
+	return num_paths;
+}
+
 void Bam_Region::write_segment_graph(_IO_FILE*& fd)
 {
 	fprintf(fd, "region\t%s\t%c\t%i\t%i\n", chr, strand, start, stop);
@@ -984,6 +1004,17 @@ void Bam_Region::print_segments_and_coverage(_IO_FILE*& fd)
 	}
 }
 
+void Bam_Region::init_admat(int num_seg)
+{
+	admat.resize(num_seg+2); // source and sink node
+	for (uint i=0; i<admat.size(); i++)
+	{
+		admat[i].resize(num_seg+2);
+		for (uint j=0; j<admat.size(); j++)
+			admat[i][j] = NO_CONNECTION;
+	}
+}
+
 void Bam_Region::compute_admat(vector<int> starts, vector<int> stops)
 {
 	// check that segments are sorted
@@ -992,13 +1023,7 @@ void Bam_Region::compute_admat(vector<int> starts, vector<int> stops)
 
 	// allocate memory and set all entries to NO_CONNECTION
 	int num_seg = segments.size();
-	admat.resize(num_seg+2); // source and sink node
-	for (uint i=0; i<admat.size(); i++)
-	{
-		admat[i].resize(num_seg+2);
-		for (uint j=0; j<admat.size(); j++)
-			admat[i][j] = NO_CONNECTION;
-	}
+	init_admat(num_seg);
 
 	// add connections from RNA-seq introns
 	update_coverage_information();
@@ -1167,6 +1192,334 @@ vector<int> Bam_Region::get_children(int node, bool no_neighbors)
 	}
 	return children;
 }
+int Bam_Region::read_HDF5(char* filename, int graph_idx)
+{
+	typedef struct meta_info {
+	int    num_graphs;
+	} meta_info;
+	
+	try
+	{
+		// suppress printing of exceptions to allow for correct handling
+		Exception::dontPrint();
+
+		const H5std_string FILE_NAME(filename);
+		H5File* file;
+		try 
+		{
+			// this failes if file does not exist
+			file = new H5File(FILE_NAME, H5F_ACC_RDWR);// read and write access to existing file
+		}
+		catch (Exception error)
+		{
+			fprintf(stderr, "Could not open file: %s\n", filename); 
+			return -1;
+		}
+
+		// read the number of graphs currently stored in the file from the file's 
+		// meta data 
+		CompType minfo(sizeof(meta_info));
+		const H5std_string member_name( "num_graphs" );
+		minfo.insertMember( member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
+		
+		meta_info meta[1];
+		meta[0].num_graphs = -1;
+		DataSet*	metadata;
+
+		const	H5std_string DATASET_NAME( "Graph_meta_info" );
+		
+		try 
+		{  // to determine if the dataset exists in the file
+			metadata = new DataSet(file->openDataSet(DATASET_NAME));
+			metadata->read( meta, minfo );
+		}
+		catch( FileIException not_found_error )
+		{
+			fprintf(stderr, "Dataset not found\n");
+			return -1;
+		}
+		
+		//printf("number of graphs in file: %i\n", meta[0].num_graphs);
+
+		if (meta[0].num_graphs<graph_idx)
+		{
+			fprintf(stderr, "index %i exceeds number of graphs %i\n", graph_idx, meta[0].num_graphs);
+			return -1;
+		}
+
+		char group_name[1000];
+		sprintf(group_name, "/Graph_%i", graph_idx);
+		Group* group;
+		try
+		{
+			group = new Group(file->openGroup(group_name));
+		}
+		catch (GroupIException error)
+		{
+			fprintf(stderr, "group %s not found\n", group_name);
+			return -1;
+		}
+
+		// Create string datatype
+    	StrType tid1(0, H5T_VARIABLE);
+    	if(H5T_STRING!=H5Tget_class(tid1.getId()) || !H5Tis_variable_str(tid1.getId()))
+       		printf("this is not a variable length string type!!!");
+	
+
+		{
+			// read chromosome name and strand
+			char d_name[1000];
+			sprintf(d_name, "%s/region_str", group_name);
+			DataSet dataset = file->openDataSet(d_name);
+
+    		DataType dtype = dataset.getDataType();
+    		assert(H5Tequal(H5Tget_native_type(dtype.getId(), H5T_DIR_DEFAULT), tid1.getId()));
+
+   			DataSpace sid1 = dataset.getSpace();
+			int rank = sid1.getSimpleExtentNdims();
+			assert(rank==1);
+			hsize_t		dims1[rank];
+			sid1.getSimpleExtentDims( dims1, NULL);
+			
+			char* reg_str[dims1[0]];
+
+
+			dataset.read((void*) reg_str, dtype);
+
+			assert(strlen(reg_str[0])>0&strlen(reg_str[0])<1000);
+			assert(strlen(reg_str[1])>0);
+			strand = reg_str[1][0];
+			chr = new char[strlen(reg_str[0])+1];
+			for (int i=0; i<strlen(reg_str[0]); i++)
+			{
+				if (reg_str[0][i]=='-' || reg_str[0][i]==':')
+					reg_str[0][i]= '\t';
+			}
+			int num_read = sscanf(reg_str[0], "%s\t%i\t%i", chr, &start, &stop);
+			if (num_read!=3)
+			{
+				fprintf(stderr, "bam_region: Error parsing line: %s (num_read:%i), chr:%s\n", reg_str[0], num_read, chr);
+				return -1;
+			}
+			delete[] reg_str[0];
+			delete[] reg_str[1];
+
+    		/* Close Dataset */
+    		dataset.close();
+		}
+
+		try
+		{
+			// read list of segments from file
+			//
+			segments.clear();
+
+			char d_name[1000];
+			sprintf(d_name, "%s/segments", group_name);
+			DataSet* dataset_seg = new DataSet(file->openDataSet(d_name));
+
+			DataType dtype_seg = dataset_seg->getDataType();
+			assert(H5Tequal(H5Tget_native_type(dtype_seg.getId(), H5T_DIR_DEFAULT), PredType::NATIVE_INT.getId()));
+
+			DataSpace dataspace_seg = dataset_seg->getSpace();
+			assert(dataspace_seg.getSimpleExtentNdims()==2);
+
+			hsize_t dims_seg[2];
+			dataspace_seg.getSimpleExtentDims(dims_seg, NULL);
+			assert(dims_seg[1]==3);
+
+			int seg[dims_seg[0]][3];
+			dataset_seg->read(seg, PredType::NATIVE_INT);
+
+			for (int i=0; i<dims_seg[0]; i++)
+			{
+				segment tmp(seg[i][0], seg[i][1], seg[i][2]);
+				segments.push_back(tmp);
+			}
+			delete dataset_seg;
+		}
+		catch( FileIException not_found_error )
+		{
+			fprintf(stderr, "segments not found\n");
+		}
+
+		if (segments.size()>0)
+		{
+			try 
+			{  // to determine if the dataset exists in the file
+				char d_name[1000];
+				sprintf(d_name, "%s/admat_idx1", group_name);
+				DataSet* dataset_idx1 = new DataSet(file->openDataSet(d_name));
+
+				sprintf(d_name, "%s/admat_idx2", group_name);
+				DataSet* dataset_idx2 = new DataSet(file->openDataSet(d_name));
+
+				sprintf(d_name, "%s/admat_val", group_name);
+				DataSet* dataset_val = new DataSet(file->openDataSet(d_name));
+
+				// check data types
+	    		DataType dtype_idx1 = dataset_idx1->getDataType();
+	    		DataType dtype_idx2 = dataset_idx2->getDataType();
+	    		DataType dtype_val = dataset_val->getDataType();
+    		
+    			assert(H5Tequal(H5Tget_native_type(dtype_idx1.getId(), H5T_DIR_DEFAULT), PredType::NATIVE_INT.getId()));
+    			assert(H5Tequal(H5Tget_native_type(dtype_idx2.getId(), H5T_DIR_DEFAULT), PredType::NATIVE_INT.getId()));
+    			assert(H5Tequal(H5Tget_native_type(dtype_val.getId(), H5T_DIR_DEFAULT), PredType::NATIVE_FLOAT.getId()));
+
+				// get data space and assert dimensions
+   				DataSpace dataspace_idx1 = dataset_idx1->getSpace();
+   				DataSpace dataspace_idx2 = dataset_idx2->getSpace();
+   				DataSpace dataspace_val = dataset_val->getSpace();
+
+				assert(dataspace_idx1.getSimpleExtentNdims()==1);
+				assert(dataspace_idx2.getSimpleExtentNdims()==1);
+				assert(dataspace_val.getSimpleExtentNdims()==1);
+
+				hsize_t dims_idx1[1];
+				dataspace_idx1.getSimpleExtentDims(dims_idx1, NULL);
+				
+				hsize_t dims_idx2[1];
+				dataspace_idx2.getSimpleExtentDims(dims_idx2, NULL);
+
+				hsize_t dims_val[1];
+				dataspace_val.getSimpleExtentDims(dims_val, NULL);
+				
+				assert(dims_idx1[0]==dims_idx2[0]);
+				assert(dims_idx1[0]==dims_val[0]);
+
+				// init buffer
+				int idx1[dims_idx1[0]];
+				int idx2[dims_idx1[0]];
+				int val[dims_idx1[0]];
+
+				// read from disk
+				dataset_idx1->read(idx1, PredType::NATIVE_INT);
+				dataset_idx2->read(idx2, PredType::NATIVE_INT);
+				dataset_val->read(val, PredType::NATIVE_FLOAT);
+
+				init_admat(segments.size());
+
+				for (int i=0; i<dims_idx1[0]; i++)
+				{
+					assert(idx1[i]>=0 && idx1[i]<admat.size());
+					assert(idx2[i]>=0 && idx2[i]<admat.size());
+					admat[idx1[i]][idx2[i]] = val[i];
+				}
+				delete dataset_idx1;
+				delete dataset_idx2;
+				delete dataset_val;
+			}
+			catch( FileIException not_found_error )
+			{
+				fprintf(stderr, "Admat not found\n");
+			}
+		}
+
+		try
+		{
+			char d_name[1000];
+			sprintf(d_name, "%s/transcript_names", group_name);
+			DataSet dataset = file->openDataSet(d_name);
+
+    		DataType dtype = dataset.getDataType();
+    		assert(H5Tequal(H5Tget_native_type(dtype.getId(), H5T_DIR_DEFAULT), tid1.getId()));
+
+   			DataSpace sid1 = dataset.getSpace();
+			int rank = sid1.getSimpleExtentNdims();
+			assert(rank==1);
+			hsize_t		dims1[rank];
+			sid1.getSimpleExtentDims( dims1, NULL);
+			
+			char* tr_names[dims1[0]];
+
+			dataset.read((void*) tr_names, dtype);
+
+			for(uint i=0; i<dims1[0]; i++) 
+			{
+				transcript_names.push_back(string(tr_names[i]));
+			}
+    		dataset.close();
+		}
+		catch( FileIException not_found_error )
+		{
+			fprintf(stderr, "transcript_names not found\n");
+		}
+
+		try
+		{
+			// parse transcript paths
+			char d_name[1000];
+			sprintf(d_name, "%s/transcripts", group_name);
+			DataSet* dataset = new DataSet(file->openDataSet(d_name));
+
+			DataType dtype = dataset->getDataType();
+			assert(H5Tequal(H5Tget_native_type(dtype.getId(), H5T_DIR_DEFAULT), PredType::NATIVE_INT.getId()));
+
+			DataSpace dataspace = dataset->getSpace();
+			assert(dataspace.getSimpleExtentNdims()==2);
+
+			hsize_t dims[2];
+			dataspace.getSimpleExtentDims(dims, NULL);
+			int num_trans = dims[0];
+			int num_seg = dims[1];
+			assert(num_seg==segments.size());
+
+			int trans[num_trans][num_seg];
+			dataset->read(trans, PredType::NATIVE_INT);
+
+			for (int i=0; i<num_trans; i++)
+			{
+				vector<int> tmp;
+				for (uint j=0; j<num_seg; j++)
+				{
+					if (trans[i][j]>0)
+						tmp.push_back(j);
+				}
+				transcript_paths.push_back(tmp);
+			}
+			delete dataset;
+		}
+		catch( FileIException not_found_error )
+		{
+			fprintf(stderr, "transcript_paths not found\n");
+		}
+
+		delete group;
+		delete metadata;
+		delete file;
+		
+	}  // end of try block
+	
+	// catch failure caused by the H5File operations
+	catch( FileIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	// catch failure caused by the DataSet operations
+	catch( DataSetIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	// catch failure caused by the DataSpace operations
+	catch( DataSpaceIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	// catch failure caused by the DataSpace operations
+	catch( DataTypeIException error )
+	{
+		error.printError();
+		return -1;
+	}
+	
+	return 0;
+}
 int Bam_Region::write_HDF5(char* filename)
 {
     /* First structure  and dataset*/
@@ -1176,7 +1529,9 @@ int Bam_Region::write_HDF5(char* filename)
 	
 	try
 	{
+		// suppress printing of exceptions to allow for correct handling
 		Exception::dontPrint();
+
 		const H5std_string FILE_NAME(filename);
 		H5File* file;
 		try 
@@ -1192,7 +1547,7 @@ int Bam_Region::write_HDF5(char* filename)
 		// read the number of graphs currently stored in the file from the file's 
 		// meta data 
 		CompType minfo(sizeof(meta_info));
-		const H5std_string member_name( "num_graphs_name" );
+		const H5std_string member_name( "num_graphs" );
 		minfo.insertMember( member_name, HOFFSET(meta_info, num_graphs), PredType::NATIVE_INT);
 		
 		meta_info meta[1];
@@ -1207,7 +1562,7 @@ int Bam_Region::write_HDF5(char* filename)
 		}
 		catch( FileIException not_found_error )
 		{
-			printf("Dataset is not found. creating it\n");
+			printf("Dataset not found. creating it\n");
 			int rank = 1;
 			hsize_t dim[] = {1};   /* Dataspace dimensions */
 			DataSpace space( rank, dim );
@@ -1225,11 +1580,38 @@ int Bam_Region::write_HDF5(char* filename)
 		sprintf(group_name, "/Graph_%i", meta[0].num_graphs);
 		Group* group = new Group(file->createGroup(group_name));
 
-		
+		// Create string datatype
+    	StrType tid1(0, H5T_VARIABLE);
+    	if(H5T_STRING!=H5Tget_class(tid1.getId()) || !H5Tis_variable_str(tid1.getId()))
+       		printf("this is not a variable length string type!!!");
+	
 		//Write number of graphs to file
 		metadata->write( &meta, minfo );
 
+		{
+			// write chromosome name to group
+			hsize_t		dims1[] = {2};
+			int rank = 1;
+   			DataSpace sid1(rank, dims1);
 
+			/* Create a dataset */
+			char d_name[1000];
+			sprintf(d_name, "%s/region_str", group_name);
+			DataSet dataset = file->createDataSet(d_name, tid1, sid1);
+
+			char* reg_str[2]; 
+			reg_str[0] = get_region_str();
+			reg_str[1] = new char[10];
+			sprintf(reg_str[1], "%c", strand);
+    		/* Write dataset to disk */
+    		dataset.write((void*) reg_str, tid1);
+
+			delete[] reg_str[0];
+			delete[] reg_str[1];
+
+    		/* Close Dataset */
+    		dataset.close();
+		}
 		if (admat.size()>0)
 		{
 			// write admat to group
@@ -1314,12 +1696,6 @@ int Bam_Region::write_HDF5(char* filename)
 			int rank = 1;
    			DataSpace sid1(rank, dims1);
 
-    		/* Create a datatype to refer to */
-    		StrType tid1(0, H5T_VARIABLE);
-
-    		if(H5T_STRING!=H5Tget_class(tid1.getId()) || !H5Tis_variable_str(tid1.getId()))
-       			printf("this is not a variable length string type!!!");
-
 			/* Create a dataset */
 			char d_name[1000];
 			sprintf(d_name, "%s/transcript_names", group_name);
@@ -1336,7 +1712,31 @@ int Bam_Region::write_HDF5(char* filename)
 		}
 		if (transcript_paths.size()>0)
 		{
-		
+			int num_seg = segments.size();
+			int num_trans = transcript_paths.size();
+			int trans[num_trans][num_seg];
+
+			memset(trans, 0, num_trans*num_seg*sizeof(int));
+			for (int i=0; i<num_trans; i++)
+			{
+				for (uint j=0; j<transcript_paths[i].size(); j++)
+				{
+					int seg = transcript_paths[i][j];
+					assert(seg<num_seg);
+					trans[i][seg]=1;
+				}
+			}
+			int rank = 2;
+			hsize_t dims[2];
+			char d_name[1000];
+			dims[0] = num_trans;
+			dims[1] = num_seg;
+			sprintf(d_name, "%s/transcripts", group_name);
+			DataSpace* s_admat = new DataSpace(rank, dims);
+			DataSet* d_admat = new DataSet(file->createDataSet(d_name, PredType::NATIVE_INT, *s_admat));
+			d_admat->write(trans, PredType::NATIVE_INT);
+			delete s_admat;
+			delete d_admat;
 		}
 		
 		/*

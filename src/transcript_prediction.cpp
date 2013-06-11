@@ -25,6 +25,10 @@
 #include "bgzf.h"
 #include "razf.h"
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+#define USE_HDF
+
 struct Config
 {
 	vector<char*> bam_files;
@@ -43,6 +47,37 @@ struct Config
 };
 
 template <typename T>
+class sparse_matrix{
+
+	private:
+		map<pair<int, int>, T> mat;
+
+	public:
+
+		void set(int i, int j, T val)
+		{
+			pair<int, int> p(i, j);
+			mat[p] = val;
+		}
+
+		T get(int i, int j)
+		{
+			pair<int, int> p(i, j);
+			typename map<pair<int, int>, T>::iterator it; 
+			it = mat.find(p);
+			if (it==mat.end())
+			{
+				return 0.0;
+			}
+			return it->second;
+		}
+
+		size_t size()
+		{
+			return mat.size();
+		}
+};
+template <typename T>
 class semi_sparse_3d_matrix{
 
 	private:
@@ -59,7 +94,6 @@ class semi_sparse_3d_matrix{
 		T get(int i, int j, int k)
 		{
 			pair<int, int> p(i, j);
-			map<char,int>::iterator it2;
 			typename map<pair<int, int>, vector<T> >::iterator it; 
 			it = mat.find(p);
 			if (it==mat.end())
@@ -363,6 +397,13 @@ int make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 
 	printf("QP has %i variables\n", num_var);
 
+
+	// create objective function:
+	// min_x x'Qx + f'x
+	sparse_matrix<float> Q;
+	Q.set(1,1, 1.0);
+	printf("%.2f, %.2f\n", Q.get(0, 1), Q.get(1,1));
+
 	return 0;
 }
 
@@ -376,8 +417,10 @@ int main(int argc, char* argv[])
 
 	printf("loading graphs from file: %s\n", c.fn_graph);
 	
+#ifndef USE_HDF
 	static std::ifstream ifs;
 	ifs.open(c.fn_graph, std::ios::binary);
+#endif
 	FILE* fd_null = fopen("/dev/null", "w");
 
 
@@ -397,13 +440,22 @@ int main(int argc, char* argv[])
 	vector<Bam_Region*> graphs; 
 	int cnt = 0;
 	int num_return = 3;
+#ifdef USE_HDF
+	while (cnt<num_return)
+#else
 	while (ifs.good()&& cnt<num_return)
+#endif
 	{
 		if ((cnt++)%100==0)
 			printf("\r %i", cnt);
 		Bam_Region* r = new Bam_Region();
+#ifdef USE_HDF		
+		int ret = r->read_HDF5(c.fn_graph, cnt);
+		if (ret==0)
+#else
 		int ret = r->read_binary(&ifs);
 		if (!ifs.eof() && ret==0)
+#endif
 			graphs.push_back(r);
 		else
 		{
@@ -416,48 +468,16 @@ int main(int argc, char* argv[])
 
 	printf("obtained %i graphs\n", graphs.size());
 
-	if (false)
+	if (true)
 	{
 		for (uint j=0; j<graphs.size(); j++)
 		{
-			vector<int> initial;
-			vector<int> terminal;
-			initial.push_back(1);
-			terminal.push_back(graphs[j]->admat.size()-2);
-			for (uint k=2; k<graphs[j]->admat.size()-2; k++)
-			{
-				if (graphs[j]->is_initial(k+1))
-					initial.push_back(k);
-				if (graphs[j]->is_terminal(k+1))
-					terminal.push_back(k);
-			}
-			int num_paths = 0;
-			for (uint i=0; i<initial.size(); i++)
-				for (uint k=0; k<terminal.size(); k++)
-					num_paths += count_num_paths(graphs[j]->admat, initial[i]+1, terminal[k]+1);
-			if (false && num_paths==0)
-			{
-				for (uint k=0; k<graphs[j]->admat.size(); k++)
-				{
-					for (uint l=0; l<graphs[j]->admat.size(); l++)
-					{
-						printf("%.3f, ", graphs[j]->admat[k][l]);
-					}
-					printf("\n");
-				}
-			}
-
-			//printf("graph %u: initial:%lu, terminal:%lu, admat.size:%lu,\t%i\tpaths\n", j, initial.size(), terminal.size(), graphs[j]->admat.size(), num_paths);
+			int num_paths = graphs[j]->compute_num_paths();
 			printf("xx\t%i\n", num_paths);
 		}
 	}
 
-	char fn_hdf[1000];
-	sprintf(fn_hdf, "/cbio/grlab/home/jonas/tmp/test.h5");
-	for (int i=0; i<graphs.size(); i++)
-		graphs[i]->write_HDF5(fn_hdf);
-
-	for (uint j=0; false && j<graphs.size(); j++)
+	for (uint j=0; j<graphs.size(); j++)
 	{
 		// store coverage informaton for all samples
 		vector<vector<vector<float> > > all_admat;
@@ -504,6 +524,9 @@ int main(int argc, char* argv[])
 	{
 		delete graphs[j];
 	}
+#ifndef USE_HDF
+	ifs.close();
+#endif
 }
 
 

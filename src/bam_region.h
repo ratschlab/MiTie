@@ -29,6 +29,10 @@ class Bam_Region: public Region
 
 		void init();
 
+		void init_admat(int num_seg);
+
+		int compute_num_paths();
+
 		void clear_reads();
 		float get_coverage_global(int pstart, int pstop);
 		int get_intron_conf(int intron_start, int intron_stop);
@@ -42,6 +46,7 @@ class Bam_Region: public Region
 
 		void compute_intron_list();
 
+		int read_HDF5(char* filename, int graph_idx);
 		int write_HDF5(char* filename);
 
 		int write_binary(std::ofstream* ofs);

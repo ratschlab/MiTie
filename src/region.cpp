@@ -83,6 +83,10 @@ Region::Region(Region* reg)
 	seq = NULL;
 	fd_out = reg->fd_out;
 	gio = NULL;
+	segments = reg->segments;
+	transcripts = reg->transcripts;
+	transcript_names = reg->transcript_names;
+	transcript_paths = reg->transcript_paths;
 }
 
 Region::~Region()
