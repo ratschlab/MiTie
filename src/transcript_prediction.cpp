@@ -13,6 +13,7 @@
 #include "tools.h"
 #include "file_stats.h"
 #include "graph_tools.h"
+#include "QP.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,6 +27,7 @@
 #include "razf.h"
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "solve_qp_cplex.h"
 
 #define USE_HDF
 
@@ -45,73 +47,6 @@ struct Config
 	int min_trans_len;
 	bool use_pair;
 };
-
-template <typename T>
-class sparse_matrix{
-
-	private:
-		map<pair<int, int>, T> mat;
-
-	public:
-
-		void set(int i, int j, T val)
-		{
-			pair<int, int> p(i, j);
-			mat[p] = val;
-		}
-
-		T get(int i, int j)
-		{
-			pair<int, int> p(i, j);
-			typename map<pair<int, int>, T>::iterator it; 
-			it = mat.find(p);
-			if (it==mat.end())
-			{
-				return 0.0;
-			}
-			return it->second;
-		}
-
-		size_t size()
-		{
-			return mat.size();
-		}
-};
-template <typename T>
-class semi_sparse_3d_matrix{
-
-	private:
-		map<pair<int, int>, vector<T> > mat;
-
-	public:
-
-		void add(int i, int j, T val)
-		{
-			pair<int, int> p(i, j);
-			mat[p].push_back(val);
-		}
-
-		T get(int i, int j, int k)
-		{
-			pair<int, int> p(i, j);
-			typename map<pair<int, int>, vector<T> >::iterator it; 
-			it = mat.find(p);
-			if (it==mat.end())
-			{
-				return 0.0;
-			}
-			vector<T>* vec = &it->second;
-			assert(vec->size()>k);
-
-			return vec->at(k);
-		}
-
-		size_t size()
-		{
-			return mat.size();
-		}
-};
-
 
 int parse_args(int argc, char** argv,  Config* c)
 {
@@ -322,7 +257,7 @@ vector<int> range(int lb, int ub)
 	return ret;
 }
 
-int make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vector<vector<vector<int> > >* all_pair_mat, vector<vector<float> >* all_seg_cov, const Config* config)
+QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vector<vector<vector<int> > >* all_pair_mat, vector<vector<float> >* all_seg_cov, const Config* config)
 {
 
 	int len = 0;
@@ -398,13 +333,163 @@ int make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	printf("QP has %i variables\n", num_var);
 
 
+	QP* qp = new QP(num_var);
+
+	// set lower and upper bounds
+	///////////////////////////////////////////////////////////////
+	qp->lb = vector<float>(num_var, -1e20);
+	qp->ub = vector<float>(num_var, 1e20);
+	for (int i=0; i<E_idx.size(); i++)
+	{
+		qp->lb[E_idx[i]] = 0;
+		qp->ub[E_idx[i]] = 1;
+	}
+	for (int i=0; i<W_idx.size(); i++)
+	{
+		qp->lb[W_idx[i]] = 0;
+		qp->ub[W_idx[i]] = 1;
+	}
+	for (int i=0; i<C_idx.size(); i++)
+	{
+		qp->lb[C_idx[i]] = 0;
+		qp->ub[C_idx[i]] = 1;
+	}
+	for (int i=0; i<L_idx.size(); i++)
+	{
+		qp->lb[L_idx[i]] = 0;
+	}
+	for (int i=0; i<D_idx.size(); i++)
+	{
+		qp->lb[D_idx[i]] = 0;
+	}
 	// create objective function:
 	// min_x x'Qx + f'x
-	sparse_matrix<float> Q;
-	Q.set(1,1, 1.0);
-	printf("%.2f, %.2f\n", Q.get(0, 1), Q.get(1,1));
+	///////////////////////////////////////////////////////////////
+	//TODO
+	for (int i=0; i<num_var; i++)
+		qp->Q.set(i,i, 1.0);
 
-	return 0;
+
+
+	// create constraints
+	// Ax <= b
+	// for constraints with their index in eq_idx:
+	// Ax = b
+
+	// loss
+	// sum_t E_str -L_sr = O_sr
+	int cc = 0; // constraint count
+	for (int i=0; i<r; i++)// loop over samples
+	{
+		for (int j=0; j<s; j++)
+		{
+			for (int k=0; k<t; k++)
+			{
+				int idx = i*s*t + j*t + k;
+				qp->A.set(cc, E_idx[idx], 1); // this is where we includen Reginas profiles 
+			}
+			qp->A.set(cc, L_idx[i*s+j], -1); 
+			qp->A.set(cc, L_idx[i*s+j+s*r], 1); 
+			qp->b.push_back(graph->seg_cov[j]);
+			qp->eq_idx.push_back(1);
+			cc++;
+		}
+	}
+
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	// if no segments are selected, W_t has to be 0
+	// W_x<=\sum_j U_{jx}
+	for (int i=0; i<r; i++)
+	{
+		for (int x=0; x<t; x++)
+		{
+			qp->A.set(cc, W_idx[i*t+x], 1); // W_xi
+			for (int j=0; j<s; j++)
+			{
+				qp->A.set(cc, U_idx[j*t+x], -1); // -U_jx
+			}
+		}
+		cc++;
+		qp->b.push_back(1);
+		qp->eq_idx.push_back(0);
+	}
+
+	// this takes the connectivity of the splice graph and makes 
+	// sure that segment j is followed by any of the segments 
+	// it is connected to in the splice graph G=(N,E)
+	//
+	// (1) U_{jx} <= \sum_{k \in \{k | (j,k)\in E\}} U_{cx} 
+	// (2) U_{jx} <= \sum_{k \in \{k | (k,j)\in E\}} U_{cx} 
+	//
+	// for initial (and terminal) segments make sure that there are no
+	// downstream (upstream) segments used
+	//
+	// terminal:
+	// (3) \sum_{k=j+1}^s U_kx <= (s-j) - (s-j)*U_jx
+	// <=> \sum_{k=j+1}^s U_kx + (s-j)*U_jx <= (s-j)
+	//
+	// initial:
+	// (4) \sum_{k=1}^{j-1} U_jx <= (j-1) - (j-1)*U_jx
+	// <=> \sum_{k=1}^{j-1} U_jx + (j-1)*U_jx <= (j-1)
+
+	for (int x=0; x<t; x++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			// get all connected nodes
+			bool include_neighbors = true;
+			vector<int> children = graph->get_children(s+1, include_neighbors); 
+			vector<int> parents = graph->get_parents(s+1, include_neighbors);
+			if (!children.empty() && !graph->is_terminal(j+1))
+			{
+				qp->A.set(cc, U_idx[j*t+x], 1); // U_jx
+				for (int k=0; k<children.size(); k++)
+					qp->A.set(cc, U_idx[(children[k]-1)*t+x], -1); // -U_kx
+				cc++;
+				qp->b.push_back(0);
+				qp->eq_idx.push_back(0);
+			}
+			else if (children.empty())
+			{
+				//make sure there is no downstream segment used if 
+				//U_jx is used
+				qp->A.set(cc, U_idx.at(j*t+x), s-j); // (s-j)U_jx
+				for (int k=j; k<s; k++)
+					qp->A.set(cc, U_idx.at(k*t+x), 1); // U_kx
+				cc++;
+				qp->b.push_back(s-j+1);
+				qp->eq_idx.push_back(0);
+			}
+
+			if (!parents.empty() && ! graph->is_initial(j+1))
+			{
+				qp->A.set(cc, U_idx[j*t+x], 1); // U_jx
+				for (int k=0; k<parents.size(); k++)
+					qp->A.set(cc, U_idx.at((parents[k]-1)*t+x), -1); // -U_kx
+				cc++;
+				qp->b.push_back(0);
+				qp->eq_idx.push_back(0);
+			}
+			else if (parents.empty())
+			{
+				// make sure there are no upsteam segments if 
+				// U_jx is used
+				qp->A.set(cc, U_idx[j*t+x], j-1); // U_jx
+				for (int k=0; k<j-1; k++)
+					qp->A.set(cc, U_idx[k*t+x], 1); // U_kx
+				c++;
+				qp->b.push_back(j-1);
+				qp->eq_idx.push_back(0);
+			}
+		}
+	}
+
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	return qp;
 }
 
 
@@ -477,7 +562,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	for (uint j=0; j<graphs.size(); j++)
+	for (uint j=2; j<graphs.size(); j++)
 	{
 		// store coverage informaton for all samples
 		vector<vector<vector<float> > > all_admat;
@@ -517,7 +602,15 @@ int main(int argc, char* argv[])
 		// they have evidence in one sample
 		union_connections(&all_admat);
 
-		make_qp(graphs[j], &all_admat, &all_pair_mat, &all_seg_cov, &c); 
+		QP* qp = make_qp(graphs[j], &all_admat, &all_pair_mat, &all_seg_cov, &c); 
+
+		printf("number of constraints: %lu\n", qp->b.size());
+
+		// solve QP
+		//qp->result = vector<double>(qp->b.size(), 1);
+		qp->result = solve_qp_cplex(qp);
+
+		printf("obj = %.4f\n", qp->compute_obj());
 	}
 
 	for (uint j=0; j<graphs.size(); j++)

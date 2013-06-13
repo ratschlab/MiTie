@@ -1301,8 +1301,8 @@ int Bam_Region::read_HDF5(char* filename, int graph_idx)
 				fprintf(stderr, "bam_region: Error parsing line: %s (num_read:%i), chr:%s\n", reg_str[0], num_read, chr);
 				return -1;
 			}
-			delete[] reg_str[0];
-			delete[] reg_str[1];
+			free(reg_str[0]);
+			free(reg_str[1]);
 
     		/* Close Dataset */
     		dataset.close();
