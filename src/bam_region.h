@@ -33,6 +33,8 @@ class Bam_Region: public Region
 
 		int compute_num_paths();
 
+		int compute_transcripts_from_paths();
+
 		void clear_reads();
 		float get_coverage_global(int pstart, int pstop);
 		int get_intron_conf(int intron_start, int intron_stop);

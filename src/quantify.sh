@@ -25,7 +25,7 @@ lambda=3
 #out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
 #out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}
 #out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}_filter
-out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_quant_sample${sample}_eta1_${eta1}_eta2_${eta1}_lambda_${lambda}
+out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_quant_h5_sample${sample}_eta1_${eta1}_eta2_${eta1}_lambda_${lambda}
 #out_dir=~/tmp
 #fn_bam_all=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
@@ -41,7 +41,7 @@ mkdir -p $out_dir
 dir=`dirname $0`
 
 # create segment graph and store in file
-fn_graph=${out_dir}/graph_gtf.bin
+fn_graph=${out_dir}/graph_gtf.h5
 
 #fn_gtf=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
 fn_gtf=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1.gtf
@@ -74,7 +74,13 @@ mip_dir=$out_dir
 MAT="/cbio/grlab/share/software/matlab/matlab_R2012b/bin/matlab -nojvm -nodesktop -nosplash"
 addpaths="addpath matlab; "
 quantify=1
-echo "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit"
+for x in `seq 1 1010`; do
+	fn_res=$mip_dir/gene$x.mat
+	if [ ! -f $fn_res ]; then
+		${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x , $quantify, $eta1, $eta2, $lambda); exit" &
+		sleep 10
+	fi
+done
 #${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit"
 #echo "debug_on_error(1); $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit" | octave
 

@@ -1094,6 +1094,7 @@ void Bam_Region::update_coverage_information()
 	int match_cnt = 0;
 	for (uint i=0; i<trans_introns.size(); i++)
 	{
+		//printf("trans_intron: %i %i\n", trans_introns[i].first, trans_introns[i].second);
 		bool matched = false;
 		for (uint j=0; j<unique_introns.size(); j++)
 		{
@@ -1111,6 +1112,7 @@ void Bam_Region::update_coverage_information()
 		else
 			match_cnt++;
 	}
+	//printf("transcripts.size(): %lu  introns: %lu\n", transcripts.size(), trans_introns.size());
 	if (trans_introns.size()>5 && unique_introns.size()>trans_introns.size()+5 && match_cnt<2)
 	{
 		printf("Warning: annotated introns do not match RNA-seq introns\n");
@@ -1119,7 +1121,6 @@ void Bam_Region::update_coverage_information()
 			printf("%i->%i (%i)\n", unique_introns[i].first, unique_introns[i].second, intron_counts[i]);
 		}
 	}
-
 	// remove previous coverage information
 	for (uint i=0; i<admat.size(); i++)
 		for (uint j=0; j<admat.size(); j++)
@@ -1191,6 +1192,30 @@ vector<int> Bam_Region::get_children(int node, bool no_neighbors)
 			children.push_back(j);
 	}
 	return children;
+}
+int Bam_Region::compute_transcripts_from_paths()
+{
+	for (uint i=0; i<transcript_paths.size(); i++)
+	{
+		vector<segment> transcript;
+		segment exon(-1,-1);
+		for (uint j=0; j<transcript_paths[i].size(); j++)
+		{
+			segment seg = segments[transcript_paths[i][j]];
+			if (exon.first==-1)
+				exon = seg;
+			else if (exon.second == seg.first-1)
+				exon.second = seg.second;
+			else
+			{
+				assert(seg.first>exon.second+1);
+				transcript.push_back(exon);
+				exon = seg;
+			}
+		}
+		transcripts.push_back(transcript);
+	}
+	return 1;
 }
 int Bam_Region::read_HDF5(char* filename, int graph_idx)
 {
@@ -1478,6 +1503,8 @@ int Bam_Region::read_HDF5(char* filename, int graph_idx)
 				transcript_paths.push_back(tmp);
 			}
 			delete dataset;
+
+			compute_transcripts_from_paths();
 		}
 		catch( FileIException not_found_error )
 		{

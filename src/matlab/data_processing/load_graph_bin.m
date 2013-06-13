@@ -1,21 +1,31 @@
-function genes = load_graph_bin(fn_graph, num, fn_bam)
+function genes = load_graph_bin(fn_graph, fn_bam, gene_idx)
 
-if nargin>2
-	if iscell(fn_bam)
-		genes = load_regions_bin(fn_graph, num, fn_bam{:});
+genes = [];
+for gene_id=gene_idx
+	if nargin>2 && ~isempty(fn_bam)
+		if iscell(fn_bam)
+			gg = load_regions_bin(fn_graph, gene_id, fn_bam{:});
+		else
+			gg = load_regions_bin(fn_graph, gene_id, fn_bam);
+		end
 	else
-		genes = load_regions_bin(fn_graph, num, fn_bam);
+		gg = load_regions_bin(fn_graph, gene_id);
 	end
-else
-	genes = load_regions_bin(fn_graph, num);
-end
-if length(genes)==0 %|| gene_cnt>100  
-	% close input stream
-	close_flag = -1;
-	load_regions_bin(fn_graph, close_flag);
+	if isempty(genes)
+		genes = gg;
+	else
+		genes = [genes, gg];
+	end
 end
 for j = 1:length(genes)
 	genes(j).id = j;
+	% make admat symmetric
+	for k = 1:size(genes(j).seg_admat, 1)
+		for l = k+1:size(genes(j).seg_admat, 2) 
+			genes(j).seg_admat(k,l) = max(genes(j).seg_admat(k,l), genes(j).seg_admat(l, k));
+			genes(j).seg_admat(l,k) = max(genes(j).seg_admat(k,l), genes(j).seg_admat(l, k));
+		end
+	end
 	genes(j).initial   = double(genes(j).seg_admat(1, 2:end-1, 1)>-2);
 	genes(j).terminal  = double(genes(j).seg_admat(end, 2:end-1, 1)>-2);
 	genes(j).seg_admat = genes(j).seg_admat(2:end-1, 2:end-1, :);

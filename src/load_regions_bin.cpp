@@ -22,14 +22,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
 	char* fname = get_string(prhs[0]);
 	
-	int num_return = get_int(prhs[1]);
-	static std::ifstream ifs;
-	if (num_return<0 && ifs && ifs.is_open())
-	{
-		printf("load_regions_bin: closing binary file\n"); 
-		ifs.close();
-		return;
-	}
+	int gene_id = get_int(prhs[1]);
 
 	vector<char*> bam_files;
 	for (int i=2; i<nrhs; i++)
@@ -46,36 +39,22 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
 		samples.push_back(bams);
 	}
-
-	if (!ifs.is_open())
-	{
-		printf("load_regions_bin: opening binary file\n"); 
-		ifs.open(fname, std::ios::binary);
-	}
 	FILE* fd_null = fopen("/dev/null", "w");
 
 	vector<Bam_Region*> regions; 
 	int cnt = 0;
-	//while (!ifs.eof()&& cnt<num_return)
-	while (ifs.good()&& cnt<num_return)
 	{
-		if ((cnt++)%100==0)
-			printf("\r %i", cnt);
 		Bam_Region* r = new Bam_Region();
-		int ret = r->read_binary(&ifs);
-		// TODO load reads and compute coverage and intron counts
-		if (!ifs.eof() && ret==0)
+		int ret = r->read_HDF5(fname, gene_id);
+		if (ret==0)
 			regions.push_back(r);
 		else
 		{
-			printf("read from file %s, %i, read %lu regions\n", fname, ret, regions.size());
+			printf("could not read gene %i from file: %s\n", gene_id, fname);
 			delete r;
-			break;
+			exit(-1);
 		}
 	}
-
-
-	//ifs.close();
 	//r->write_segment_graph(stdout);
 
 	const char *field_names[] = {"chr", "strand", "start", "stop", "segments", "coverage", "seg_admat", "transcripts", "transcript_names", "pair_mat"};

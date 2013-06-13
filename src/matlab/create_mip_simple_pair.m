@@ -943,6 +943,11 @@ elseif use_pair && ~use_cluster
     b = [b15; b1; b2; b3; b4; b5; b6; b8; b9; b10; b11; b12; b13; b14; b18; b19; bp1; bp2; b20];
 end ;
 
+infeasible_idx = find(sum(abs(A'))==0 & b'~=0);
+if ~isempty(infeasible_idx)
+	keyboard
+end
+
 % solve min_x x'Qx+f'x
 % s.t. 	Ax<=b
 % 	 	lb<=x<=ub

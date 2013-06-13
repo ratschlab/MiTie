@@ -59,131 +59,21 @@ jobid = ceil(rand*100);
 %genes = genes([genes.id] == 29899);
 jobinfo = rproc_empty(0);
 cnt = 0;
-gene_cnt = 0;
-
 % open binary file
-while 1
+if 1
 
-	if use_fork && num_cpus>1
-		num = num_cpus-1;
-	else
-		num = 100;
-	end
 	if ~isempty(fn_bam)
-		genes = load_graph_bin(fn_graph, num, fn_bam);
+		genes = load_graph_bin(fn_graph, fn_bam, idx);
 	else
-		genes = load_graph_bin(fn_graph, num);
+		genes = load_graph_bin(fn_graph, '', idx);
 	end
+	assert(length(idx)==length(genes));
 
 	for j = 1:length(genes)
-		gene_cnt = gene_cnt+1;
-		genes(j).id = gene_cnt;
-	end
-
-	if isempty(genes)
-		break;
-	end
-	%% run prediction for all genes
-	if use_fork
-		rm_idx = zeros(1, length(genes));
-		for k = 1:length(genes)
-			fn_res = sprintf('%s/gene%i.mat', out_dir, genes(k).id);
-			if fexist(fn_res)
-				x = load(fn_res, 'how');
-				if isempty(strfind(x.how, 'Time limit exceeded'))
-					rm_idx(k) = 1;
-				end
-			end
-		end
-		if all(rm_idx==1)
-			fprintf('\nall predictions for this batch done, get another batch from file\n')
-			continue;
-		end
-		genes = genes(rm_idx==0);
-
-		k = fork(length(genes)+1);
-		if (k==0)
-			%% this is the master process
-			%% it will load more data from the file and continue
-			continue
-		end
-		if nargin==5 && ~ismember(genes(k).id, idx)
-			exit
-		end
-
-
-		cov_scale = [];
-		for r = 1:size(genes(k).seg_admat, 3)%loop over samples
-			cov_scale(r) = max(genes(k).coverage(r, :));
-			cov_scale(r) = max([cov_scale(r), max(genes(k).seg_admat(:, :, r))]);
-			if cov_scale(r)>0
-				sa = genes(k).seg_admat(:,:,r);
-				sa(sa>0) = sa(sa>0)/cov_scale(r);
-				genes(k).seg_admat(:,:,r) = sa;
-				genes(k).coverage(r, :) = genes(k).coverage(r, :)/cov_scale(r);
-			end
-		end
-
-		if all(cov_scale==0)
-			fprintf('no coverage found for gene: %i, %s%s:%i-%i\n', genes(k).id, genes(k).chr, genes(k).strand, genes(k).start, genes(k).stop)
-			exit;
-		end
-		
-		PAR.gene = genes(k);
-		PAR.cov_scale = cov_scale;
-		PAR.coverage = genes(k).coverage;
-		PAR.len = genes(k).segments(2, :)-genes(k).segments(1,:)+1;
-		PAR.seg_admat = genes(k).seg_admat;
-		PAR.predef_trans = [];
-		for j=1:size(genes(k).transcripts, 1)
-			PAR.predef_trans{j} = genes(k).transcripts(j, :);
-		end
-		PAR.initial = genes(k).initial;
-		PAR.terminal = genes(k).terminal;
-		PAR.pair_list = [];
-		PAR.insert_size = 0;
-		PAR.param = param;
-		PAR.strand = genes(k).strand;
-		PAR.fn_res = fn_res;
-		PAR.C = C;
-		if isfield(genes, 'pair_list')
-			PAR.pair_list = genes(k).pair_list;
-		end
-
-		if 0 % did not change much; slightly worse
-			PAR.seg_admat = prune_graph(PAR.seg_admat, PAR.predef_trans, 1e4);
-		end
-
-		num_paths = count_paths(double(PAR.seg_admat>-2));
-		if num_paths <= 5
-			PAR.C.num_transcripts = C.num_transcripts_predef;
-		elseif num_paths > 1e4
-			PAR.C.num_transcripts = C.num_transcripts*10;
-		end
-
-		if nargin<4
-			num_samples = size(PAR.seg_admat, 3);
-			gpp = load('param/GP_param_samples.mat', 'res_orig', 'names');
-			idx = min(size(gpp.res_orig, 1), num_samples);
-			for n = 1:length(gpp.names)
-				try
-					eval(sprintf('PAR.%s;', gpp.names{n}))
-					eval(sprintf('PAR.%s = gpp.res_orig(idx, n);', gpp.names{n}))
-				catch
-					%fprintf('not a valid field: %s\n', gpp.names{n})
-				end
-			end
-			PAR.param.lambda = round(PAR.param.lambda);
-		end
-
-		create_mip_simple_pair(PAR);
-		exit
+		genes(j).id = idx(j);
 	end
 
 	for k = 1:length(genes)
-		if nargin==5 && ~ismember(genes(k).id, idx)
-			continue;
-		end
 		if 1
 			fn_res = sprintf('%s/gene%i.mat', out_dir, genes(k).id);
 			if fexist(fn_res)
