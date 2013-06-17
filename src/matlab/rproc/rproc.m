@@ -144,15 +144,17 @@ end ;
 
 if use_reservation,
   if Matlab_licenses>0,
-    option_str=sprintf(' -R y -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    %option_str=sprintf(' -R y -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    option_str=sprintf(' -R y -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem, max(60,time*60)) ;
   else
-    option_str=sprintf(' -R y -l h_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, max(60,time*60)) ;
+    option_str=sprintf(' -R y -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem,  max(60,time*60)) ;
   end ;
 else
   if Matlab_licenses>0,
-    option_str=sprintf(' -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    %option_str=sprintf(' -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    option_str=sprintf(' -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem, max(60,time*60)) ;
   else
-    option_str=sprintf(' -l h_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, max(60,time*60)) ;
+    option_str=sprintf(' -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem, max(60,time*60)) ;
   end ;
 end ;
 
@@ -196,6 +198,10 @@ if isfield(options, 'huangho3')
     option_str = sprintf('%s -l huangho3=%i', option_str, options.huangho3);
 end;
 
+if isfield(options, 'hostname'),
+    option_str = sprintf('%s -l hostname=%s', option_str, options.hostname);
+end;
+
 if isequal(use_engine, 'matlab')
   if isequal(environment, 'internal'),
     if isfield(options,'matlab_v7_0') && isequal(options.matlab_v7_0, 1)
@@ -237,6 +243,8 @@ if isfield(options,'ncpus') && ~isempty(options.ncpus) && ~equal(options.ncpus, 
   % maybe this should be changed to 
   %option_str=[option_str sprintf(' -pe parallel %i ', options.ncpus)] ;
 end ;
+
+option_str = [option_str ' -R y'];
 
 if isfield(options, 'identifier'),
   identifier = options.identifier ;
@@ -325,7 +333,8 @@ else
   % start matlab
   str=['echo "' envstr 'hostname; cd ~/matlab; cat ' m_fname '| ' ...
        bin_str ' >>' log_fname '" | qsub -o "' qsublog_fname '" -j y -r y ' ...
-       option_str ' -N ' prefix ' >>& ' log_fname] ;
+       option_str ' -N ' prefix ' >> ' log_fname ' 2>&1'] ;
+       %option_str ' -N ' prefix ' >>& ' log_fname] ;
 end ;
 
 if options.submit_now,
@@ -394,9 +403,14 @@ if options.submit_now,
     pause(2)
   end ;
 
-  [ret out] = unix(['echo ''' str '''|tcsh']) ; 
+  %tic
+  %[ret out] = unix(['echo ''' str '''|tcsh']) ; 
+  [ret out] = unix(['echo ''' str '''|bash']) ; 
   if ret~=0
 	error('submission failed: %s\nreturn code: %i', out, ret);
+  %else
+  %  fprintf(1, 'Measuring submission time:\n\t');
+  %  toc
   end
   jobinfo.submission_time = now ;
 

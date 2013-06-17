@@ -14,7 +14,7 @@ function transcript_predictions(fn_graph, fn_bam, out_dir, C, idx, quantify, eta
 
 % change this flag to run transcript predictions 
 % for each gene distributed on a cluster
-parallel = 0
+parallel = 1
 use_fork=0;
 num_cpus=50;
 
@@ -22,13 +22,13 @@ num_cpus=50;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if nargin<4 || quantify
 	quantify = 1;
-	C.num_transcripts = 500;
-	C.introns = 100; 
+	C.num_transcripts = 1.6;
+	C.introns = 0;%100; 
 	C.exon_cov = 100; 
 end
 
 C.num_transcripts_predef = 1.6;
-C.pairs = 100; 
+C.pairs = 0;%100; 
 C.num_clusters=10;
 
 param.insert_size_tol = 0.5; 

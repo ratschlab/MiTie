@@ -19,33 +19,47 @@ if do_plot
 end
 
 % this is the observed coverage:
-xpos=[0 1 2 3 5 10 15 20 35 50 100 200 500 1000 5000 10000 30000] ;
+%xpos=[1 2 3 5 10 15 20 35 50 100 200 500 1000 5000 10000 30000] ;
+xpos = round(logspace(0, 4, 20));
 
 s=0; 
 for obs=xpos ;
 	s=s+1 ;
-	step=obs/500+0.002 ;
 
-	% mean of the negative binomial
-	%mus=(0.001):step:(obs*3+1);
-	%mus=(obs/10+0.001):step:(obs*3+5);
 	std_=sqrt(eta1*(obs+1) + eta2*obs^2);
-	mus=max(1, obs-5*std_):step:(obs+5*std_);
-
+	%mus=max(1, obs-5*std_):step:(obs+5*std_);
+	mus = [];
+	for j = -5:4
+		if  obs+j*std_<1 && j<-1
+			continue
+		end
+		mus = [mus linspace(max(1, obs+j*std_), max(1, obs+(j+1)*std_), 20)];
+	end
 	
 	Y4 = zeros(1, length(mus));
 	Y = zeros(1, length(mus));
 	for k=1:length(mus),
 		mu = mus(k);
-		var = eta1*mu + eta2*mu^2;
-		[r p] = compute_rp_neg_binom(mu, var); 
+		var_ = eta1*mu + eta2*mu^2;
+		[r p] = compute_rp_neg_binom(mu, var_); 
 		% A ~ Pois(lambda)
 		% B ~ NB(r,p)
 		% obs = A+B 
 		%
 		for i = 0:min(obs, 100)
-			pois = i*log(lambda) - lambda - factln(i); 
-			nb = factln(obs-i+r-1) - factln(obs-i) - factln(r-1) + r*log(1-p) + (obs-i)*log(p); 
+			if lambda==0 && i==0
+				pois = 1;
+			elseif lambda==0
+				break;
+			else
+				pois = i*log(lambda) - lambda - factln(i); 
+			end
+			if eta1==1 && eta2==0
+				% special case: in the limit of var->mu we get the poisson distrib
+				nb = (obs-i)*log(mu) - mu - factln(obs-i);
+			else
+				nb = factln(obs-i+r-1) - factln(obs-i) - factln(r-1) + r*log(1-p) + (obs-i)*log(p); 
+			end
 			%Y4(k) = Y4(k) + exp(pois+nb); 
 
 			% using log(a+b) = log(a) + log(1+exp(log(b)-log(a)))
@@ -77,22 +91,19 @@ for obs=xpos ;
 		offset=Y(idx2(1));
 	end
 
-	w1=X(:,idx1)'\(Y(idx1)-offset) ;
-	w2=X(:,idx2)'\(Y(idx2)-offset) ;
-	
 	% fit the function locally: fit is more exact close to the 
 	% observed value than far away from it
-	WWA=exp(-(mus-obs).^2./median(((mus-obs)).^2)) ;
+	%WWA=exp(-(mus-obs).^2./median(((mus-obs)).^2)) ;
 	opts =  optimset('MaxFunEvals', 10000, 'MaxIter', 10000);
 	
 	if 1,
-	    if w1(1)<0, w1(1)=0 ; end ;
-		w1 = [0;0];
-	    global XX YY WW
+	    %global XX YY WW
 	    XX=X(:,idx1)' ;
 	    YY=Y(idx1)-offset;
-	    WW=WWA(idx1) ;
+	    %WW=WWA(idx1) ;
+		WW = ones(1, length(idx1));
 		if 0%(exist('fmincon')==2)
+			w1 = [0;0];
 	   		w1 = fmincon(@(w) mean(WW'.*((XX*w-YY).^2)),w1,[],[], [], [], [1e-10 10], [10 1e-10]) 
 		elseif isempty(idx1) || all(YY==0)
 			w1 = [1e-10; 1e-10];
@@ -107,12 +118,13 @@ for obs=xpos ;
 			keyboard
 		end
 	    
-	    if w2(1)<0, w2(1)=0 ; end ;
-	    global XX YY
+	    %global XX YY
 	    XX=X(:,idx2)' ;
 	    YY=Y(idx2)-offset ;
-	    WW=WWA(idx2);
+	    %WW=WWA(idx2);
+		WW = ones(1, length(idx2));
 		if 0%(exist('fmincon')==2)
+			w2 = [0;0];
 	    	w2 = fmincon(@(w) mean(WW'.*((XX*w-YY).^2)),w2,[],[], [], [], [1e-10 0.5], [10 1e-10])
 		else
 			w2 = my_min(XX, YY, WW, [1e-10 0.5], [10 1e-10])
@@ -138,6 +150,12 @@ for obs=xpos ;
 	end
 
 end ;
+
+fprintf('observation\tleft_l\tleft_q\tright_l\tright_q\n');
+for j = 1:length(xpos), 
+	fprintf('%i\t%.11f\t%.11f\t%.11f\t%.11f\n', xpos(j), left_l(j), left_q(j), right_l(j), right_q(j));
+end
+
 save(fn_save, 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
 
 return
@@ -146,7 +164,9 @@ function w_best = my_min(XX, YY, WW, box1, box2)
 
 	eps = 1e-15;
 	w = [box1(1); box2(1)];
-	best = mean(WW'.*((XX*w-YY).^2));
+	%best = mean(WW'.*((XX*w-YY).^2));
+	n = 1/sum(exp(-XX*w)); % normalize
+	best = -sum(sqrt(exp(-YY)*1/sum(exp(-YY)).*(exp(-XX*w)*n))); % negative Bhattacharyya coefficient
 	best_orig = best;
 	w_best = w;
 	iter = 0;
@@ -159,7 +179,9 @@ function w_best = my_min(XX, YY, WW, box1, box2)
 		for val1 = steps1
 			for val2 = steps2
 				w = [val1; val2];
-				val = mean(WW'.*((XX*w-YY).^2));
+				%val = mean(WW'.*((XX*w-YY).^2));
+				n = 1/sum(exp(-XX*w)); % normalize
+				val = -sum(sqrt(exp(-YY)*1/sum(exp(-YY)).*(exp(-XX*w)*n)));
 				if val<best
 					best = val;
 					w_best = w;
@@ -192,12 +214,8 @@ function w_best = my_min(XX, YY, WW, box1, box2)
 			break
 		end
 	end
+	%exp(-YY)'*1/sum(exp(-YY)), exp(-XX*w)'*1/sum(exp(-XX*w))
 	iter
 return
 
-function [r, p] = compute_rp_neg_binom(mu,var)
 
-p = 1-(mu/var);
-%p = -(mu-2*var)/(2*var) - sqrt(((mu-2*var)/(2*var))^2 +mu/var -1);
-r = mu*(1-p)/p;
-return

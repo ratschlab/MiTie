@@ -1,39 +1,21 @@
 #!/bin/bash
 #
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_gtf_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_fixes_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_filter_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-# e.g. export sample=1 && ./mmr_mip/mip_mmr.sh /cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_no_shrink_sample${sample} /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam $sample
-#
-#
+
 
 if [ -z $1 ]; then
-	sample=2
+	echo usage $0 '<max num mismatches>'
+	exit 0
 else
-	sample=$1
+	num_missmatches=$1;
 fi
 eta1=1.00
-eta2=0.42
-lambda=3
+eta2=0.1
+lambda=0
 
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_release_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_tss0.01_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_enum5_1e4_repeat_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions50000_seg_filter0.01_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_new_align_gtf_regions40000_no_junc_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}
-#out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_mmr_GP_sample${sample}_filter
-out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_quant_h5_sample${sample}_eta1_${eta1}_eta2_${eta1}_lambda_${lambda}
+out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/mip_quant_exon_eta1_${eta1}_eta2_${eta2}_lambda_${lambda}_mm$num_missmatches
 #out_dir=~/tmp
-#fn_bam_all=/cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam
 
-#for s in `seq 1 $sample`; do
-#	fn_bam_all="$fn_bam_all /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${s}_merged_err_1.no_junc.sorted.paired.bam"
-#	#fn_bam_all="$fn_bam_all /cbio/grlab/nobackup/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias${sample}_merged_err_1.new.sorted.paired.bam"
-#done
-fn_bam_all=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.new.sorted.paired_200000_4_5.bam 
+fn_bam_all=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.new.sorted.paired_200000_4_$num_missmatches.bam
 
 
 mkdir -p $out_dir
@@ -45,7 +27,6 @@ fn_graph=${out_dir}/graph_gtf.h5
 
 #fn_gtf=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr_max_trans.gtf
 fn_gtf=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1.gtf
-#fn_gtf=~/tmp/sample.gtf
 if [ ! -f $fn_graph ]
 then
 	echo
@@ -74,11 +55,15 @@ mip_dir=$out_dir
 MAT="/cbio/grlab/share/software/matlab/matlab_R2012b/bin/matlab -nojvm -nodesktop -nosplash"
 addpaths="addpath matlab; "
 quantify=1
+
+${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, 1:10 , $quantify, $eta1, $eta2, $lambda); exit"
+exit 0;
+
 for x in `seq 1 1010`; do
 	fn_res=$mip_dir/gene$x.mat
 	if [ ! -f $fn_res ]; then
-		${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x , $quantify, $eta1, $eta2, $lambda); exit" &
-		sleep 10
+		${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x , $quantify, $eta1, $eta2, $lambda); exit"
+		sleep 3
 	fi
 done
 #${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, [], $quantify, $eta1, $eta2, $lambda); exit"
