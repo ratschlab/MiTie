@@ -104,7 +104,17 @@ else
 	num_added = 0;
 	num_rows = size(A,1)-1; % zero based
 	num_var = size(A, 2);
-	while cnt<t
+
+	while all(A(num_rows+1, :)==0)
+		% for technical reasons there are as many empty rows in A 
+		% as there are annotated transcripts
+		disp_ = 0;
+		h = lp_delrows(lpenv,p_lp,num_rows,num_rows,disp_);
+		num_rows = num_rows-1;
+		cnt = cnt+1;
+	end
+
+	while 1 % cnt<t
 		[x,lambda2,how2]=lp_resolve(lpenv, p_lp, 3, 'mip');
 		how2
 		cnt = cnt+1;
@@ -122,7 +132,7 @@ else
 			how = sprintf('%s;time_limit:%i;gap:%.2f', how, cnt, relgap*100)
 			break
 		end
-		if cnt==t
+		if cnt>=t
 			x2 = x;
 			how = how2;
 			break;

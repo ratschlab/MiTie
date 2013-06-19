@@ -7,9 +7,11 @@ function write_gtf(genes, gtf_fname, source)
 % source: source of annotation
 if nargin==0
 	fn_genes = '/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1.mat';
-	fn_gtf = '/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1.gtf';
+	%fn_gtf = '/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1.gtf';
+	fn_gtf = '/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/genes_half_open.gtf';
 	l = load(fn_genes, 'genes');
-	genes = half_open_to_closed(l.genes);
+	%genes = half_open_to_closed(l.genes);
+	genes = l.genes;
 	write_gtf(genes, fn_gtf, 'annotation');
 
 	return

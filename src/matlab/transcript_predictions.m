@@ -31,6 +31,8 @@ C.num_transcripts_predef = 1.6;
 C.pairs = 0;%100; 
 C.num_clusters=10;
 
+param.get_conf = 1; % obtain confidence levels for transcripts
+
 param.insert_size_tol = 0.5; 
 
 param.loss = 'nb';
@@ -94,8 +96,9 @@ if 1
 		opts.priority = 117;
 		opts.mem_req_resubmit = [15000 30000 45000];
 		opts.time_req_resubmit = [1e6 1e6 1e6];
-		opts.maxjobs = 100;
+		opts.maxjobs = 300;
 		opts.immediately_bg = 0;
+		opts.hostname='node04';
 		
 		cov_scale = [];
 		for r = 1:size(genes(k).seg_admat, 3)%loop over samples
@@ -169,9 +172,9 @@ if 1
 		end
 	end
 end
-if cnt>0
-	[jobinfo,num_crashed] = rproc_wait(jobinfo, 10, 1,-1, 1);
-end
+%if cnt>0
+%	[jobinfo,num_crashed] = rproc_wait(jobinfo, 10, 1,-1, 1);
+%end
 return
 
 

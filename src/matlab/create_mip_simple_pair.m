@@ -903,7 +903,6 @@ for x = 1:length(predef_trans)
 end
 
 
-% set all but the first weight to zero
 % these constraints will be removed one by one 
 % during the solving; the last constraint will be removed first
 %A20 = zeros(r*(t-1), num_var);
@@ -1054,6 +1053,72 @@ end ;
 if exist('fn_res', 'var') && ~isempty(fn_res)
 	save(fn_res, 'transcripts', 'weights', 'how', 'solvetime', 'clusters', 'PAR');
 end
+
+
+if isfield(param, 'get_conf') && param.get_conf
+	% set regularization to zero
+	f(I_idx) = C.num_transcripts;
+	if use_cluster
+		f(K_idx) = C.num_clusters;
+	end	
+
+	%% find nonzero transcripts and fix all others to zero
+	%% set indicator variable to zero => zero expression in all samples
+	%zero_idx = find(round(result(I_idx))==0);
+	%num_zero = length(zero_idx);
+	%cnt = 0;
+	%A21 = zeros(num_zero, num_var);
+	%b21 = zeros(num_zero, 1);
+	%for x = zero_idx 
+	%	cnt = cnt+1;
+	%	A21(cnt, I_idx(x)) = 1;
+	%end
+	%A21 = sparse(A21);
+	%A = [A; A21];
+	%b = [b; b21];
+
+
+	% fix all transcripts to their current result
+	cnt = 0;
+	A_new = zeros(s*t, num_var);
+	b_new = zeros(s*t, 1);
+	for x = 1:t
+		for j = 1:s
+			cnt = cnt+1;
+			A_new(cnt, U_idx((j-1)*t+x)) = 1;
+			b_new(cnt) = round(result(U_idx((j-1)*t+x))); % fix U_{j,cnt} to the result from the previous run
+		end
+	end
+	A_new = sparse(A_new);
+	n_of_equalities = n_of_equalities + s*t;
+	A = [A_new; A];
+	b = [b_new; b];
+
+	% solve once for all transcripts
+	[result2, how] = solve_mip(Q, f, A, b, lb, ub, binary_var_index, n_of_equalities, param.time_limit, r, 0, s, U_idx, length(predef_trans));
+	fprintf('Objective: %.3f\n', result2'*Q*result2+f'*result2);
+
+	conf_res(1) = result2'*Q*result2+f'*result2;
+
+	% solve with transcript k set to zero
+	nonzero_idx = find(round(result(I_idx))==1);
+	for x = nonzero_idx'
+		A22 = zeros(1, num_var);
+		b22 = 0;
+		A22(1, I_idx(x)) = 1;
+		A = [A; A22];
+		b = [b; b22];
+		[result2, how] = solve_mip(Q, f, A, b, lb, ub, binary_var_index, n_of_equalities, param.time_limit, r, 0, s, U_idx, length(predef_trans));
+		fprintf('Objective: %.3f\n', result2'*Q*result2+f'*result2);
+
+		conf_res(end+1) = result2'*Q*result2+f'*result2;
+		A(end, :) = [];
+		b(end) = [];
+	end
+	save(fn_res, 'transcripts', 'weights', 'how', 'solvetime', 'clusters', 'PAR');
+	save('-append', fn_res, 'conf_res')
+end
+
 return
 
 
