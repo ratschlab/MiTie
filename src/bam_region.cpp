@@ -807,7 +807,20 @@ void Bam_Region::generate_segment_graph(float seg_filter, float tss_pval)
 				while (segments[seg].first!=transcripts[i][exon].first)
 				{
 					seg++; 
-					assert(seg<segments.size());
+					//assert(seg<segments.size());
+					if (seg>=segments.size())
+					{
+						printf("exon %i\n", exon);
+						printf("failed to find exon: %i %i \n", transcripts[i][exon].first, transcripts[i][exon].second);
+
+						for (int j=0; j<transcripts[i].size(); j++)
+							printf("exon %i: %i %i \n", j, transcripts[i][j].first, transcripts[i][j].second);
+
+						for (int j=0; j<segments.size(); j++)
+							printf("%i -> %i\n", segments[j].first, segments[j].second);
+
+						assert(seg<segments.size());
+					}
 				}
 				assert(segments[seg].first==transcripts[i][exon].first);
 				path.push_back(seg);

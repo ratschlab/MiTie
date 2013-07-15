@@ -1116,7 +1116,7 @@ if isfield(param, 'get_conf') && param.get_conf
 		b(end) = [];
 	end
 	save(fn_res, 'transcripts', 'weights', 'how', 'solvetime', 'clusters', 'PAR');
-	save('-append', fn_res, 'conf_res')
+	save('-append', fn_res, 'conf_res', 'nonzero_idx')
 end
 
 return
@@ -1212,19 +1212,3 @@ function [left, right] = get_coefficients(x)
 	right = ((x-w2_x(j-1))*w2_y(j)+(w2_x(j)-x)*w2_y(j-1))/(w2_x(j)-w2_x(j-1));
 return
 
-function intron_conf = compute_intron_list(admat)
-
-	s = size(admat, 1);
-	intron_conf = zeros(s*(s-1)/2, 3);
-	cnt = 0;
-	for j = 1:s
-		for k = j+1:s
-			if admat(j, k)>=0
-				% valid intron not just a neighboring segment
-				cnt = cnt+1;
-				intron_conf(cnt,:) = [j, k, admat(j, k)];
-			end	
-		end
-	end
-	intron_conf(cnt+1:end, : ) = [];
-return

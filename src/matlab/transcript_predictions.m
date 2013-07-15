@@ -23,15 +23,15 @@ num_cpus=50;
 if nargin<4 || quantify
 	quantify = 1;
 	C.num_transcripts = 1.6;
-	C.introns = 0;%100; 
-	C.exon_cov = 100; 
+	C.introns = 100;%100; 
+	C.exon_cov = 1; 
 end
 
 C.num_transcripts_predef = 1.6;
 C.pairs = 0;%100; 
 C.num_clusters=10;
 
-param.get_conf = 1; % obtain confidence levels for transcripts
+param.get_conf = 0; % obtain confidence levels for transcripts
 
 param.insert_size_tol = 0.5; 
 
@@ -98,7 +98,7 @@ if 1
 		opts.time_req_resubmit = [1e6 1e6 1e6];
 		opts.maxjobs = 300;
 		opts.immediately_bg = 0;
-		opts.hostname='node04';
+		opts.hostname='node05';
 		
 		cov_scale = [];
 		for r = 1:size(genes(k).seg_admat, 3)%loop over samples

@@ -28,14 +28,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	for (int i=2; i<nrhs; i++)
 		bam_files.push_back(get_string(prhs[i]));
 		
-	printf("load_regions_bin: found %i samples\n", (int)bam_files.size());
+	//printf("load_regions_bin: found %i samples\n", (int)bam_files.size());
 	vector<vector<char*> > samples;
 	for (int i=0; i<bam_files.size(); i++)
 	{
-		printf("Sample %i:\n", i+1);
+		//printf("Sample %i:\n", i+1);
 		vector<char*> bams = separate(bam_files[i], ',');
-		for (int j = 0; j<bams.size(); j++)
-			printf("\t%s\n", bams[j]);
+		//for (int j = 0; j<bams.size(); j++)
+		//	printf("\t%s\n", bams[j]);
 
 		samples.push_back(bams);
 	}
@@ -61,7 +61,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	int nof_fields = 10;
 
 	int num = regions.size();
-	printf("\nparsed %i regions from file\n", num);
+	//printf("\nparsed %i regions from file\n", num);
 
 	mwSize dims[2] = {1, num};
 	plhs[0] = mxCreateStructArray(2, dims, nof_fields, field_names);
@@ -220,7 +220,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 	}
 
+
 	// cleanup
 	for (int j=0; j<num; j++)
 		delete regions[j];
+	
+	fclose(fd_null);
 }

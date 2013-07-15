@@ -8,11 +8,13 @@ if [ -z $1 ]; then
 else
 	num_missmatches=$1;
 fi
-eta1=1.20
-eta2=0.00
+eta1=1.00
+eta2=0.40
 lambda=0
 
 out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/conf_bhatt_mip_quant_exon_eta1_${eta1}_eta2_${eta2}_lambda_${lambda}_mm$num_missmatches
+out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/bhatt_mip_quant_exon_eta1_${eta1}_eta2_${eta2}_lambda_${lambda}_mm$num_missmatches
+out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/bhatt_mip_quant_intron_eta1_${eta1}_eta2_${eta2}_lambda_${lambda}_mm$num_missmatches
 #out_dir=~/tmp
 
 fn_bam_all=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.new.sorted.paired_200000_4_$num_missmatches.bam
@@ -58,12 +60,13 @@ MAT="/cbio/grlab/share/software/matlab/matlab_R2012b/bin/matlab -nojvm -nodeskto
 addpaths="addpath matlab; "
 quantify=1
 
-for x in `seq 1 50 $num_graphs`; do
-	${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x:$x+50 , $quantify, $eta1, $eta2, $lambda); exit"
-done
-for x in `seq $x $num_graphs`; do
-	${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x , $quantify, $eta1, $eta2, $lambda); exit"
-done
+${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, 1:$num_graphs , $quantify, $eta1, $eta2, $lambda); exit"
+#for x in `seq 1 50 $num_graphs`; do
+#	${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x:$x+50 , $quantify, $eta1, $eta2, $lambda); exit"
+#done
+#for x in `seq $x $num_graphs`; do
+#	${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 0; transcript_predictions('$fn_graph', {'`echo $fn_bam_iter | sed "s/ /','/g"`'}, '$mip_dir', C, $x , $quantify, $eta1, $eta2, $lambda); exit"
+#done
 exit 0;
 
 for x in `seq 1 $num_graphs`; do

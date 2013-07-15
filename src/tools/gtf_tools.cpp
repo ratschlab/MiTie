@@ -291,7 +291,7 @@ vector<Region*> regions_from_map(map<string, Region*> transcripts)
 
 		// warn if exons overlapp
 		for (int i=1; i<reg->transcripts[0].size(); i++)
-			if (reg->transcripts[0][i-1].second>=reg->transcripts[0][i].first)
+			if (reg->transcripts[0][i-1].second>=reg->transcripts[0][i].first && reg->transcripts[0][i-1].flag==reg->transcripts[0][i].flag)
 				printf("\nWarning: found overlapping exons in transcript %s: (%i %i) (%i %i)\n", transcript_id.c_str(), reg->transcripts[0][i-1].first, reg->transcripts[0][i-1].second, reg->transcripts[0][i].first, reg->transcripts[0][i].second);
 
 		// addjust start and stop
@@ -449,6 +449,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 		sort(reg->transcripts[0].begin(), reg->transcripts[0].end(), compare_second);
 
 		// discard duplicated exons and split CDS/UTR exons
+
 		vector<segment>::iterator tit = reg->transcripts[0].begin();
 		tit++;
 		for (; tit != reg->transcripts[0].end(); tit++)
@@ -457,6 +458,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 			{
 				if (!((tit-1)->flag==4 || tit->flag==4))
 				{
+					// one should be a CDS exon
 					printf("%s (cnt:%i): (%i %i %i)(%i %i %i)\n", it->first.c_str(), cnt, (tit-1)->first, (tit-1)->second, (tit-1)->flag, tit->first, tit->second, tit->flag);
 					exit(-1);
 				}
@@ -482,9 +484,36 @@ vector<Region*> parse_gtf(char* gtf_file)
 				assert(((tit-1)+1)->flag = 4);
 				(tit-1)->second = tit->first-1;
 			}
+			else if ((tit-1)->second>tit->second)
+			{
+				// cds is included in a single exon
+
+				if (tit->flag != 4)
+				{
+					printf("\ntit-1: %i %i %i\n", (tit-1)->first, (tit-1)->second, (tit-1)->flag);
+					printf("tit:   %i %i %i\n", tit->first, tit->second, tit->flag);
+				}
+				assert(tit->flag==4);
+				{
+					// create three exons
+					segment* seg = new segment();
+					seg->first = tit->second+1;
+					seg->second = (tit-1)->second;
+					seg->flag = 5;
+					(tit-1)->second = tit->first-1;
+
+					tit = reg->transcripts[0].insert(tit+1, *seg);
+
+					//printf("insert segment: %i %i %i\n", seg->first, seg->second, seg->flag);
+					delete seg;
+					//for (int jj=0; jj<reg->transcripts[0].size(); jj++)
+					//	printf("seg: %i %i (%i)\n", reg->transcripts[0][jj].first, reg->transcripts[0][jj].second, reg->transcripts[0][jj].flag);
+					//exit(-1);
+				}
+			}
 		}
 
-		// erase exons flagges with -1
+		// erase exons flagged with -1
 		// and fix coding flags
 		vector<segment> trans;
 		int last_flag = -1;
