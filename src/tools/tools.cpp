@@ -8,8 +8,13 @@
   using std::sort;
   using std::min;
   using std::max;
-#include <bam_region.h>
-#include "bam.h"
+
+#ifdef __USE_BAM__
+	#include <bam_region.h>
+	#include "bam.h"
+#else
+	#include "region.h"
+#endif
 
 vector<char*> separate(char* str, char sep)
 {
@@ -36,7 +41,7 @@ bool compare_second(segment intr1, segment intr2)
 		return false;
 	return (intr1.second<intr2.second);
 }
-
+#ifdef __USE_BAM__
 vector<Bam_Region*> parse_regions(char* fn_regions)
 {
 	FILE* fd = fopen(fn_regions, "r");
@@ -77,13 +82,7 @@ vector<Bam_Region*> parse_regions(char* fn_regions)
 
 	return regions;
 }
-void write_regions(vector<Region*> regions, FILE* fd)
-{
-	for (uint i=0; i<regions.size(); i++)
-	{
-		fprintf(fd, "%s\t%c\t%i\t%i\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
-	}
-}
+
 void set_chr_num(Region* reg, bam_header_t* header)
 {
 	for (int j=0; j<header->n_targets; j++)
@@ -97,6 +96,57 @@ void set_chr_num(Region* reg, bam_header_t* header)
 	fprintf(stderr, "tools: Did not find chr name in header: %s\n", reg->chr);
 	exit(-2);
 }
+#else
+vector<Region*> parse_regions(char* fn_regions)
+{
+	FILE* fd = fopen(fn_regions, "r");
+	if (!fd)
+	{
+		fprintf(stderr, "tools: Could not open file: %s for reading\n", fn_regions);
+	
+	}
+	int num_bytes = 1000;
+
+	vector<Region*> regions;
+	while (!feof(fd))
+	{
+		char line[num_bytes]; 
+		if (!fgets(line, num_bytes, fd))
+		{
+			break;
+		}
+		if (line[0]=='%' || line[0]=='#')
+			continue;
+		char* chr = new char[100];
+		char* strand = new char[100];
+		int start = 0;
+		int stop = 0;
+		int num_read = sscanf(line, "%s\t%s\t%i\t%i", chr, strand, &start, &stop);
+		if (num_read!=4)
+		{
+			fprintf(stderr, "tools: Error parsing line: %s\n", line);
+			exit(-2);
+		}
+		Region* reg = new Region(start, stop, chr, strand[0]);
+		regions.push_back(reg);
+		delete[] strand; 
+		delete[] chr;
+	}
+
+	fclose(fd);
+
+	return regions;
+}
+#endif
+void write_regions(vector<Region*> regions, FILE* fd)
+{
+	for (uint i=0; i<regions.size(); i++)
+	{
+		fprintf(fd, "%s\t%c\t%i\t%i\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
+	}
+}
+
+
 
 // interval overlapp code
 ////////////////////////////////////////////////////////////////////////////////
@@ -242,7 +292,9 @@ vector<int> interval_overlap(vector<int> starts1, vector<int> stops1, vector<int
 	return overlap;
 }
 
-vector<vector<int> > region_overlap(vector<Bam_Region*> regions1, vector<Bam_Region*> regions2)
+
+#ifdef __USE_BAM__
+	vector<vector<int> > region_overlap(vector<Bam_Region*> regions1, vector<Bam_Region*> regions2)
 {
 	// compute overlap
 	vector<int> starts1;
@@ -270,6 +322,7 @@ vector<vector<int> > region_overlap(vector<Bam_Region*> regions1, vector<Bam_Reg
 	}
 	return ov_list;
 }
+#endif
 
 vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> regions2)
 {

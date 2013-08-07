@@ -337,6 +337,7 @@ vector<Region*> merge_overlapping_regions(vector<Region*> regions)
 				// append transcripts of r2 to r1
 				r1->transcripts.insert(r1->transcripts.end(), r2->transcripts.begin(), r2->transcripts.end()); 
 				r1->transcript_names.insert(r1->transcript_names.end(), r2->transcript_names.begin(), r2->transcript_names.end()); 
+				r1->gene_names.insert(r1->gene_names.end(), r2->gene_names.begin(), r2->gene_names.end()); 
 
 				r1->start = std::min(r1->start, r2->start);
 				r1->stop = std::max(r1->stop, r2->stop);
@@ -398,6 +399,7 @@ vector<Region*> parse_gtf(char* gtf_file)
 		if (strcmp(type, "exon")==0 || strcmp(type, "CDS")==0)
 		{
 			char* tr_id = get_attribute(fields[8], "transcript_id");
+			char* gene_id = get_attribute(fields[8], "gene_id");
 			if (!tr_id)
 			{
 				printf("Could not find transcript_id: %s\n", fields[8]);
@@ -426,6 +428,10 @@ vector<Region*> parse_gtf(char* gtf_file)
 				transcripts[transcript_id] = reg;
 				vector<segment> vec;
 				reg->transcripts.push_back(vec);
+				if (gene_id)
+					reg->gene_names.push_back(string(gene_id));
+				else 
+					reg->gene_names.push_back(string("-"));
 			}
 			reg->transcripts[0].push_back(*seg);
 

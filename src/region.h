@@ -55,6 +55,7 @@ class Region
 		vector<segment> segments;
 		vector<vector<segment> > transcripts;
 		vector<string> transcript_names;
+		vector<string> gene_names;
 		vector<vector<int> > transcript_paths;
 		FILE* fd_out;
 
