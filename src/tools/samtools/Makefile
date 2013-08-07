@@ -1,6 +1,11 @@
+# The default version string in bam.h and bcftools/bcf.h can be overriden directly
+#   make VERSION="-DVERSION='\\\"my-version\\\"'"
+# or using the git-stamp rule
+#   make git-stamp
+VERSION=
+
 CC=			gcc
-#CFLAGS=		-g -Wall -O2 #-m64 #-arch ppc
-CFLAGS=		-g -Wall -O2 -fPIC
+CFLAGS=		-g -Wall $(VERSION) -O2 -fPIC
 #LDFLAGS=		-Wl,-rpath,\$$ORIGIN/../lib
 DFLAGS=		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_USE_KNETFILE -D_CURSES_LIB=1
 KNETFILE_O=	knetfile.o
@@ -10,12 +15,14 @@ LOBJS=		bgzf.o kstring.o bam_aux.o bam.o bam_import.o sam.o bam_index.o	\
 AOBJS=		bam_tview.o bam_plcmd.o sam_view.o \
 			bam_rmdup.o bam_rmdupse.o bam_mate.o bam_stat.o bam_color.o \
 			bamtk.o kaln.o bam2bcf.o bam2bcf_indel.o errmod.o sample.o \
-			cut_target.o phase.o bam2depth.o padding.o
+			cut_target.o phase.o bam2depth.o padding.o bedcov.o bamshuf.o \
+			bam_tview_curses.o bam_tview_html.o
 PROG=		samtools
 INCLUDES=	-I.
 SUBDIRS=	. bcftools misc
 LIBPATH=
 LIBCURSES=	-lcurses # -lXCurses
+
 
 .SUFFIXES:.c .o
 .PHONY: all lib
@@ -35,6 +42,9 @@ all-recur lib-recur clean-recur cleanlocal-recur install-recur:
 
 all:$(PROG)
 
+git-stamp:
+		make VERSION="-DVERSION='\\\"`git describe --always --dirty`\\\"'"
+
 .PHONY:all lib clean cleanlocal
 .PHONY:all-recur lib-recur clean-recur cleanlocal-recur install-recur
 
@@ -44,13 +54,16 @@ libbam.a:$(LOBJS)
 		$(AR) -csru $@ $(LOBJS)
 
 samtools:lib-recur $(AOBJS)
-		$(CC) $(CFLAGS) -o $@ $(AOBJS) $(LDFLAGS) libbam.a -Lbcftools -lbcf $(LIBPATH) $(LIBCURSES) -lm -lz
+		$(CC) $(CFLAGS) -o $@ $(AOBJS) $(LDFLAGS) libbam.a -Lbcftools -lbcf $(LIBPATH) $(LIBCURSES) -lm -lz -lpthread
 
 razip:razip.o razf.o $(KNETFILE_O)
-		$(CC) $(CFLAGS) -o $@ razf.o razip.o $(KNETFILE_O) -lz
+		$(CC) $(CFLAGS) -o $@ $^ -lz
 
 bgzip:bgzip.o bgzf.o $(KNETFILE_O)
-		$(CC) $(CFLAGS) -o $@ bgzf.o bgzip.o $(KNETFILE_O) -lz
+		$(CC) $(CFLAGS) -o $@ $^ -lz -lpthread
+
+bgzf.o:bgzf.c bgzf.h
+		$(CC) -c $(CFLAGS) $(DFLAGS) -DBGZF_CACHE $(INCLUDES) bgzf.c -o $@
 
 razip.o:razf.h
 bam.o:bam.h razf.h bam_endian.h kstring.h sam_header.h
@@ -60,7 +73,9 @@ bam_pileup.o:bam.h razf.h ksort.h
 bam_plcmd.o:bam.h faidx.h bcftools/bcf.h bam2bcf.h
 bam_index.o:bam.h khash.h ksort.h razf.h bam_endian.h
 bam_lpileup.o:bam.h ksort.h
-bam_tview.o:bam.h faidx.h
+bam_tview.o:bam.h faidx.h bam_tview.h
+bam_tview_curses.o:bam.h faidx.h bam_tview.h
+bam_tview_html.o:bam.h faidx.h bam_tview.h
 bam_sort.o:bam.h ksort.h razf.h
 bam_md.o:bam.h faidx.h
 sam_header.o:sam_header.h khash.h

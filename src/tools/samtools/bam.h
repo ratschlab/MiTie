@@ -40,7 +40,11 @@
   @copyright Genome Research Ltd.
  */
 
-#define BAM_VERSION "0.1.18-dev (r982:313)"
+#ifndef VERSION
+#define BAM_VERSION "0.1.19+"
+#else
+#define BAM_VERSION VERSION
+#endif
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -168,7 +172,6 @@ typedef struct {
   @abstract Structure for core alignment information.
   @field  tid     chromosome ID, defined by bam_header_t
   @field  pos     0-based leftmost coordinate
-  @field  strand  strand; 0 for forward and 1 otherwise
   @field  bin     bin calculated by bam_reg2bin()
   @field  qual    mapping quality
   @field  l_qname length of the query name
@@ -193,13 +196,15 @@ typedef struct {
   @field  l_aux      length of auxiliary data
   @field  data_len   current length of bam1_t::data
   @field  m_data     maximum length of bam1_t::data
-  @field  data       all variable-length data, concatenated; structure: cigar-qname-seq-qual-aux
+  @field  data       all variable-length data, concatenated; structure: qname-cigar-seq-qual-aux
 
   @discussion Notes:
  
    1. qname is zero tailing and core.l_qname includes the tailing '\0'.
    2. l_qseq is calculated from the total length of an alignment block
       on reading or from CIGAR.
+   3. cigar data is encoded 4 bytes per CIGAR operation.
+   4. seq is nybble-encoded according to bam_nt16_table.
  */
 typedef struct {
 	bam1_core_t core;
@@ -291,12 +296,12 @@ extern int bam_verbose;
 extern int bam_no_B;
 
 /*! @abstract Table for converting a nucleotide character to the 4-bit encoding. */
-extern unsigned char bam_nt16_table[256];
+extern const unsigned char bam_nt16_table[256];
 
 /*! @abstract Table for converting a 4-bit encoded nucleotide to a letter. */
-extern char *bam_nt16_rev_table;
+extern const char bam_nt16_rev_table[];
 
-extern char bam_nt16_nt4_table[];
+extern const char bam_nt16_nt4_table[];
 
 #ifdef __cplusplus
 extern "C" {
@@ -533,7 +538,7 @@ extern "C" {
 	struct __bam_plp_t;
 	typedef struct __bam_plp_t *bam_plp_t;
 
-	bam_plp_t bam_plp_init(bam_plp_auto_f func, void *data);
+	bam_plp_t bam_plp_init(bam_plp_auto_f read, void *data);
 	int bam_plp_push(bam_plp_t iter, const bam1_t *b);
 	const bam_pileup1_t *bam_plp_next(bam_plp_t iter, int *_tid, int *_pos, int *_n_plp);
 	const bam_pileup1_t *bam_plp_auto(bam_plp_t iter, int *_tid, int *_pos, int *_n_plp);
@@ -545,7 +550,7 @@ extern "C" {
 	struct __bam_mplp_t;
 	typedef struct __bam_mplp_t *bam_mplp_t;
 
-	bam_mplp_t bam_mplp_init(int n, bam_plp_auto_f func, void **data);
+	bam_mplp_t bam_mplp_init(int n, bam_plp_auto_f func,  void **data);
 	void bam_mplp_destroy(bam_mplp_t iter);
 	void bam_mplp_set_maxcnt(bam_mplp_t iter, int maxcnt);
 	int bam_mplp_auto(bam_mplp_t iter, int *_tid, int *_pos, int *n_plp, const bam_pileup1_t **plp);
@@ -772,9 +777,21 @@ static inline int bam_aux_type2size(int x)
 {
 	if (x == 'C' || x == 'c' || x == 'A') return 1;
 	else if (x == 'S' || x == 's') return 2;
-	else if (x == 'I' || x == 'i' || x == 'f') return 4;
+	else if (x == 'I' || x == 'i' || x == 'f' || x == 'F') return 4;
 	else return 0;
 }
 
+/*********************************
+ *** Compatibility with htslib ***
+ *********************************/
+
+typedef bam_header_t bam_hdr_t;
+
+#define bam_get_qname(b) bam1_qname(b)
+#define bam_get_cigar(b) bam1_cigar(b)
+
+#define bam_hdr_read(fp) bam_header_read(fp)
+#define bam_hdr_write(fp, h) bam_header_write(fp, h)
+#define bam_hdr_destroy(fp) bam_header_destroy(fp)
 
 #endif
