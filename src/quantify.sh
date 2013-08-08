@@ -8,8 +8,8 @@ if [ -z $1 ]; then
 else
 	num_missmatches=$1;
 fi
-eta1=1.00
-eta2=0.40
+eta1=1.50
+eta2=0.00
 lambda=0
 
 out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/conf_bhatt_mip_quant_exon_eta1_${eta1}_eta2_${eta2}_lambda_${lambda}_mm$num_missmatches
