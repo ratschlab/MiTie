@@ -1,12 +1,8 @@
 
 #### please adjust these paths or define the variables accordingly before starting make
-export CPLEX_LIB ?= /fml/ag-raetsch/share/software/ilog/cplex91/lib/x86-64_RHEL3.0_3.2/static_pic/
-export CPLEX_INC ?= /fml/ag-raetsch/share/software/ilog/cplex91/include/ilcplex
-export MEX_BIN ?= /cbio/grlab/share/software/matlab/matlab_R2012b/bin/mex
+export MEX_BIN ?= <path_to_matlab>/bin/mex
 
-
-#CXX = g++ -O9
-CXX = g++ -g
+CXX = g++ -O9
 NGS = tools/ngs
 NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp 
 SAMDIR = tools/samtools
@@ -14,18 +10,41 @@ SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses
 GENOME = tools/genome/
 GENOME_TOOLS = ${GENOME}/genome.cpp ${GENOME}/genome_tools.cpp
 TOOLS_DIR = tools/
-TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}math_tools.cpp 
-INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL}
+TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}math_tools.cpp ${TOOLS_DIR}graph_tools.cpp 
+
+# HDF5
+HDF5_INCL = -lhdf5 -lhdf5_cpp -lhdf5 -lhdf5_hl -lm
+# if not available on system then specify the path to lib and include here
+# HDF5_PATH = -I<path_to_hdf5>/hdf5-1.8.11/hdf5/include -L<path_to_hdf5>/hdf5-1.8.11/hdf5/lib/
+# HDF5_INCL = ${HDF5_PATH} ${HDF5_INCL}
+INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL} ${HDF5_INCL} 
 
 #### Mex stuff
 MATLAB_INCDIR ?= /fml/ag-raetsch/share/software/matlab/extern/include
 MEX_UTILS = tools/mex/
 
+#### CPLEX stuff
+SYSTEM     = x86-64_sles10_4.1
+LIBFORMAT  = static_pic
+
+CPLEXDIR = <path_to_ilog>/CPLEX_Studio124/cplex
+CONCERTDIR = <path_to_ilog>/ilog/CPLEX_Studio124/concert
+
+CPLEXINCDIR   = $(CPLEXDIR)/include
+CONCERTINCDIR = $(CONCERTDIR)/include
+
+CPLEXLIBDIR   = $(CPLEXDIR)/lib/$(SYSTEM)/$(LIBFORMAT)
+CONCERTLIBDIR = $(CONCERTDIR)/lib/$(SYSTEM)/$(LIBFORMAT)
+
+CCLNFLAGS = -L$(CPLEXLIBDIR) -lilocplex -lcplex -L$(CONCERTLIBDIR) -lconcert -lm -pthread
+
+# the -DNDEBUG switches off all asserts
+#CCOPT = -m64 -O -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD
+CCOPT = -m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD
+CCFLAGS = $(CCOPT) -I$(CPLEXINCDIR) -I$(CONCERTINCDIR)
 
 
-
-all: define_regions generate_segment_graph ath_count_reads_in_region load_regions_bin.mexa64 subfolders 
-#eval_pacbio
+all: subfolders define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio load_regions_bin.mexa64 transcript_prediction
 
 subfolders:
 	@echo "##################################################" 
@@ -41,28 +60,23 @@ subfolders:
 	@echo "##################################################" 
 	$(MAKE) -C matlab/cplex
 
-region.o: region.cpp region.h ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) -c -o region.o region.cpp ${INCL}
+define_regions: define_regions.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
+	$(CXX) define_regions.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o define_regions
 
-define_regions: define_regions.cpp region.o ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) define_regions.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o define_regions
+generate_segment_graph: generate_segment_graph.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
+	$(CXX) generate_segment_graph.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o generate_segment_graph
 
-generate_segment_graph: generate_segment_graph.cpp region.o ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) generate_segment_graph.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o generate_segment_graph
+transcript_prediction: transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
+	$(CXX) transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} $(CCFLAGS) $(CCLNFLAGS) -o transcript_prediction
 
-infer_transcript_ends: infer_transcript_ends.cpp region.o ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) infer_transcript_ends.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o infer_transcript_ends
+ath_count_reads_in_region: ath_count_reads_in_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
+	$(CXX) ath_count_reads_in_region.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o ath_count_reads_in_region
 
-ath_count_reads_in_region: ath_count_reads_in_region.cpp region.o ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) ath_count_reads_in_region.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o ath_count_reads_in_region
+eval_pacbio: eval_pacbio.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS} 
+	$(CXX) eval_pacbio.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o eval_pacbio
 
-#eval_pacbio: eval_pacbio.cpp region.o ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS} 
-#	$(CXX) eval_pacbio.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o eval_pacbio
+load_regions_bin.mexa64: load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
+	${MEX_BIN} -g -O load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
 
-load_regions_bin.mexa64: load_regions_bin.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
-	${MEX_BIN} -g -O load_regions_bin.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
-
-load_regions_bin_MAGIC.mexa64: load_regions_bin_MAGIC.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
-	${MEX_BIN} -g -O load_regions_bin_MAGIC.cpp region.o ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
-
-
+load_regions_bin_MAGIC.mexa64: load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
+	${MEX_BIN} -g -O load_regions_bin_MAGIC.cpp bam_regon.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
