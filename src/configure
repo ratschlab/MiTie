@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+
+TMPLOG=configure.log
+HDF_IL=
+
+get_cflags()
+{
+    def=$1; pkgs="${*#$def}"
+    if test -n "`which pkg-config 2>/dev/null`"; then
+    for i in $pkgs; do
+        if pkg-config --exists $i; then
+        pkg-config --cflags $i; return
+        fi
+    done
+    fi
+    echo $def
+}
+
+get_lflags()
+{
+	echo $*
+    def=$1; pkgs="${*#$def}"
+	echo pkgs: 
+	echo $pkgs
+    if test -n "`which pkg-config 2>/dev/null`"; then
+    for i in $pkgs; do
+        if pkg-config --exists $i; then
+        pkg-config --libs $i; return
+        fi
+    done
+    fi
+    echo $def
+}
+
+check_hdf5()
+{
+	echo -n "checking for HDF5 libraries...  "
+	
+	TMPCXX=tmp_hdf.cpp
+	TMPO=tmp_hdf.o
+
+	cat > $TMPCXX << EOF
+#include "H5Cpp.h"
+int main(void)
+{
+
+	H5::H5File* file = new H5::H5File("tmpfile.h5", H5F_ACC_TRUNC);
+	delete file;
+    return 0;
+}
+EOF
+
+	# compile
+	if [ ! -z HDF5_PATH ]; then
+		HDF_IL="-I$HDF5_PATH/include/ -L$HDF5_PATH/lib/"
+		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5_PATH/lib/
+	fi
+	HDF_IL="$HDF_IL -lhdf5 -lhdf5_cpp -lhdf5 -lhdf5_hl -lm"
+
+	echo g++ "$TMPCXX" -o "$TMPO" $HDF_IL  >> "$TMPLOG" 2>&1	
+	( g++ "$TMPCXX" -o "$TMPO" $HDF_IL ) >> "$TMPLOG" 2>&1	
+	TMP="$?"
+	if test -f "$TMPO"
+	then
+		echo >> "$TMPLOG" 
+    	echo "ldd $TMPO" >> "$TMPLOG"
+    	( ldd "$TMPO" ) >> "$TMPLOG" 2>&1
+		rm $TMPO
+		echo ok
+	else
+		echo failed
+		echo
+		echo -e "\tcould not find HDF5 lib"
+		echo -e "\tget libraries e.g.:"
+		echo -e "\t\twget http://www.hdfgroup.org/ftp/HDF5/current/bin/linux-x86_64/hdf5-1.8.11-linux-x86_64-shared.tar.gz"
+		echo -e "\tand configure with --enable-cxx"
+		echo -e "\tcompile and specify path with -hdf5_dir=<path_to_hdf5> such that <path_to_hdf>/include/ and <path_to_hdf>/lib/ contain are valid"
+	fi
+	rm $TMPCXX
+	echo >> "$TMPLOG" 
+}
+
+parse_arguments()
+{
+	for parm in "$@" ; do
+		if test "$parm" = "--help" || test "$parm" = "-help" || test "$parm" = "-h" ; then
+			cat << EOF
+Usage: $0 [-hdf5_dir=<path_to_hdf5>]
+EOF
+			exit 0
+		fi
+	done
+
+	for ac_option ; do
+		case "$ac_option" in 
+			-hdf5_dir=* | --hdf5_dir=*)
+				HDF5_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo using hdf5_dir $HDF5_PATH
+			;;
+		esac
+	done
+}
+
+
+
+if [ -f Makefile ]; then
+	echo Makefile exists, I will not overwrite this
+	exit 0;
+fi
+
+parse_arguments $@
+check_hdf5
+
+echo
+echo creating Makefile
+echo "HDF_IL=$HDF_IL" >> Makefile
+cat Makefile.sample >> Makefile
+
+

@@ -10,10 +10,12 @@
   using std::sort;
   using std::min;
   using std::max;
-#ifdef __USE_BAM__
+//#ifdef __USE_BAM__
+#ifdef BAM_BAM_H
 	#include <bam_region.h>
-	#include "bam.h"
 #endif
+//	#include "bam.h"
+//#endif
 
 bool compare_second(segment intr1, segment intr2);
 
@@ -42,7 +44,7 @@ vector<int> interval_overlap(vector<int> starts1, vector<int> stops1, vector<int
 
 vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> regions2);
 
-#ifdef __USE_BAM__  
+#ifdef BAM_BAM_H
 	vector<vector<int> > region_overlap(vector<Bam_Region*> regions1, vector<Bam_Region*> regions2);
 
 	vector<Bam_Region*> parse_regions(char* fn_regions);

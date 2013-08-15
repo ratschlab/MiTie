@@ -1,6 +1,7 @@
 
 #### please adjust these paths or define the variables accordingly before starting make
 export MEX_BIN ?= <path_to_matlab>/bin/mex
+export MATLAB_INCDIR ?= <path_to_matlab>/extern/include
 
 CXX = g++ -O9
 NGS = tools/ngs
@@ -11,16 +12,9 @@ GENOME = tools/genome/
 GENOME_TOOLS = ${GENOME}/genome.cpp ${GENOME}/genome_tools.cpp
 TOOLS_DIR = tools/
 TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}math_tools.cpp ${TOOLS_DIR}graph_tools.cpp 
-
-# HDF5
-HDF5_INCL = -lhdf5 -lhdf5_cpp -lhdf5 -lhdf5_hl -lm
-# if not available on system then specify the path to lib and include here
-# HDF5_PATH = -I<path_to_hdf5>/hdf5-1.8.11/hdf5/include -L<path_to_hdf5>/hdf5-1.8.11/hdf5/lib/
-# HDF5_INCL = ${HDF5_PATH} ${HDF5_INCL}
-INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL} ${HDF5_INCL} 
+INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL} ${HDF_IL} 
 
 #### Mex stuff
-MATLAB_INCDIR ?= /fml/ag-raetsch/share/software/matlab/extern/include
 MEX_UTILS = tools/mex/
 
 #### CPLEX stuff
@@ -44,7 +38,7 @@ CCOPT = -m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD
 CCFLAGS = $(CCOPT) -I$(CPLEXINCDIR) -I$(CONCERTINCDIR)
 
 
-all: subfolders define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio load_regions_bin.mexa64 transcript_prediction
+all: define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio load_regions_bin.mexa64 transcript_prediction subfolders
 
 subfolders:
 	@echo "##################################################" 
