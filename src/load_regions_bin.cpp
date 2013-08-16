@@ -9,6 +9,7 @@
 	using std::max;
 #include <fstream>
 #include "tools.h"
+#include "bam_region.h"
 
 /*
 */

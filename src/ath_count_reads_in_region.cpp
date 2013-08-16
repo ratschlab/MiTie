@@ -9,7 +9,7 @@
 #include "bam_region.h"
 #include "get_reads_direct.h"
 #include <fstream>
-#include "tools.h"
+#include "tools_bam.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////

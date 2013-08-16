@@ -1,4 +1,5 @@
 #include <algorithm>
+#include "bam.h"
 #include "H5Cpp.h"
 #include "get_reads_direct.h"
 #include "region.h"

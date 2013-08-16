@@ -11,7 +11,8 @@
 #include "get_reads_direct.h"
 #include <fstream>
 #include "gtf_tools.h"
-#include "tools.h"
+//#include "tools.h"
+#include "tools_bam.h"
 #include "file_stats.h"
 
 //includes for samtools

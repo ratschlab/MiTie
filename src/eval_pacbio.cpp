@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
-//#include "region.h"
+#include "region.h"
 #include "tools.h"
 #include "gtf_tools.h"
 

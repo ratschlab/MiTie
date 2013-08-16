@@ -1,8 +1,10 @@
 
 
-CPLEX_LIB ?= /fm/ag-raetsch/share/software/ilog/cplex91/lib/x86-64_RHEL3.0_3.2/static_pic/
-CPLEX_INC ?= /fm/ag-raetsch/share/software/ilog/cplex91/include/ilcplex
-MEX_BIN ?= /fm/ag-raetsch/share/software/matlab/bin/mex
+#CPLEX_LIB ?= /fm/ag-raetsch/share/software/ilog/cplex91/lib/x86-64_RHEL3.0_3.2/static_pic/
+CPLEX_LIB = ${CPLEXLIBDIR}
+#CPLEX_INC ?= /fm/ag-raetsch/share/software/ilog/cplex91/include/ilcplex
+CPLEX_INC = ${CPLEXINCDIR}/ilcplex/
+#MEX_BIN ?= /fm/ag-raetsch/share/software/matlab/bin/mex
 
 all: cplex_init_quit.mexa64 lp_gen.mexa64 qp_gen.mexa64 lp_solve.mexa64 qp_solve.mexa64 qp_solve_start.mexa64 lp_resolve.mexa64 lp_addrows.mexa64 lp_addrows_ranged.mexa64 lp_addcols.mexa64 lp_close.mexa64 lp_write.mexa64 lp_read.mexa64 lp_set_param.mexa64 lp_delcols.mexa64 lp_delrows.mexa64 lp_chobj.mexa64 lp_chgprobtype.mexa64 lp_chgctype.mexa64 lp_cpmipstart.mexa64 getmiprelgap.mexa64
 

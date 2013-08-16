@@ -5,10 +5,11 @@
 #include <math.h>
 #include <algorithm>
 #include <assert.h>
+#include <fstream>
 #include "bam.h"
 #include "region.h"
+#include "bam_region.h"
 #include "get_reads_direct.h"
-#include <fstream>
 #include "gtf_tools.h"
 #include "tools.h"
 #include "file_stats.h"
