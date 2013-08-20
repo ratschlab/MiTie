@@ -442,7 +442,7 @@ int main(int argc, char* argv[])
 	if (c.fn_regions)
 	{
 		printf("loading regions from flat file: %s\n", c.fn_regions);
-		regions = parse_regions(c.fn_regions);
+		regions = parse_bam_regions(c.fn_regions);
 		printf("number of regions from flat file: %i\n", (int) regions.size());
 	}
 	int num_reg = regions.size();

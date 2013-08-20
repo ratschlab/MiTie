@@ -88,6 +88,10 @@ class Bam_Region: public Region
 
 		int compute_pair_mat();
 
+		vector<int> get_initial_nodes();
+
+		vector<int> get_terminal_nodes();
+
 		vector<int> get_parents(int node, bool no_neighbors);
 
 		vector<int> get_children(int node, bool no_neighbors);

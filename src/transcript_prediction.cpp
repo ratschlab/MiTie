@@ -81,7 +81,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->eta2 = 0.42;
 	c->lambda = 3;
 	c->min_trans_len = 100;
-	c-> use_pair = true;
+	c-> use_pair = false;
 
     for (int i = 2; i < argc; i++)  
     {
@@ -268,13 +268,6 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	printf("length of all segments: %i\n", len);
 	int min_trans_len = min(len, config->min_trans_len);
 
-
-	semi_sparse_3d_matrix<float> mat;
-	mat.add(35, 57, 5.0);
-	printf("val: %.3f\n", mat.get(35, 57, 0));
-	printf("val: %.3f\n", mat.get(35, 21, 0));
-
-
 	semi_sparse_3d_matrix<float> intron_list = compute_intron_list(all_admat);
 	semi_sparse_3d_matrix<float> pair_list = compute_pair_list(all_pair_mat);
 
@@ -284,7 +277,6 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	int num_introns = intron_list.size();
 	int num_samples = all_admat->size();
 	vector<int> binary_var_index_all;
-	int n_of_equalities = 0;
 
 	int max_num_trans = config->max_num_trans + graph->transcript_paths.size();
 
@@ -318,6 +310,13 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	vector<int> C_idx = range(num_var, num_var+c*t*r-1);    num_var += C_idx.size();
 	vector<int> D_idx = range(num_var, num_var+c*r*2-1);    num_var += D_idx.size();
 	
+	printf("U_idx: %i-%i\n", U_idx[0], U_idx[U_idx.size()-1]);
+	printf("I_idx: %i-%i\n", I_idx[0], I_idx[I_idx.size()-1]);
+	printf("E_idx: %i-%i\n", E_idx[0], E_idx[E_idx.size()-1]);
+	printf("W_idx: %i-%i\n", W_idx[0], W_idx[W_idx.size()-1]);
+	printf("L_idx: %i-%i\n", L_idx[0], L_idx[L_idx.size()-1]);
+	printf("C_idx: %i-%i\n", C_idx[0], C_idx[C_idx.size()-1]);
+	printf("D_idx: %i-%i\n", D_idx[0], D_idx[D_idx.size()-1]);
 	//if use_cluster
 	//    M_idx = num_var+1:num_var+r*nc; num_var = num_var+length(M_idx); % cluster assignment
 	//    m_idx = num_var+1:num_var+t*nc; num_var = num_var+length(m_idx); % cluster centroids
@@ -328,6 +327,9 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	    int np = pair_list.size();
 	    vector<int>  P_idx = range(num_var, num_var+t*np-1); num_var += P_idx.size();
 	    vector<int> SP_idx = range(num_var, num_var+np-1);   num_var += SP_idx.size(); // slacks for pair observation
+		printf("P_idx: %i-%i\n", P_idx[0], P_idx[P_idx.size()-1]);
+		printf("SP_idx: %i-%i\n", SP_idx[0], SP_idx[SP_idx.size()-1]);
+
 	}
 
 
@@ -490,9 +492,354 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	assert(cc==qp->b.size());
 	assert(cc==qp->eq_idx.size());
 
+	// E_str
+	// define helper variables computing the expected coverage for each segment
+	// The expected coverage is given by 
+	// E_str = U_st * W_tr
+	// bound them in [0, 1]
+
+	// E_str - U_st <= 0
+	for (int i=0; i<r; i++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			for (int k=0; k<t; k++)
+			{
+				int pos = i*s*t+j*t+k;
+				qp->A.set(cc, E_idx[pos], 1);
+				qp->A.set(cc, U_idx[j*t+k], 1);
+				cc++;
+				qp->b.push_back(0);
+				qp->eq_idx.push_back(0);
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	// E_str + U_st - W_t <= 1
+	for (int i=0; i<r; i++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			for (int k=0; k<t; k++)
+			{
+				int pos = i*s*t+j*t+k;
+				qp->A.set(cc, E_idx[pos], 1);
+				qp->A.set(cc, U_idx[j*t+k], 1);
+				qp->A.set(cc, W_idx[i*t+k], -1);
+				cc++;
+				qp->b.push_back(1);
+				qp->eq_idx.push_back(0);
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	// -E_str + U_st + W_t <= 1
+	for (int i=0; i<r; i++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			for (int k=0; k<t; k++)
+			{
+				int pos = i*s*t+j*t+k;
+				qp->A.set(cc, E_idx[pos], -1);
+				qp->A.set(cc, U_idx[j*t+k], 1);
+				qp->A.set(cc, W_idx[i*t+k], 1);
+				cc++;
+				qp->b.push_back(1);
+				qp->eq_idx.push_back(0);
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	// I_t
+	// indicator for transcripts with weight >0 in any sample
+	// sum_r W_tr - r*I_t <=0 
+	// -I_1 <= -1 predict at least one transcript
+	for (int x=0; x<t; x++)
+	{
+		for (int i=0; i<r; i++)
+		{
+			qp->A.set(cc, W_idx[i*t+x], 1); // W_tr
+		}
+		qp->A.set(cc, I_idx[x], -r); // -r*I_t
+		cc++;
+		qp->b.push_back(0);
+		qp->eq_idx.push_back(0);
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+
+	//
+	// S_ss
+	// spliced read penalty
+	//
+	// C_jkt = W_t*U_jt*prod_i=j+1^k-1{1-U_it}*U_kt
+	//
+	// (1) C_jkt<=U_jt
+	// (2) C_jkt<=U_kt
+	// (3) C_jkt<=1-U_it for all j<i<k
+	// (4) C_jkt<=W_t-U_jt+1-U_kt+1+ (sum_i U_it) 
+	// (5) C_jkt>= W_t+U_jt-1+U_kt-1- (sum_i U_it)
+	//
+	// compute expected intron coverage - observed intron coverage
+	// (6) D_jk = sum_t C_jkt - O_jk 
+	//
+	// for introns (j,k) not in splicegraph
+	// do not allow the usage of this intron:
+	// (7) U_{jt}+U_{kt} <= \sum_{i=j+1}^{k-1} U_{it} +1 
+	//
+
+
+	// (1) C_jkt-U_jt<=0				-> A10
+	// (2) C_jkt-U_kt<=0 				-> A11
+	// (3) C_jkt+U_it<=1 for all j<i<k	-> A12
+
+	for (int i=0; i<r; i++)
+	{
+		for (int x=0; x<t; x++)
+		{
+			intron_list.reset_it();
+			int xx=0;
+			while (true)
+			{
+				int j = 0;
+				int k = 0;
+				intron_list.next(&j, &k);
+
+				if (j==-1)
+					break;
+
+				assert(j<s);
+				assert(k<s);
+
+				int cnt = i*t*c+x*c+xx ;  
+				// A10
+				qp->A.set(cc, U_idx[j*t+x], -1);
+				qp->A.set(cc, C_idx[cnt], 1);
+				cc++;
+				qp->b.push_back(0);
+				qp->eq_idx.push_back(0);
+				//A11
+				qp->A.set(cc, U_idx[k*t+x], -1);
+				qp->A.set(cc, C_idx[cnt], 1);
+				cc++;
+				qp->b.push_back(0);
+				qp->eq_idx.push_back(0);
+
+				//A12
+				for (int l=j+1; l<k; l++)
+				{
+					qp->A.set(cc, U_idx[l*t+x], 1);
+					qp->A.set(cc, C_idx[cnt], 1);
+					cc++;
+					qp->b.push_back(1);
+					qp->eq_idx.push_back(0);
+				}
+				xx++;
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	// (4) C_jkt-W_t+U_jt+U_kt-(sum_i U_it) <= 2
+	for (int i=0; i<r; i++)
+	{
+		for (int x=0; x<t; x++)
+		{
+			intron_list.reset_it();
+			int xx=0;
+			while (true)
+			{
+				int j = 0;
+				int k = 0;
+				intron_list.next(&j, &k);
+
+				if (j==-1)
+					break;
+
+				int cnt = i*t*c+x*c+xx;  
+				qp->A.set(cc, U_idx[j*t+x], 1);
+				qp->A.set(cc, U_idx[k*t+x], 1);
+				qp->A.set(cc, C_idx[cnt], 1);
+				qp->A.set(cc, W_idx[i*t+x], -1);
+				for (int l=j+1; l<k; l++)
+				{
+					qp->A.set(cc, U_idx[l*t+x], -1);
+				}
+				cc++;
+				qp->b.push_back(2);
+				qp->eq_idx.push_back(0);
+				xx++;
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+	// (5) -C_jkt+W_t+U_jt+U_kt-(sum_i U_it) <= 2
+	for (int i=0; i<r; i++)
+	{
+		for (int x=0; x<t; x++)
+		{
+			intron_list.reset_it();
+			int xx=0;
+			while (true)
+			{
+				int j = 0;
+				int k = 0;
+				intron_list.next(&j, &k);
+
+				if (j==-1)
+					break;
+
+				int cnt = i*t*c+x*c+xx;  
+				qp->A.set(cc, U_idx[j*t+x], 1);
+				qp->A.set(cc, U_idx[k*t+x], 1);
+				qp->A.set(cc, C_idx[cnt], -1);
+				qp->A.set(cc, W_idx[i*t+x], 1);
+				for (int l=j+1; l<k; l++)
+				{
+					qp->A.set(cc, U_idx[l*t+x], -1);
+				}
+				cc++;
+				qp->b.push_back(2);
+				qp->eq_idx.push_back(0);
+				xx++;
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+
+	// (6) D_jk = sum_t C_jkt - O_jk
+	// (6) sum_t C_jkt - D_jk =  O_jk
+	for (int i=0; i<r; i++)
+	{
+		intron_list.reset_it();
+		int xx=0;
+		while (true)
+		{
+			int j = 0;
+			int k = 0;
+			vector<float>* conf = intron_list.next(&j, &k);
+
+			if (j==-1)
+				break;
+
+			assert(conf->size()==r);
+			for (int x=0; x<t; x++)
+			{
+				int cnt = i*t*c+x*c+xx;
+				qp->A.set(cc, C_idx[cnt], 1); 
+			}
+			qp->A.set(cc, D_idx[i*c+xx], -1); 
+			qp->A.set(cc, D_idx[i*c+xx+c*r], 1); 
+	
+			cc++;
+			qp->b.push_back(conf->at(i));
+			qp->eq_idx.push_back(1);
+			xx++;
+		}
+	}
+
+	// for introns (j,k) not in splicegraph
+	// do not allow the usage of this intron:
+	// (7) U_{jt}+U_{kt} <= \sum_{i=j+1}^{k-1} U_{it} +1 
+	// (7) U_{jt}+U_{kt}-\sum_{i=j+1}^{k-1} U_{it} <= 1 
+	//
+	// negative formulation
+	// all not known introns are forbidden
+	for (int x=0; x<t; x++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			 // find the last segment that is connected to segment j
+			 // constraint matrix A3 will make sure that one of them is 
+			 // used if the segment is not terminal
+			 // => if the segment is not terminal introns larger than to 
+			 // the last connected segment are excluded any way and 
+			 // we do not need to do this here
+			bool no_neighbors = false;
+			vector<int> cnodes = graph->get_children(j+1, no_neighbors);
+			int maxs;
+			if (graph->is_terminal(j+1))
+			{
+				maxs = s;
+			}
+			else if (cnodes.size()==0)
+			{
+				// this case is handled by A3
+				// it makes sure that no downstream segment is used
+				// thus there is also no intron
+				continue;
+			}
+			else
+			{
+				for  (int i=0; i<cnodes.size(); i++)
+				{
+					if (cnodes[i]>maxs)
+						maxs = cnodes[i];
+				}
+			}
+
+			for (int k=j+1; k<=maxs; k++)
+			{
+				// check if j->k is a valid intron
+				bool exist = true;
+				intron_list.get(j, k, 0, exist);
+				if (exist)
+					continue;
+			
+				qp->A.set(cc, U_idx[j*t+x], 1); 
+				qp->A.set(cc, U_idx[k*t+x], 1); 
+	
+				for (int l=j+1; l<k; l++)
+				{
+					qp->A.set(cc, U_idx[l*t+x], -1);
+				}
+				cc++;
+				qp->b.push_back(1);
+				qp->eq_idx.push_back(0);
+			}
+		}
+	}
+	assert(cc==qp->b.size());
+	assert(cc==qp->eq_idx.size());
+
+
+
+	qp->result = solve_qp_cplex(qp);
+
+	printf("res[W_idx]\n");
+	for (int i=0; i<W_idx.size(); i++)
+		printf("%.4f, ", qp->result[W_idx[i]]);
+	printf("\n");
+
+	printf("res[U_idx]\n");
+	for (int i=0; i<t; i++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			printf("%i ", qp->result[U_idx[j*t+i]]>0.5);
+		}
+		printf("\n");
+	}
 	return qp;
 }
 
+//transcripts_from_result(QP* qp)
+//{
+//	
+//}
 
 int main(int argc, char* argv[])
 {
@@ -609,9 +956,11 @@ int main(int argc, char* argv[])
 
 		// solve QP
 		//qp->result = vector<double>(qp->b.size(), 1);
-		qp->result = solve_qp_cplex(qp);
+		//qp->result = solve_qp_cplex(qp);
+		//qp->line_search();
 
 		printf("obj = %.4f\n", qp->compute_obj());
+
 	}
 
 	for (uint j=0; j<graphs.size(); j++)

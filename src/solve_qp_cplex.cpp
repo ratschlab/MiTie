@@ -62,12 +62,12 @@ vector<double> solve_qp_cplex(QP* qp)
 	// objective
 	IloNumExpr obj_expr(env);
 	qp->Q.reset_it();
-	while (false)
+	while (true)
 	{
 		int i=0;
 		int j=0;
 		float val = qp->Q.next(&i, &j);
-		printf("%i %i %.2f\n", i, j, val);
+		//printf("%i %i %.2f\n", i, j, val);
 		if (i==-1)
 			break;
 		assert(i<qp->num_var && j<qp->num_var);
@@ -90,7 +90,7 @@ vector<double> solve_qp_cplex(QP* qp)
 
 	IloNumArray vals(env);
 	cplex.getValues(vals, var);
-	env.out() << "Values        = " << vals << endl;
+	//env.out() << "Values        = " << vals << endl;
 	//cplex.getSlacks(vals, con);
 	//env.out() << "Slacks        = " << vals << endl;
 

@@ -64,19 +64,33 @@ Bam_Region::~Bam_Region()
 	delete[] intron_coverage;
 }
 
-int Bam_Region::compute_num_paths()
+vector<int> Bam_Region::get_initial_nodes()
 {
 	vector<int> initial;
-	vector<int> terminal;
 	initial.push_back(1);
-	terminal.push_back(admat.size()-2);
 	for (uint k=2; k<admat.size()-2; k++)
 	{
 		if (is_initial(k+1))
 			initial.push_back(k);
+	}
+	return initial;
+}
+vector<int> Bam_Region::get_terminal_nodes()
+{
+	vector<int> terminal;
+	terminal.push_back(admat.size()-2);
+	for (uint k=2; k<admat.size()-2; k++)
+	{
 		if (is_terminal(k+1))
 			terminal.push_back(k);
 	}
+	return terminal;
+}
+int Bam_Region::compute_num_paths()
+{
+	vector<int> initial = get_initial_nodes();
+	vector<int> terminal = get_terminal_nodes();
+
 	int num_paths = 0;
 	for (uint i=0; i<initial.size(); i++)
 		for (uint k=0; k<terminal.size(); k++)

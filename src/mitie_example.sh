@@ -25,7 +25,7 @@ fi
 
 # create segment graph and store in file
 ##############################	
-fn_graph=${out_dir}/graphs.bin
+fn_graph=${out_dir}/graphs.h5
 opts="--few-regions --seg-filter 0.05 --region-filter 100 --tss-tts-pval 0.0001"
 
 echo
@@ -34,30 +34,44 @@ echo
 
 $dir/generate_segment_graph ${fn_graph}.tmp $opts --regions $fn_regions $fn_bam
 mv ${fn_graph}.tmp $fn_graph
+num_graphs=`h5dump --dataset=Graph_meta_info $fn_graph  | grep -A 5 num_graphs | tail -n 1`
+echo saved $num_graphs graphs to file
+
+echo 0
 
 echo
 echo generate graph on bam file $fn_bam with annotation
 echo
-fn_graph_gtf=${out_dir}/graphs_gtf.bin
+fn_graph_gtf=${out_dir}/graphs_gtf.h5
 fn_gtf=testdata/Homo_sapiens.GRCh37.68.chr20.gtf
 
 $dir/generate_segment_graph ${fn_graph_gtf}.tmp $opts --regions $fn_regions --gtf $fn_gtf $fn_bam
 mv ${fn_graph_gtf}.tmp $fn_graph_gtf
+num_graphs_gtf=`h5dump --dataset=Graph_meta_info $fn_graph_gtf  | grep -A 5 num_graphs | tail -n 1`
+echo saved $num_graphs_gtf graphs to file
+
 
 # perform transcript predictions
 ##############################	
-MAT="matlab -nojvm -nodesktop -nosplash"
+source config.sh
+echo running matlab: $MATLAB_BIN
+MAT="$MATLAB_BIN -nojvm -nodesktop -nosplash"
 addpaths="addpath matlab; "
 
 # without annotation
 mip_dir=$out_dir/MiTie_pred/
 mkdir -p $mip_dir
-${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir'); exit"
+eta1=1.50
+eta2=0.00
+lambda=0
+quantify=0
+
+${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 5; transcript_predictions('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir', C, 1:$num_graphs , $quantify, $eta1, $eta2, $lambda); exit"
 
 # with annotation
 mip_dir_gtf=$out_dir/MiTie_pred_gtf/
 mkdir -p $mip_dir_gtf
-${MAT} -r "dbstop error; $addpaths mip_paths; denovo('$fn_graph_gtf', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir_gtf'); exit"
+${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 5; transcript_predictions('$fn_graph_gtf', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir_gtf', C, 1:$num_graphs , $quantify, $eta1, $eta2, $lambda); exit"
 
 # collect predictions and write gtf file
 ##############################	

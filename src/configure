@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
 SUCC=yes
+USE_CPLEX=yes
 TMPLOG=configure.log
 HDF_IL=
 NO_MEX=
 MEX_BIN=
+MATLAB_BIN=
 MATLAB_INCDIR=
+OCT_BIN=
+MKOCT_BIN=
 CPLEX_PATH=
 
 get_cflags()
@@ -85,13 +89,24 @@ EOF
 	echo >> "$TMPLOG" 
 }
 
+usage()
+{	
+	cat << EOF
+Usage: $0 [options]
+-help                           print this help message
+-matlab                         use matlab instead of octave [defalt]
+-octave                         use octave instead of matlab
+-no-cplex                       do not use cplex 
+-cplex-path=<path_to_cplex>     mandatory if -no-cplex is not given
+-hdf5_dir=<path_to_hdf5>        only needed if system libraries cannot be found 
+EOF
+}
+
 parse_arguments()
 {
 	for parm in "$@" ; do
 		if test "$parm" = "--help" || test "$parm" = "-help" || test "$parm" = "-h" ; then
-			cat << EOF
-Usage: $0 [-hdf5_dir=<path_to_hdf5>] [-no-matlab]
-EOF
+			usage
 			exit 0
 		fi
 	done
@@ -102,9 +117,25 @@ EOF
 				HDF5_PATH=`echo $ac_option | cut -d '=' -f 2`
 				echo using hdf5_dir $HDF5_PATH
 			;;
-			-no-matlab | --no-matlab | -no-mex | --no-mex)
-				echo no matlab/mex
+			-matlab | --matlab)
+				echo use matlab/mex
+				NO_MEX=no
+			;;
+			-octave | --octave)
+				echo use octave/mkoctfile
 				NO_MEX=yes
+			;;
+			-no-cplex | --no-cplex)
+				USE_CPLEX=no
+			;;
+			-cplex-path=* | --cplex-path=*)
+				CPLEX_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo using cplex path $CPLEX_PATH
+			;;
+			*)
+				echo did not recognize option $ac_option
+				usage
+				exit 0;
 			;;
 		esac
 	done
@@ -118,16 +149,28 @@ check_matlab()
 	
 	echo -n "checking for mex binary...  "
 
-	MEX_BIN=`which mex`
+	MEX_BIN=`which mex 2>/dev/null`
 	if [ -z "$MEX_BIN" ];
 	then
 		echo did not find mex in PATH
-		echo please add the path to the matlab/mex binary to the path variable 
+		echo please add the path to the matlab/mex binary to the PATH variable 
 		echo "or specify -no-matlab (not all functionality if available then)"
 		SUCC=no
-		return 0
+	else
+		echo ok
 	fi
-	echo ok
+
+	echo -n "checking for matlab binary...  "
+	MATLAB_BIN=`which matlab 2>/dev/null`
+	if [ -z "$MATLAB_BIN" ];
+	then
+		echo did not find matlab in PATH
+		echo please add the path to the matlab/mex binary to the PATH variable 
+		echo "or specify -no-matlab (not all functionality if available then)"
+		SUCC=no
+	else
+		echo ok
+	fi
 
 	echo -n "checking for mex include...  "
 	MATLAB_INCDIR=`dirname $MEX_BIN`/../extern/include
@@ -135,15 +178,53 @@ check_matlab()
 		echo did not find mex.h file
 		echo "please specify the directory with -mat-include=<dirname>"
 		SUCC=no
-		return 0;
+	else
+		echo ok
 	fi
-	echo ok
 }
 
+check_octave()
+{
+	if [ ! "$NO_MEX" == "yes" ]
+	then 
+		return
+	fi
+
+	echo -n "checking for octave binary...  "
+
+	OCT_BIN=`which octave 2>/dev/null`
+	if [ -z "$OCT_BIN" ];
+	then
+		echo did not find octave in PATH
+		echo please add the path to the octave binary to the PATH variable 
+		echo "or specify -no-octave"
+		SUCC=no
+	else
+		echo ok
+	fi
+
+	echo -n "checking for mkoctfile binary...  "
+	MKOCT_BIN=`which mkoctfile 2>/dev/null`
+	if [ -z "$MKOCT_BIN" ];
+	then
+		echo did not find mkoctfile in PATH
+		echo please add the path to the octave binary to the PATH variable 
+		echo "or specify -no-octave"
+		SUCC=no
+	else
+		echo ok
+	fi
+
+}
 check_cplex()
 {
+	if [ ! "$USE_CPLEX" == "yes" ]
+	then 
+		return 0;
+	fi
+
 	echo -n "checking for cplex ...  "
-	CPLEX_PATH=/cbio/grlab/share/software/ilog/CPLEX_Studio124/ 
+	#CPLEX_PATH=/cbio/grlab/share/software/ilog/CPLEX_Studio124/ 
 
 	CPLEXDIR=${CPLEX_PATH}/cplex
 	CONCERTDIR=${CPLEX_PATH}/concert
@@ -172,15 +253,17 @@ check_cplex()
 	if [ ! -f $CPLEXLIBDIR/libcplex.a ] 
 	then 
 		SUCC=no
-		echo failed
+		echo did not find cplex library file
 		echo $CPLEXLIBDIR/libcplex.a
-		echo could not find path to cplex library
 		echo check paths in Makefile
 	else
 		echo ok
 	fi
 
 }
+
+
+
 
 if [ -f Makefile ]; then
 	echo Makefile exists, I will not overwrite this
@@ -192,15 +275,38 @@ check_hdf5
 check_matlab
 check_cplex
 
+## writing config file
+echo 
+echo writing file config.sh
+echo "#!/bin/bash" >config.sh
+if [ "$NO_MEX" == "yes" ]
+then
+	echo "export INTERPRETER=octave" >> config.sh
+	echo "export OCT_BIN=$OCT_BIN" >> config.sh 
+else
+	echo "export INTERPRETER=matlab" >> config.sh
+	echo "export MATLAB_BIN=$MATLAB_BIN" >> config.sh 
+fi
+echo 
 echo
 echo creating Makefile
 echo  >> Makefile
 echo "### HDF% paths and flags" >> Makefile
 echo "HDF_IL=$HDF_IL" >> Makefile
 echo  >> Makefile
-echo "### MATLAB and MEX paths and flags" >> Makefile
-echo "export MEX_BIN=$MEX_BIN" >> Makefile
-echo "export MATLAB_INCDIR=$MATLAB_INCDIR" >> Makefile
+if [ "$NO_MEX" == "yes" ]
+then
+	echo "### octave and mkoctfile paths and flags" >> Makefile
+	echo "export MKOCT_BIN=$MKOCT_BIN" >> Makefile
+	echo "MK_OCT=load_regions_bin.mex" >> Makefile
+	echo "MK_MAT=" >> Makefile
+else
+	echo "### MATLAB and MEX paths and flags" >> Makefile
+	echo "export MEX_BIN=$MEX_BIN" >> Makefile
+	echo "export MATLAB_INCDIR=$MATLAB_INCDIR" >> Makefile
+	echo "MK_MAT=load_regions_bin.mexa64" >> Makefile
+	echo "MK_OCT=" >> Makefile
+fi
 echo  >> Makefile
 echo "### CPLEX paths and flags" >> Makefile
 echo "export CPLEXINCDIR=$CPLEXINCDIR" >> Makefile

@@ -7,7 +7,7 @@ NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp
 
 ### samtools
 SAMDIR = tools/samtools
-SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses
+SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses -lpthread
 
 ### MITIE tools
 GENOME = tools/genome/
@@ -21,7 +21,7 @@ MEX_UTILS = tools/mex/
 ### combine 
 INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL} ${HDF_IL} 
 
-all: define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio load_regions_bin.mexa64 transcript_prediction subfolders
+all: define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio ${MK_OCT} ${MK_MAT} transcript_prediction subfolders
 
 subfolders:
 	@echo "##################################################" 
@@ -57,3 +57,9 @@ load_regions_bin.mexa64: load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS}
 
 load_regions_bin_MAGIC.mexa64: load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
 	${MEX_BIN} -g -O load_regions_bin_MAGIC.cpp bam_regon.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
+
+load_regions_bin.mex: load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
+	${MKOCT_BIN} -g --mex load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} ${INCL}
+
+load_regions_bin_MAGIC.mex: load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
+	${MKOCT_BIN} -g -O load_regions_bin_MAGIC.cpp bam_regon.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} ${INCL}

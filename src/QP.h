@@ -133,8 +133,13 @@ class semi_sparse_3d_matrix{
 
 	private:
 		map<pair<int, int>, vector<T> > mat;
+		typename map<pair<int, int>, vector<T> >::iterator it; 
 
 	public:
+		semi_sparse_3d_matrix()
+		{
+			reset_it();
+		}
 
 		void add(int i, int j, T val)
 		{
@@ -142,19 +147,40 @@ class semi_sparse_3d_matrix{
 			mat[p].push_back(val);
 		}
 
-		T get(int i, int j, int k)
+		T get(int i, int j, int k, bool& exist)
 		{
+			exist = true;
 			pair<int, int> p(i, j);
 			typename map<pair<int, int>, vector<T> >::iterator it; 
 			it = mat.find(p);
 			if (it==mat.end())
 			{
+				exist = false;
 				return 0.0;
 			}
 			vector<T>* vec = &it->second;
 			assert(vec->size()>k);
 
 			return vec->at(k);
+		}
+		void reset_it()
+		{
+			it = mat.begin(); 
+		}
+		vector<T>* next(int* i, int* j)
+		{
+			if (it==mat.end())
+			{
+				*i = -1;
+				*j = -1;
+				return NULL;
+			}
+
+			*i = it->first.first;
+			*j = it->first.second;
+			vector<T>* ret = &it->second;
+			it++;
+			return ret;
 		}
 
 		size_t size()
@@ -187,5 +213,7 @@ class QP
 		vector<double> result;
 
 		double compute_obj();
+
+		int line_search();
 };
 #endif
