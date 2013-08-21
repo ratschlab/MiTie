@@ -15,6 +15,7 @@
 #include "file_stats.h"
 #include "graph_tools.h"
 #include "QP.h"
+#include "vector_op.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -249,16 +250,7 @@ semi_sparse_3d_matrix<float> compute_pair_list(vector<vector<vector<int> > >* al
 	return list;
 }
 
-vector<int> range(int lb, int ub)
-{
-	vector<int> ret;
-	for (int i=lb; i<=ub; i++)
-		ret.push_back(i);
-	
-	return ret;
-}
-
-QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vector<vector<vector<int> > >* all_pair_mat, vector<vector<float> >* all_seg_cov, const Config* config)
+QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vector<vector<vector<int> > >* all_pair_mat, vector<vector<float>* >* all_seg_cov, const Config* config)
 {
 
 	int len = 0;
@@ -278,7 +270,33 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	int num_samples = all_admat->size();
 	vector<int> binary_var_index_all;
 
+	int num_annotated_trans = graph->transcript_paths.size();
 	int max_num_trans = config->max_num_trans + graph->transcript_paths.size();
+
+
+	vector<float> cov_scale;
+	for (int i=0; i<num_samples; i++)
+	{
+		float max_val = max<float>(all_seg_cov->at(i));
+		for (int j=0; j<all_admat->at(i).size(); j++)
+		{
+			float max_row = max<float>(&all_admat->at(i)[j]);
+			printf("max_val:%.2f, max_row:%.2f\n", max_val, max_row);
+			if (max_row>max_val)
+				max_val = max_row;
+		}
+		cov_scale.push_back(max_val);
+
+		if (max_val<=0)
+			continue;
+
+		mult(all_seg_cov->at(i), 1/max_val);
+
+		for (int j=0; j<all_admat->at(i).size(); j++)
+		{
+			mult(&all_admat->at(i)[j], 1/max_val);
+		}
+	}
 
 	// compute the number of variables
 	//
@@ -368,11 +386,18 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	// create objective function:
 	// min_x x'Qx + f'x
 	///////////////////////////////////////////////////////////////
-	//TODO
-	for (int i=0; i<num_var; i++)
-		qp->Q.set(i,i, 1.0);
-
-
+	assert(all_seg_cov->size()==r);
+	for (int i=0; i<r; i++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			int x1 = L_idx[i*s+j];
+			int x2 = L_idx[i*s+j+s*r];
+			float val = all_seg_cov->at(i)->at(j);
+			printf("val[%i][%i]:%.4f\n", i, j, val);
+			qp->Q.set(x1,x1, 1.0);
+		}
+	}
 
 	// create constraints
 	// Ax <= b
@@ -389,11 +414,11 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 			for (int k=0; k<t; k++)
 			{
 				int idx = i*s*t + j*t + k;
-				qp->A.set(cc, E_idx[idx], 1); // this is where we includen Reginas profiles 
+				qp->A.set(cc, E_idx[idx], 1); // this is where we included Reginas profiles 
 			}
 			qp->A.set(cc, L_idx[i*s+j], -1); 
 			qp->A.set(cc, L_idx[i*s+j+s*r], 1); 
-			qp->b.push_back(graph->seg_cov[j]);
+			qp->b.push_back(all_seg_cov->at(i)->at(j));
 			qp->eq_idx.push_back(1);
 			cc++;
 		}
@@ -437,6 +462,7 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	// (4) \sum_{k=1}^{j-1} U_jx <= (j-1) - (j-1)*U_jx
 	// <=> \sum_{k=1}^{j-1} U_jx + (j-1)*U_jx <= (j-1)
 
+	//for (int x=num_annotated_trans; x<t; x++)
 	for (int x=0; x<t; x++)
 	{
 		for (int j=0; j<s; j++)
@@ -758,6 +784,7 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 	//
 	// negative formulation
 	// all not known introns are forbidden
+	//for (int x=num_annotated_trans; x<t; x++)
 	for (int x=0; x<t; x++)
 	{
 		for (int j=0; j<s; j++)
@@ -770,7 +797,7 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 			 // we do not need to do this here
 			bool no_neighbors = false;
 			vector<int> cnodes = graph->get_children(j+1, no_neighbors);
-			int maxs;
+			int maxs = 0;
 			if (graph->is_terminal(j+1))
 			{
 				maxs = s;
@@ -784,14 +811,16 @@ QP* make_qp(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, vecto
 			}
 			else
 			{
-				for  (int i=0; i<cnodes.size(); i++)
-				{
-					if (cnodes[i]>maxs)
-						maxs = cnodes[i];
-				}
+				//for  (int i=0; i<cnodes.size(); i++)
+				//{
+				//	if (cnodes[i]-1>maxs)
+				//		maxs = cnodes[i]-1;
+				//}
+				maxs = max<int>(&cnodes);
 			}
+			assert(maxs<=s);
 
-			for (int k=j+1; k<=maxs; k++)
+			for (int k=j+1; k<maxs; k++)
 			{
 				// check if j->k is a valid intron
 				bool exist = true;
@@ -906,7 +935,7 @@ int main(int argc, char* argv[])
 		for (uint j=0; j<graphs.size(); j++)
 		{
 			int num_paths = graphs[j]->compute_num_paths();
-			printf("xx\t%i\n", num_paths);
+			printf("num_paths\t%i\n", num_paths);
 		}
 	}
 
@@ -915,7 +944,7 @@ int main(int argc, char* argv[])
 		// store coverage informaton for all samples
 		vector<vector<vector<float> > > all_admat;
 		vector<vector<vector<int> > > all_pair_mat;
-		vector<vector<float> > all_seg_cov;
+		vector<vector<float>* > all_seg_cov;
 
 		for (uint k = 0; k<samples.size(); k++)
 		{
@@ -939,7 +968,7 @@ int main(int argc, char* argv[])
 			printf("admat.size():%i  segments.size():%i\n", (int) graphs[j]->segments.size(), (int) graphs[j]->admat.size());
 			all_admat.push_back(graphs[j]->admat);
 			all_pair_mat.push_back(graphs[j]->pair_mat);
-			all_seg_cov.push_back(graphs[j]->seg_cov);
+			all_seg_cov.push_back(new vector<float>(graphs[j]->seg_cov));
 		}
 
 		// process the connectivity matrix of the graph
@@ -961,6 +990,8 @@ int main(int argc, char* argv[])
 
 		printf("obj = %.4f\n", qp->compute_obj());
 
+		for (uint k = 0; k<samples.size(); k++)
+			delete all_seg_cov[k];
 	}
 
 	for (uint j=0; j<graphs.size(); j++)
