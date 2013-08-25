@@ -43,7 +43,7 @@ define_regions: define_regions.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_T
 generate_segment_graph: generate_segment_graph.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
 	$(CXX) generate_segment_graph.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o generate_segment_graph
 
-transcript_prediction: transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
+transcript_prediction: transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp create_loss_param.h ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
 	$(CXX) transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} $(CCFLAGS) $(CCLNFLAGS) -o transcript_prediction
 
 ath_count_reads_in_region: ath_count_reads_in_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}

@@ -1443,7 +1443,7 @@ int Bam_Region::read_HDF5(char* filename, int graph_idx)
 				// init buffer
 				int idx1[dims_idx1[0]];
 				int idx2[dims_idx1[0]];
-				int val[dims_idx1[0]];
+				float val[dims_idx1[0]];
 
 				// read from disk
 				dataset_idx1->read(idx1, PredType::NATIVE_INT);
@@ -1456,7 +1456,9 @@ int Bam_Region::read_HDF5(char* filename, int graph_idx)
 				{
 					assert(idx1[i]>=0 && idx1[i]<admat.size());
 					assert(idx2[i]>=0 && idx2[i]<admat.size());
+					assert(val[i]>=-2);
 					admat[idx1[i]][idx2[i]] = val[i];
+					admat[idx2[i]][idx1[i]] = val[i];
 				}
 				delete dataset_idx1;
 				delete dataset_idx2;

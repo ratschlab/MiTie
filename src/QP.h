@@ -209,6 +209,7 @@ class QP
 		vector<float> lb;
 		vector<float> ub;
 		vector<int> eq_idx;
+		vector<int> binary_idx;
 
 		vector<double> result;
 

@@ -14,6 +14,7 @@
 //#include "tools.h"
 #include "tools_bam.h"
 #include "file_stats.h"
+#include "vector_op.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -408,6 +409,7 @@ int main(int argc, char* argv[])
 			//gtf_regions[i]->fd_out = stdout;
 			gtf_regions[i]->fd_out = fd_null;
 			gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
+
 
 			// write region in binary file
 #ifdef USE_HDF5 
@@ -861,6 +863,12 @@ int main(int argc, char* argv[])
 		regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
 		//regions[i]->add_bias_counts(&bias_vector);
 
+
+		for (int j=0; j<regions[i]->admat.size(); j++)
+		{
+			float min_row = min<float>(&(regions[i]->admat[j]));
+			assert(min_row>=-2);
+		}
 		// write region in binary file
 #ifdef USE_HDF5
 		regions[i]->write_HDF5(c.fn_out); 

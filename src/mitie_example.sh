@@ -66,8 +66,9 @@ eta2=0.00
 lambda=0
 quantify=0
 
-${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 5; transcript_predictions('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir', C, 1:$num_graphs , $quantify, $eta1, $eta2, $lambda); exit"
+echo ${MAT} -r "dbstop error; $addpaths; mip_paths; C.num_transcripts = 5; transcript_predictions('$fn_graph', {'`echo $fn_bam | sed "s/ /','/g"`'}, '$mip_dir', C, 1:$num_graphs , $quantify, $eta1, $eta2, $lambda); exit"
 
+exit 0
 # with annotation
 mip_dir_gtf=$out_dir/MiTie_pred_gtf/
 mkdir -p $mip_dir_gtf

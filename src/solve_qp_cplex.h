@@ -7,6 +7,6 @@
 
 ILOSTLBEGIN
 
-vector<double> solve_qp_cplex(QP* qp);
+vector<double> solve_qp_cplex(QP* qp, bool& success);
 
 #endif

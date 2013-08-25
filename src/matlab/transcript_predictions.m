@@ -14,11 +14,11 @@ function transcript_predictions(fn_graph, fn_bam, out_dir, C, idx, quantify, eta
 
 % change this flag to run transcript predictions 
 % for each gene distributed on a cluster
-parallel = 1
+parallel = 0
 use_fork=0;
 num_cpus=50;
 
-% model selection parameters
+% default values for regularizer parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if nargin<4 || quantify
 	quantify = 1;
@@ -27,23 +27,44 @@ if nargin<4 || quantify
 	C.exon_cov = 1; 
 end
 
-C.num_transcripts_predef = 1.6;
-C.pairs = 0;%100; 
-C.num_clusters=10;
+if ~isfield(C, 'num_transcripts')
+	% penalty for newly predicted transcripts
+	C.num_transcripts = 30;
+end
+if ~isfield(C, 'num_transcripts_predef')
+	% penalty for nonzero quantification of annotated transcripts
+	C.num_transcripts_predef = 1.6;
+end
+if ~isfield(C, 'exon_cov')
+	% penalty for read count deviation in exons
+	C.exon_cov = 1;
+end
+if ~isfield(C, 'introns')
+	% penalty for intron count deviation
+	C.introns = 100;
+end
+if ~isfield(C, 'pairs')
+	C.pairs = 10;
+end
+if ~isfield(C, 'num_clusters')
+	C.num_clusters=0;
+end
 
+% likelihood ratio test
 param.get_conf = 0; % obtain confidence levels for transcripts
 
+% pair insert size variation
 param.insert_size_tol = 0.5; 
 
+% loss funktion 
 param.loss = 'nb';
-param.num_clusters=1;
-
-param.slope_threash = 3.1;
-
-% nois level: this is the mean and variance of the poisson accounting for the noise
-param.lambda = lambda; 
 param.eta1 = eta1;
 param.eta2 = eta2;
+% nois level: this is the mean and variance of the poisson accounting for the noise
+param.lambda = lambda; 
+
+% clustering of samples
+param.num_clusters=1;
 
 % no model selection
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -142,12 +163,12 @@ if 1
 			PAR.seg_admat = prune_graph(PAR.seg_admat, PAR.predef_trans, 1e4);
 		end
 
-		num_paths = count_paths(double(PAR.seg_admat>-2));
-		if num_paths <= 5
-			PAR.C.num_transcripts = C.num_transcripts_predef;
-		elseif num_paths > 1e4
-			PAR.C.num_transcripts = C.num_transcripts*10;
-		end
+		%num_paths = count_paths(double(PAR.seg_admat>-2));
+		%if num_paths <= 5
+		%	PAR.C.num_transcripts = C.num_transcripts_predef;
+		%elseif num_paths > 1e4
+		%	PAR.C.num_transcripts = C.num_transcripts*10;
+		%end
 
 		if nargin<4
 			num_samples = size(PAR.seg_admat, 3);

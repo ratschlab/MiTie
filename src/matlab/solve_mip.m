@@ -4,8 +4,9 @@ function [x2, how] = solve_mip(Q, c, A, b, lb, ub, binary_idx, n_of_equalities, 
 %addpath ~/svn/tools/cplex/cplex91
 %addpath /cbio/grlab/share/software/ilog/cplex91
 %addpath /cbio/grlab/share/git/tools/cplex
-addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab/cplex_gun %use correct version of cplex_license
-addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab %use correct version of cplex_license
+%addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab/cplex_gun %use correct version of cplex_license
+%addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab %use correct version of cplex_license
+addpath matlab/cplex/
 
 disp('calling solve_mip')
 
