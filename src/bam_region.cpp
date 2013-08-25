@@ -1241,6 +1241,7 @@ int Bam_Region::compute_transcripts_from_paths()
 				exon = seg;
 			}
 		}
+		transcript.push_back(exon);
 		transcripts.push_back(transcript);
 	}
 	return 1;

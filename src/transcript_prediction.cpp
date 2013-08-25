@@ -14,6 +14,7 @@
 #include "tools.h"
 #include "file_stats.h"
 #include "graph_tools.h"
+#include "basic_tools.h"
 #include "QP.h"
 #include "vector_op.h"
 #include "create_loss_param.h"
@@ -47,6 +48,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "(this corresponds to two samples where sample 1 has two bam files and sample two has one)\n");
 			fprintf(stdout, "general options:\n");
 			fprintf(stdout, "\t--fn-quant\t\t(default NULL) file name to write quantification values\n");
+			fprintf(stdout, "\t--fn-out\t\t(default NULL) file name to write transcript structures\n");
 			fprintf(stdout, "\t--num-trans\t\t(default 5) maximal number of transcripts predicted in addition to the annotated transcripts\n");
 			fprintf(stdout, "\t\t\n");
 
@@ -75,6 +77,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	// defaults
 	c->fn_graph = argv[1];	
 	c->fn_quant = NULL;
+	c->fn_gtf = NULL;
 	c->intron_len_filter = 200000;
 	c->filter_mismatch = 10;
 	c->exon_len_filter = 0;
@@ -214,6 +217,16 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->fn_quant = argv[i];
+        }
+	    else if (strcmp(argv[i], "--fn-out") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --fn-out\n") ;
+                return -1;
+            }
+            i++;
+			c->fn_gtf = argv[i];
         }
 		else
 		{
@@ -1252,6 +1265,53 @@ void Tr_Pred::make_qp()
 		printf("\n");
 	}
 
+
+
+	// prepare output
+	//
+	
+	for (int i=num_annotated_trans; i<t; i++)
+	{
+		if (qp->result[I_idx[i]]<0.5)// check if transcript is expressed (using the binary indicator variable)
+			continue;
+
+		vector<int> new_path;
+		for (int j=0; j<s; j++)
+		{
+			if (qp->result[U_idx[j*t+i]]>0.5)
+				new_path.push_back(j);
+		}
+		assert(new_path.size()>0);
+		graph->transcript_paths.push_back(new_path);
+
+		char name[1000];
+		sprintf(name, "mitie_%i_%i", graph->id, i);
+		graph->transcript_names.push_back(string(name));
+		if (graph->gene_names.size()==i)
+		{
+			graph->gene_names.push_back(graph->gene_names[i-1]);
+		}
+	}
+
+	if (config->fn_gtf)
+	{
+		//printf("%i transcripts\n", graph->transcripts.size());
+		graph->transcripts.clear();
+		graph->compute_transcripts_from_paths();
+		//printf("after: %i transcripts\n", graph->transcripts.size());
+		//for (int i=0; i<graph->transcripts.size(); i++)
+		//	printf("trans%i: %i\n", i, graph->transcripts[i].size());
+		FILE* fd_gtf = fopen(config->fn_gtf, "a");
+		if (!fd_gtf)
+		{
+			printf("could not open file %s for writing\n", config->fn_gtf);
+			exit(-1);
+		}
+		write_gtf(fd_gtf, graph, "mitie");
+		fclose(fd_gtf);
+	}
+	
+	// write quantification values to file
 	FILE* fd_quant; 
 	if (config->fn_quant && (fd_quant = fopen(config->fn_quant, "a")))
 	{
@@ -1325,6 +1385,7 @@ int main(int argc, char* argv[])
 		Bam_Region* r = new Bam_Region();
 #ifdef USE_HDF		
 		int ret = r->read_HDF5(c.fn_graph, cnt);
+		r->id = cnt;
 		if (ret==0)
 #else
 		int ret = r->read_binary(&ifs);

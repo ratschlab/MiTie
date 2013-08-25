@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
 	}
 
 	FILE* fd_null = fopen("/dev/null", "w");
-	vector<Bam_Region*> regions = parse_regions(fn_regions);
+	vector<Bam_Region*> regions = parse_bam_regions(fn_regions);
 	printf("read %i regions from file: %s\n", (int)regions.size(), fn_regions);
 
 	int** read_counts = new int*[regions.size()];

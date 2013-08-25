@@ -11,6 +11,7 @@
 #include <algorithm>
 #include "region.h"
 #include "tools.h"
+#include "basic_tools.h"
 #include <limits> 
 
 char* get_attribute(char* line, const char* tag)
@@ -47,22 +48,6 @@ char* get_attribute(char* line, const char* tag)
 	return result;
 }
 
-vector<char*> get_fields(char* line)
-{
-	vector<char*> ret;
-	int i=0;
-	ret.push_back(line);
-	while (line[i]!=0)
-	{
-		if (line[i]=='\t')
-		{
-			line[i]=0;
-			ret.push_back(line+i+1);
-		}
-		i++;
-	}
-	return ret;
-}
 const char* determine_format(char* filename)
 {
 	return determine_format(filename, "Parent");
@@ -243,12 +228,45 @@ vector<Region*> parse_gff(char* gtf_file, const char* link_tag)
 	return regions;
 }
 
+void write_gtf(FILE* fd, Region* region, const char* source)
+{
+	int start = std::numeric_limits<int>::max();
+	int end = 0;
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		assert(region->transcripts[i].size()>0);
+		if (region->transcripts[i].front().first<start)
+			start = region->transcripts[i].front().first;
+		if (region->transcripts[i].back().second>end)
+			end = region->transcripts[i].back().second;
+	}
+
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		assert(i<region->transcript_names.size());
+		start = region->transcripts[i].front().first;
+		end = region->transcripts[i].back().second;
+		if (region->gene_names.size()>i)
+			fprintf(fd, "%s\t%s\ttranscript\t%i\t%i\t.\t%c\t.\tgene_id \"%s\"; transcript_id \"%s\"\n", region->chr, source, start, end, region->strand, region->gene_names[i].c_str(), region->transcript_names[i].c_str());
+		else
+			fprintf(fd, "%s\t%s\ttranscript\t%i\t%i\t.\t%c\t.\ttranscript_id \"%s\"\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
+
+		for (uint j=0; j<region->transcripts[i].size(); j++)
+		{
+			start = region->transcripts[i][j].first;
+			end = region->transcripts[i][j].second;
+			fprintf(fd, "%s\t%s\texon\t%i\t%i\t.\t%c\t.\ttranscript_id \"%s\"\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
+		}
+	}
+}
+
 void write_gff(FILE* fd, Region* region, const char* source)
 {
 	int start = std::numeric_limits<int>::max();
 	int end = 0;
 	for (uint i=0; i<region->transcripts.size(); i++)
 	{
+		assert(region->transcripts[i].size()>0);
 		if (region->transcripts[i].front().first<start)
 			start = region->transcripts[i].front().first;
 		if (region->transcripts[i].back().second>end)
@@ -256,6 +274,7 @@ void write_gff(FILE* fd, Region* region, const char* source)
 	}
 	for (uint i=0; i<region->transcripts.size(); i++)
 	{
+		assert(i<region->transcript_names.size());
 		start = region->transcripts[i].front().first;
 		end = region->transcripts[i].back().second;
 		fprintf(fd, "%s\t%s\tmRNA\t%i\t%i\t.\t%c\t.\tID=%s\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
@@ -268,6 +287,9 @@ void write_gff(FILE* fd, Region* region, const char* source)
 				sprintf(tag, "CDS"); 
 			else if (region->transcripts[i][j].flag==5)
 				sprintf(tag, "five_prime_UTR"); 
+			else
+				sprintf(tag, "exon");
+
 			start = region->transcripts[i][j].first;
 			end = region->transcripts[i][j].second;
 			fprintf(fd, "%s\t%s\t%s\t%i\t%i\t.\t%c\t.\tParent=%s\n", region->chr, source, tag, start, end, region->strand, region->transcript_names[i].c_str());

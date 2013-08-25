@@ -405,16 +405,14 @@ int main(int argc, char* argv[])
 	for (int i=0; i<pred_genes.size(); i++)
 	{
 		num_trans_pred += num_pred[i];
-		if (correct[i]>0)
-			num_correct++;
+		num_correct+=correct[i];
 	}
 	int num_matched = 0;
 	int num_trans_anno = 0;
 	for (int i=0; i<frags.size(); i++)
 	{
 		num_trans_anno += num_anno[i];
-		if (matched[i]>0)
-			num_matched++;
+		num_matched+=matched[i];
 	}
 	printf("%i/%i (%.4f) correct, %i/%i (%.4f) matched\n", num_correct, num_trans_pred, ((float) num_correct)/num_trans_pred, num_matched, num_trans_anno, ((float) num_matched)/num_trans_anno);
 }

@@ -7,7 +7,7 @@ else
 	sample=$1
 fi
 eta1=1.00
-eta2=0.00
+eta2=0.20
 lambda=3
 
 fn_bam_all=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.new.sorted.paired_200000_4_5.bam 
@@ -47,7 +47,17 @@ h5dump --dataset=Graph_meta_info  $fn_graph
 # treat bam files as separate samples
 ##############################	
 fn_quant=$out_dir/quant.txt
-rm $fn_quant
-num_trans=0 # number of additional transcripts 
-./transcript_prediction $fn_graph $fn_bam_all $mip_dir --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant
+fn_gff=$out_dir/transcripts.gtf
+
+if [ ! -f $fn_quant ]
+then 
+	num_trans=0 # number of additional transcripts 
+	./transcript_prediction $fn_graph $fn_bam_all $mip_dir --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant --fn-out $fn_gff
+else
+	echo $fn_quant exists
+fi
+
+fn_quant_anno=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/hg19_annotations_merged_splice_graph_expr1_quant.txt
+./eval_quant  $fn_quant_anno $fn_quant
+
 

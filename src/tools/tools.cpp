@@ -10,32 +10,18 @@
   using std::max;
 
 #include "region.h"
+#include "basic_tools.h"
 
-vector<char*> separate(char* str, char sep)
-{
-	vector<char*> ret;
-	int i=0;
-	ret.push_back(str);
-	while (str[i]!=0)
-	{
-		if (str[i]==sep)
-		{
-			str[i]=0;
-			ret.push_back(str+i+1);
-		}
-		i++;
-	}
-	return ret;
-}
 
 bool compare_second(segment intr1, segment intr2)
 {
-	if (intr1.first<intr2.first)
-		return true;
-	if (intr1.first>intr2.first)
-		return false;
-	return (intr1.second<intr2.second);
+       if (intr1.first<intr2.first)
+               return true;
+       if (intr1.first>intr2.first)
+               return false;
+       return (intr1.second<intr2.second);
 }
+
 
 vector<Region*> parse_regions(char* fn_regions)
 {

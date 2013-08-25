@@ -6,6 +6,7 @@ struct Config
 	vector<char*> bam_files;
 	char* fn_quant;
 	char* fn_graph;
+	char* fn_gtf;
 	bool mm_filter;
 	int intron_len_filter;
 	int filter_mismatch;

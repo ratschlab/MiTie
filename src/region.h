@@ -45,6 +45,7 @@ class segment{
 class Region
 {
 	public:
+		int id;
 		int start; 
 		int stop;
 		int chr_num;
