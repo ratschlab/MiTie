@@ -16,6 +16,7 @@ struct Config
 	bool use_pair;
 
 	// loss
+	int order;
 	float eta1;
 	float eta2;
 	int lambda;

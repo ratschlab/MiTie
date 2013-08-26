@@ -1,17 +1,82 @@
 #!/usr/bin/env bash
 
+#general
 SUCC=yes
-USE_CPLEX=yes
 TMPLOG=configure.log
-HDF_IL=
-NO_MEX=
-MEX_BIN=
-MATLAB_BIN=
-MATLAB_INCDIR=
-OCT_BIN=
-MKOCT_BIN=
-CPLEX_PATH=
 
+#CPLEX
+USE_CPLEX=yes
+CPLEX_PATH=
+CPLEX_INCL=
+CPLEX_LD=
+CPLEX_LIBS=
+CPLEX_FLAGS=
+
+#GLPK
+USE_GLPK=yes
+GLPK_PATH=
+GLPK_INCL=
+GLPK_LD=
+GLPK_LIBS=
+
+#HDF5
+HDF5_PATH=
+HDF_INCL=
+HDF_LD=
+HDF_LIBS=
+
+
+usage()
+{	
+	cat << EOF
+Usage: $0 [options]
+-help                           print this help message
+-no-cplex                       do not use cplex 
+-glpk-dir=<path_to_glpk>			solve lp with glpk instead of qp with cplex
+-cplex-dir=<path_to_cplex>     mandatory if -glpk-dir is not given
+-hdf5_dir=<path_to_hdf5>        only needed if system libraries cannot be found 
+EOF
+}
+
+
+parse_arguments()
+{
+	for parm in "$@" ; do
+		if test "$parm" = "--help" || test "$parm" = "-help" || test "$parm" = "-h" ; then
+			usage
+			exit 0
+		fi
+	done
+
+	for ac_option ; do
+		case "$ac_option" in 
+			-hdf5_dir=* | --hdf5_dir=*)
+				HDF5_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo using hdf5_dir $HDF5_PATH
+			;;
+			-matlab | --matlab)
+				echo use matlab/mex
+				NO_MEX=no
+			;;
+			-glpk-dir=* | --glpk-dir=*)
+				GLPK_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo useng GLPK path $GLPK_PATH
+			;;
+			-no-cplex | --no-cplex)
+				USE_CPLEX=no
+			;;
+			-cplex-dir=* | --cplex-dir=*)
+				CPLEX_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo using cplex path $CPLEX_PATH
+			;;
+			*)
+				echo did not recognize option $ac_option
+				usage
+				exit 0;
+			;;
+		esac
+	done
+}
 get_cflags()
 {
     def=$1; pkgs="${*#$def}"
@@ -41,6 +106,49 @@ get_lflags()
     echo $def
 }
 
+check_glpk()
+{
+	echo -n "checking for GLPK libraries...  "
+	TMPCXX=tmp_glpk.cpp
+	TMPO=tmp_glpk.o
+	cat > $TMPCXX << EOF
+#include <glpk.h>
+int main()
+{
+glp_term_out(GLP_OFF);
+LPX* lp=lpx_create_prob();
+lpx_delete_prob(lp);
+return 0;
+}
+EOF
+	# compile
+	if [ ! -z GLPK_PATH ]; then
+		GLPK_INCL="$GLPK_PATH/include/"
+		GLPK_LD="$GLPK_PATH/.lib/"
+		GLPK_LIBS="glpk m"
+		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GLPK_LD
+	fi
+	echo g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm >> "$TMPLOG" 2>&1	
+	( g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm) # >> "$TMPLOG" 2>&1	
+	TMP="$?"
+	if test -f "$TMPO"
+	then
+		echo >> "$TMPLOG" 
+    	echo "ldd $TMPO" >> "$TMPLOG"
+    	( ldd "$TMPO" ) >> "$TMPLOG" 2>&1
+		rm $TMPO
+		USE_GLPK=yes
+		echo ok
+	else
+		echo failed
+		echo
+		USE_GLPK=no
+		echo -e "\tcould not find GLPK lib or include"
+	fi
+	rm $TMPCXX
+	echo >> "$TMPLOG" 
+}
+	
 check_hdf5()
 {
 	echo -n "checking for HDF5 libraries...  "
@@ -61,10 +169,12 @@ EOF
 
 	# compile
 	if [ ! -z HDF5_PATH ]; then
-		HDF_IL="-I$HDF5_PATH/include/ -L$HDF5_PATH/lib/"
+		HDF_INCL="$HDF5_PATH/include/"
+		HDF_LD="$HDF5_PATH/lib/"
+		HDF_LIBS="hdf5 hdf5_cpp hdf5 hdf5_hl m"
 		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5_PATH/lib/
 	fi
-	HDF_IL="$HDF_IL -lhdf5 -lhdf5_cpp -lhdf5 -lhdf5_hl -lm"
+	HDF_IL="-I$HDF_INCL -L$HDF_LD -lhdf5 -lhdf5_cpp -lhdf5 -lhdf5_hl -lm"
 
 	echo g++ "$TMPCXX" -o "$TMPO" $HDF_IL  >> "$TMPLOG" 2>&1	
 	( g++ "$TMPCXX" -o "$TMPO" $HDF_IL ) >> "$TMPLOG" 2>&1	
@@ -89,57 +199,7 @@ EOF
 	echo >> "$TMPLOG" 
 }
 
-usage()
-{	
-	cat << EOF
-Usage: $0 [options]
--help                           print this help message
--matlab                         use matlab instead of octave [defalt]
--octave                         use octave instead of matlab
--no-cplex                       do not use cplex 
--cplex-path=<path_to_cplex>     mandatory if -no-cplex is not given
--hdf5_dir=<path_to_hdf5>        only needed if system libraries cannot be found 
-EOF
-}
 
-parse_arguments()
-{
-	for parm in "$@" ; do
-		if test "$parm" = "--help" || test "$parm" = "-help" || test "$parm" = "-h" ; then
-			usage
-			exit 0
-		fi
-	done
-
-	for ac_option ; do
-		case "$ac_option" in 
-			-hdf5_dir=* | --hdf5_dir=*)
-				HDF5_PATH=`echo $ac_option | cut -d '=' -f 2`
-				echo using hdf5_dir $HDF5_PATH
-			;;
-			-matlab | --matlab)
-				echo use matlab/mex
-				NO_MEX=no
-			;;
-			-octave | --octave)
-				echo use octave/mkoctfile
-				NO_MEX=yes
-			;;
-			-no-cplex | --no-cplex)
-				USE_CPLEX=no
-			;;
-			-cplex-path=* | --cplex-path=*)
-				CPLEX_PATH=`echo $ac_option | cut -d '=' -f 2`
-				echo using cplex path $CPLEX_PATH
-			;;
-			*)
-				echo did not recognize option $ac_option
-				usage
-				exit 0;
-			;;
-		esac
-	done
-}
 
 check_matlab()
 {
@@ -173,7 +233,7 @@ check_matlab()
 	fi
 
 	echo -n "checking for mex include...  "
-	MATLAB_INCDIR=`dirname $MEX_BIN`/../extern/include
+	MATLAB_INCDIR=`dirname $MEX_BIN 2>/dev/null`/../extern/include
 	if [ ! -f $MATLAB_INCDIR/mex.h ]; then 
 		echo did not find mex.h file
 		echo "please specify the directory with -mat-include=<dirname>"
@@ -183,39 +243,6 @@ check_matlab()
 	fi
 }
 
-check_octave()
-{
-	if [ ! "$NO_MEX" == "yes" ]
-	then 
-		return
-	fi
-
-	echo -n "checking for octave binary...  "
-
-	OCT_BIN=`which octave 2>/dev/null`
-	if [ -z "$OCT_BIN" ];
-	then
-		echo did not find octave in PATH
-		echo please add the path to the octave binary to the PATH variable 
-		echo "or specify -no-octave"
-		SUCC=no
-	else
-		echo ok
-	fi
-
-	echo -n "checking for mkoctfile binary...  "
-	MKOCT_BIN=`which mkoctfile 2>/dev/null`
-	if [ -z "$MKOCT_BIN" ];
-	then
-		echo did not find mkoctfile in PATH
-		echo please add the path to the octave binary to the PATH variable 
-		echo "or specify -no-octave"
-		SUCC=no
-	else
-		echo ok
-	fi
-
-}
 check_cplex()
 {
 	if [ ! "$USE_CPLEX" == "yes" ]
@@ -237,33 +264,35 @@ check_cplex()
 	LIBFORMAT=`ls -d ${CPLEXDIR}/lib/${SYSTEM}/*/`
 	LIBFORMAT=`basename $LIBFORMAT`
 
-	CPLEXINCDIR=${CPLEXDIR}/include
-	CONCERTINCDIR=${CONCERTDIR}/include
+	CPLEX_INC_DIR=${CPLEXDIR}/include
+	CONCERT_INC_DIR=${CONCERTDIR}/include
 
-	CPLEXLIBDIR=${CPLEXDIR}/lib/${SYSTEM}/${LIBFORMAT}
-	CONCERTLIBDIR=${CONCERTDIR}/lib/${SYSTEM}/${LIBFORMAT}
+	CPLEX_LIB_DIR=${CPLEXDIR}/lib/${SYSTEM}/${LIBFORMAT}
+	CONCERT_LIB_DIR=${CONCERTDIR}/lib/${SYSTEM}/${LIBFORMAT}
 
-	CCLNFLAGS="-L${CPLEXLIBDIR} -lilocplex -lcplex -L${CONCERTLIBDIR} -lconcert -lm -pthread"
+	CCLNFLAGS="-L${CPLEXLIBDIR} -lilocplex -lcplex -L${CONCERTLIBDIR} -lconcert -lm -lpthread"
+
+	CPLEX_LD="${CPLEX_LIB_DIR} ${CONCERT_LIB_DIR}"
+	CPLEX_LIBS="ilocplex cplex concert m pthread"
+	CPLEX_INCL="$CPLEX_INC_DIR $CONCERT_INC_DIR"
+	CPLEX_FLAGS="-m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD"
 
 	# the -DNDEBUG switches off all asserts
 	#CCOPT = -m64 -O -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD
-	CCOPT="-m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD"
-	CCFLAGS="${CCOPT} -I${CPLEXINCDIR} -I${CONCERTINCDIR}"
+	#CCOPT="-m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD"
+	#CCFLAGS="${CCOPT} -I${CPLEXINCDIR} -I${CONCERTINCDIR}"
 
-	if [ ! -f $CPLEXLIBDIR/libcplex.a ] 
+	if [ ! -f $CPLEX_LIB_DIR/libcplex.a ] 
 	then 
 		SUCC=no
 		echo did not find cplex library file
 		echo $CPLEXLIBDIR/libcplex.a
 		echo check paths in Makefile
+		USE_CPLEX=no
 	else
 		echo ok
 	fi
-
 }
-
-
-
 
 if [ -f Makefile ]; then
 	echo Makefile exists, I will not overwrite this
@@ -272,52 +301,52 @@ fi
 
 parse_arguments $@
 check_hdf5
-check_matlab
+#check_matlab
 check_cplex
+check_glpk
 
 ## writing config file
 echo 
-echo writing file config.sh
-echo "#!/bin/bash" >config.sh
-if [ "$NO_MEX" == "yes" ]
+echo writing file config.h
+echo > config.h
+if [ ! "USE_GLPK" == "yes" ]
 then
-	echo "export INTERPRETER=octave" >> config.sh
-	echo "export OCT_BIN=$OCT_BIN" >> config.sh 
-else
-	echo "export INTERPRETER=matlab" >> config.sh
-	echo "export MATLAB_BIN=$MATLAB_BIN" >> config.sh 
+	echo "#define USE_GLPK" >> config.h
 fi
-echo 
+if [ ! "USE_CPLEX" == "yes" ]
+then
+	echo "#define USE_CPLEX" >> config.h
+fi
+
 echo
 echo creating Makefile
 echo  >> Makefile
-echo "### HDF% paths and flags" >> Makefile
-echo "HDF_IL=$HDF_IL" >> Makefile
-echo  >> Makefile
-if [ "$NO_MEX" == "yes" ]
-then
-	echo "### octave and mkoctfile paths and flags" >> Makefile
-	echo "export MKOCT_BIN=$MKOCT_BIN" >> Makefile
-	echo "MK_OCT=load_regions_bin.mex" >> Makefile
-	echo "MK_MAT=" >> Makefile
-else
-	echo "### MATLAB and MEX paths and flags" >> Makefile
-	echo "export MEX_BIN=$MEX_BIN" >> Makefile
-	echo "export MATLAB_INCDIR=$MATLAB_INCDIR" >> Makefile
-	echo "MK_MAT=load_regions_bin.mexa64" >> Makefile
-	echo "MK_OCT=" >> Makefile
+echo "### HDF paths and flags" >> Makefile
+if [ ! -z $HDF5_PATH ]
+then 
+	echo "INCLUDE_DIRS += $HDF_INCL" >> Makefile
+	echo "LD_DIRS += $HDF_LD" >> Makefile
 fi
+echo "LIBS += $HDF_LIBS" >> Makefile
+echo  >> Makefile
+
+echo "### GLPK paths and flags" >> Makefile
+echo "INCLUDE_DIRS += $GLPK_INCL" >> Makefile
+echo "LD_DIRS += $GLPK_LD" >> Makefile
+echo "LIBS += $GLPK_LIBS" >> Makefile
+echo "GLPK = solve_lp_glpk.cpp" >> Makefile
+
 echo  >> Makefile
 echo "### CPLEX paths and flags" >> Makefile
-echo "export CPLEXINCDIR=$CPLEXINCDIR" >> Makefile
-echo "export CPLEXLIBDIR=$CPLEXLIBDIR" >> Makefile
-echo "export CONCERTINCDIR=$CONCERTINCDIR" >> Makefile
-echo "export CCLNFLAGS=$CCLNFLAGS" >> Makefile
-echo "export CCFLAGS=$CCFLAGS" >> Makefile
+echo "INCLUDE_DIRS += $CPLEX_INCL" >> Makefile
+echo "LD_DIRS += $CPLEX_LD" >> Makefile
+echo "LIBS += $CPLEX_LIBS" >> Makefile
+echo "CPLEX_FLAGS = $CPLEX_FLAGS" >> Makefile
+echo "CPLEX = solve_qp_cplex.cpp" >> Makefile
 echo  >> Makefile
 cat Makefile.sample >> Makefile
 
-if [ "$SUCC" == "yes" ];
+if [ "${SUCC}" == "yes" ]
 then 
 	echo configure was successful
 	echo run make now
@@ -325,4 +354,5 @@ else
 	echo some error occured
 	echo created Makefile, but not all features are fully supported
 fi
+
 

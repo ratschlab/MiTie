@@ -45,15 +45,19 @@ bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double b
 	w_best[0]= w[0];
 	w_best[1]= w[1];
 
-
 	int iter = 0;
 
 	while (box12-box11>eps || box22-box21>eps)
 	{
 		best = best_orig;
-		for (double val1=box11; val1<box12; val1+=(box12-box11)/10)
+
+		double step1 = (box12-box11)/10;
+		double step2 = (box22-box21)/10;
+		assert(step1>0);
+		assert(step2>0);
+		for (double val1=box11; val1<box12; val1+=step1)
 		{
-			for (double val2=box21; val2<box22; val2+=(box22-box21)/10) 
+			for (double val2=box21; val2<box22; val2+=step2) 
 			{
 				w[0] = val1; 
 				w[1] = val2;
@@ -123,8 +127,12 @@ bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double b
 }
 
 
-vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lambda)
+vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lambda, int order)
 {
+	
+	// order of the polynom to fit the loss function
+	assert(order==1 || order==2);
+
 	vector<vector<double> > ret;
 
 	// this is the observed coverage:
@@ -236,16 +244,25 @@ vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lam
 		double w1[2];
 		if (idx1.empty())
 		{
-			w1[0] = 1e-10; 
+			if (order==1)
+				w1[0] = 0; 
+			else
+				w1[0] = 1e-10; 
 			w1[1] = 1e-10;
 		}
 		else
 		{
-			my_min(w1, X, Y, idx1, 1e-10, 10, 1e-10, 10);
+			if (order==1)
+				my_min(w1, X, Y, idx1, 0, 1e-10, 1e-3, 10);
+			else
+				my_min(w1, X, Y, idx1, 1e-10, 10, 1e-10, 10);
 		}
 		assert(!idx2.empty());
 		double w2[2];
-		my_min(w2, X, Y, idx1, 1e-10, 0.5, 1e-10, 10);
+		if (order==1)
+			my_min(w2, X, Y, idx1, 0, 1e-10, 1e-3, 10);
+		else
+			my_min(w2, X, Y, idx1, 1e-10, 10, 1e-10, 10);
 		
 		
 		left_l[s]=w1[1];

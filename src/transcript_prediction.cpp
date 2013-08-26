@@ -20,6 +20,15 @@
 #include "create_loss_param.h"
 #include <time.h>
 #include "transcript_prediction.h"
+#include "config.h"
+
+#ifdef USE_CPLEX
+#include "solve_qp_cplex.h"
+#endif
+
+#ifdef USE_GLPK
+#include "solve_lp_glpk.h"
+#endif
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,7 +42,6 @@
 #include "razf.h"
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "solve_qp_cplex.h"
 
 #define USE_HDF
 //#define DEBUG
@@ -53,6 +61,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "\t\t\n");
 
 			fprintf(stdout, "loss function:\n");
+			fprintf(stdout, "\t--order\t\t(default 2) order of the polynom to fit the loss function 1 (lp) or 2 (qp)\n");
 			fprintf(stdout, "\t--param-eta1\t\t(default 1.0)\n");
 			fprintf(stdout, "\t--param-eta2\t\t(default 0.1)\n");
 			fprintf(stdout, "\t--param-lambda\t\t(default 3)\n");
@@ -86,6 +95,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->min_trans_len = 100;
 	c->use_pair = false;
 
+	c->order = 2;
 	c->eta1 = 1.0;
 	c->eta2 = 0.1;
 	c->lambda = 3;
@@ -127,6 +137,16 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->max_num_trans = atoi(argv[i]);
+        }
+	    else if (strcmp(argv[i], "--order") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --order\n") ;
+                return -1;
+            }
+            i++;
+			c->order = atoi(argv[i]);
         }
 	    else if (strcmp(argv[i], "--param-eta1") == 0)
         {
@@ -1216,8 +1236,20 @@ void Tr_Pred::make_qp()
 
 
 	bool success = true;
+#ifdef USE_CPLEX
+	printf("solve qp using cplex\n");
 	qp->result = solve_qp_cplex(qp, success);
+//#else
+#ifdef USE_GLPK
+	printf("solve lp using glpk\n");
+	qp->result = solve_lp_glpk(qp, success);
+#else
+	printf("no solver available; stopping here\n");
+	exit(-1);
+#endif
+#endif
 
+	assert(qp->result.size() == qp->num_var);
 	printf("res[E_idx]\n");
 	// sum_t E_str -L_sr = O_sr
 	for (int i=0; i<r; i++)// loop over samples
@@ -1345,7 +1377,7 @@ int main(int argc, char* argv[])
 
 
 	time_t t = time(NULL);
-	vector<vector<double> > loss_param = create_loss_parameters(c.eta1, c.eta2, c.lambda);
+	vector<vector<double> > loss_param = create_loss_parameters(c.eta1, c.eta2, c.lambda, c.order);
 	printf("time diff: %lu\n", time(NULL)-t);
 
 
@@ -1373,7 +1405,8 @@ int main(int argc, char* argv[])
 	// load graphs from binary file
 	vector<Bam_Region*> graphs; 
 	int cnt = 0;
-	int num_return = 1e6;
+	//int num_return = 1e6;// run on all
+	int num_return = 3;
 #ifdef USE_HDF
 	while (cnt<num_return)
 #else

@@ -1,65 +1,70 @@
 
 
 ### general
-CXX = g++ -O9
+#CXX = g++ -O9
+CXXFLAGS += -g
 NGS = tools/ngs
 NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp 
 
 ### samtools
 SAMDIR = tools/samtools
-SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses -lpthread
+INCLUDE_DIRS += ${SAMDIR}
+LD_DIRS += ${SAMDIR}
+LIBS += bam z curses pthread 
 
 ### MITIE tools
 GENOME = tools/genome/
 GENOME_TOOLS = ${GENOME}/genome.cpp ${GENOME}/genome_tools.cpp
+MITIE_CPP = bam_region.cpp region.cpp
 TOOLS_DIR = tools/
-TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}tools_bam.cpp ${TOOLS_DIR}math_tools.cpp ${TOOLS_DIR}graph_tools.cpp 
+TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}tools_bam.cpp ${TOOLS_DIR}math_tools.cpp ${TOOLS_DIR}graph_tools.cpp ${TOOLS_DIR}basic_tools.cpp
+TOOLS_O = $(TOOLS:.cpp=.o)
+GENOME_TOOLS_O = $(GENOME_TOOLS:.cpp=.o)
+NGS_TOOLS_O = $(NGS_TOOLS:.cpp=.o)
+MITIE_O = $(MITIE_CPP:.cpp=.o)
+ALL_O = ${MITIE_O} ${NGS_TOOLS_O} ${GENOME_TOOLS_O} ${TOOLS_O}
 
 #### Mex utils
 MEX_UTILS = tools/mex/
 
 ### combine 
-INCL = -I. -I${NGS} -I${GENOME} -I${TOOLS_DIR} ${SAMINCL} ${HDF_IL} 
+INCLUDE_DIRS += . ${NGS} ${GENOME} ${TOOLS_DIR}
 
-all: define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio ${MK_OCT} ${MK_MAT} transcript_prediction subfolders
+CPPFLAGS += $(foreach includedir,$(INCLUDE_DIRS),-I$(includedir))
+LDFLAGS += $(foreach librarydir,$(LD_DIRS),-L$(librarydir))
+LDFLAGS += $(foreach library,$(LIBS),-l$(library))
+
+.PHONY: all clean distclean
+
+all: subfolders define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio transcript_prediction 
 
 subfolders:
 	@echo "##################################################" 
 	@echo "# compiling samtools"
 	@echo "##################################################" 
 	$(MAKE) -C tools/samtools
-	@echo "##################################################" 
-	@echo "# compiling mex tools"
-	@echo "##################################################" 
-	$(MAKE) -C matlab/tools
-	@echo "##################################################" 
-	@echo "# compiling cplex interface"
-	@echo "##################################################" 
-	$(MAKE) -C matlab/cplex
 
-define_regions: define_regions.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) define_regions.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o define_regions
+define_regions: define_regions.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) define_regions.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o define_regions
 
-generate_segment_graph: generate_segment_graph.cpp bam_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) generate_segment_graph.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o generate_segment_graph
+generate_segment_graph: generate_segment_graph.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) generate_segment_graph.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o generate_segment_graph
 
-transcript_prediction: transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp create_loss_param.h ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) transcript_prediction.cpp solve_qp_cplex.cpp QP.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} $(CCFLAGS) $(CCLNFLAGS) -o transcript_prediction
+transcript_prediction: transcript_prediction.cpp QP.o ${ALL_O} ${GLPK} ${CPLEX}
+	$(CXX) $(CXXFLAGS) transcript_prediction.cpp QP.o ${CPLEX} ${ALL_O} $(CPPFLAGS) $(LDFLAGS) ${GLPK} ${CPLEX_FLAGS} -o transcript_prediction
 
-ath_count_reads_in_region: ath_count_reads_in_region.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS}
-	$(CXX) ath_count_reads_in_region.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o ath_count_reads_in_region
+ath_count_reads_in_region: ath_count_reads_in_region.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) ath_count_reads_in_region.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o ath_count_reads_in_region
 
-eval_pacbio: eval_pacbio.cpp region.cpp ${TOOLS} ${GENOME_TOOLS} ${NGS_TOOLS} 
-	$(CXX) eval_pacbio.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} ${INCL} -o eval_pacbio
+eval_pacbio: eval_pacbio.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) eval_pacbio.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o eval_pacbio
 
-load_regions_bin.mexa64: load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
-	${MEX_BIN} -g -O load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
+clean:
+	@- $(RM) $(MITIE_O)
+	@- $(RM) $(TOOLS_O)
+	@- $(RM) $(GENOME_TOOLS_O)
+	@- $(RM) $(NGS_TOOLS_O)
+	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_pacbio
+	$(MAKE) -C tools/samtools clean
 
-load_regions_bin_MAGIC.mexa64: load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
-	${MEX_BIN} -g -O load_regions_bin_MAGIC.cpp bam_regon.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} -I${MATLAB_INCDIR} ${INCL}
 
-load_regions_bin.mex: load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
-	${MKOCT_BIN} -g --mex load_regions_bin.cpp bam_region.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} ${INCL}
-
-load_regions_bin_MAGIC.mex: load_regions_bin_MAGIC.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS}
-	${MKOCT_BIN} -g -O load_regions_bin_MAGIC.cpp bam_regon.cpp region.cpp ${TOOLS} ${NGS_TOOLS} ${GENOME_TOOLS} -I${MEX_UTILS} ${INCL}
