@@ -27,6 +27,7 @@ struct Config
 	float C_pair;
 	float C_num_trans;
 	float C_num_trans_predef;
+	bool L0_norm;
 
 };
 

@@ -105,6 +105,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->C_pair = 1.0;
 	c->C_num_trans = 100.0;
 	c->C_num_trans_predef = 1.0;
+	c->L0_norm = false;
 
     for (int i = 2; i < argc; i++)  
     {
@@ -518,6 +519,15 @@ void Tr_Pred::make_qp()
 		qp->lb[U_idx[i]] = 0;
 		qp->ub[U_idx[i]] = 1;
 		qp->binary_idx[U_idx[i]] = 1;
+	}
+	for (int i=0; i<I_idx.size(); i++)
+	{
+		qp->lb[I_idx[i]] = 0;
+		qp->ub[I_idx[i]] = 1;
+		if (config->L0_norm)
+		{
+			qp->binary_idx[I_idx[i]] = 1;
+		}
 	}
 	for (int i=0; i<E_idx.size(); i++)
 	{

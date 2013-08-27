@@ -12,3 +12,9 @@ tools/samtools/bcftools/bcftools
 libbam.a
 samtools
 .branch
+config.h
+configure.log
+eval_pacbio
+eval_quant
+transcript_prediction
+

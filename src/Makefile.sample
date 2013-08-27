@@ -34,9 +34,9 @@ CPPFLAGS += $(foreach includedir,$(INCLUDE_DIRS),-I$(includedir))
 LDFLAGS += $(foreach librarydir,$(LD_DIRS),-L$(librarydir))
 LDFLAGS += $(foreach library,$(LIBS),-l$(library))
 
-.PHONY: all clean distclean
+.PHONY: all clean 
 
-all: subfolders define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio transcript_prediction 
+all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio transcript_prediction 
 
 subfolders:
 	@echo "##################################################" 
@@ -59,12 +59,15 @@ ath_count_reads_in_region: ath_count_reads_in_region.o ${ALL_O}
 eval_pacbio: eval_pacbio.o ${ALL_O}
 	$(CXX) $(CXXFLAGS) eval_pacbio.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o eval_pacbio
 
+eval_quant: eval_quant.cpp
+	${CXX} eval_quant.cpp -o eval_quant -I. -Itools tools/basic_tools.cpp
+
 clean:
 	@- $(RM) $(MITIE_O)
 	@- $(RM) $(TOOLS_O)
 	@- $(RM) $(GENOME_TOOLS_O)
 	@- $(RM) $(NGS_TOOLS_O)
-	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_pacbio
+	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_pacbio eval_quant
 	$(MAKE) -C tools/samtools clean
 
 
