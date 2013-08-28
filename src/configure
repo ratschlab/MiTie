@@ -5,7 +5,7 @@ SUCC=yes
 TMPLOG=configure.log
 
 #CPLEX
-USE_CPLEX=yes
+USE_CPLEX=no
 CPLEX_PATH=
 CPLEX_INCL=
 CPLEX_LD=
@@ -67,6 +67,7 @@ parse_arguments()
 			;;
 			-cplex-dir=* | --cplex-dir=*)
 				CPLEX_PATH=`echo $ac_option | cut -d '=' -f 2`
+				USE_CPLEX=yes
 				echo using cplex path $CPLEX_PATH
 			;;
 			*)
@@ -129,7 +130,7 @@ EOF
 		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GLPK_LD
 	fi
 	echo g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm >> "$TMPLOG" 2>&1	
-	( g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm) # >> "$TMPLOG" 2>&1	
+	( g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm) >> "$TMPLOG" 2>&1	
 	TMP="$?"
 	if test -f "$TMPO"
 	then
@@ -144,6 +145,8 @@ EOF
 		echo
 		USE_GLPK=no
 		echo -e "\tcould not find GLPK lib or include"
+		echo -e "\tplease provide path to your glpk installation"
+		echo -e "\tyou can download glpk e.g. using \n\twget http://ftp.gnu.org/gnu/glpk/glpk-4.52.tar.gz"
 	fi
 	rm $TMPCXX
 	echo >> "$TMPLOG" 
@@ -294,33 +297,37 @@ check_cplex()
 	fi
 }
 
-if [ -f Makefile ]; then
-	echo Makefile exists, I will not overwrite this
-	exit 0;
-fi
-
 parse_arguments $@
 check_hdf5
 #check_matlab
 check_cplex
 check_glpk
 
+
+echo writing config.sh
+echo 
+echo "#!/bin/bash" > config.sh
+echo  >> config.sh
+if [ ! -z $HDF_LD ]; then
+	echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$HDF_LD" >> config.sh
+fi
+
 ## writing config file
 echo 
 echo writing file config.h
 echo > config.h
-if [ ! "USE_GLPK" == "yes" ]
+if [ "$USE_GLPK" == "yes" ]
 then
 	echo "#define USE_GLPK" >> config.h
 fi
-if [ ! "USE_CPLEX" == "yes" ]
+if [ "$USE_CPLEX" == "yes" ]
 then
 	echo "#define USE_CPLEX" >> config.h
 fi
 
 echo
 echo creating Makefile
-echo  >> Makefile
+echo  > Makefile
 echo "### HDF paths and flags" >> Makefile
 if [ ! -z $HDF5_PATH ]
 then 
@@ -334,15 +341,18 @@ echo "### GLPK paths and flags" >> Makefile
 echo "INCLUDE_DIRS += $GLPK_INCL" >> Makefile
 echo "LD_DIRS += $GLPK_LD" >> Makefile
 echo "LIBS += $GLPK_LIBS" >> Makefile
-echo "GLPK = solve_lp_glpk.cpp" >> Makefile
-
+if [ "$USE_GLPK" == "yes" ]; then
+	echo "GLPK = solve_lp_glpk.cpp" >> Makefile
+fi
 echo  >> Makefile
 echo "### CPLEX paths and flags" >> Makefile
 echo "INCLUDE_DIRS += $CPLEX_INCL" >> Makefile
 echo "LD_DIRS += $CPLEX_LD" >> Makefile
 echo "LIBS += $CPLEX_LIBS" >> Makefile
 echo "CPLEX_FLAGS = $CPLEX_FLAGS" >> Makefile
-echo "CPLEX = solve_qp_cplex.cpp" >> Makefile
+if [ "$USE_CPLEX" == "yes" ]; then
+	echo "CPLEX = solve_qp_cplex.cpp" >> Makefile
+fi
 echo  >> Makefile
 cat Makefile.sample >> Makefile
 

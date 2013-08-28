@@ -10,6 +10,8 @@ eta1=1.00
 eta2=0.10
 lambda=3
 
+source config.sh
+
 fn_bam_all=/cbio/grlab/nobackup2/projects/mip/human_sim/data_sim_500_alt25/reads_with_errors/bias1_merged_err_1.new.sorted.paired_200000_4_5.bam 
 out_dir=/cbio/grlab/nobackup/projects/mip/human_sim/cpp_mip_quant_sample${sample}_eta1_${eta1}_eta2_${eta2}_lambda_${lambda}
 mkdir -p $out_dir
