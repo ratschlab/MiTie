@@ -2,10 +2,43 @@
 #define _CREATE_LOSS_PARAM_H__
 
 #include "math_tools.h"
+double compute_KL(double (&w)[2], double X[][2], double Y[], vector<int> idx)
+{
+	//compute Kullback-Leiber divergence
+	//
+	// \sum_x ln(\frac{p(x)}{q(x)})*p(x)
+	//
+	// using log(a+b) = log(a) + log(1+exp(log(b)-log(a)))
+	double n = -X[idx[0]][0]*w[0]-X[idx[0]][1]*w[1];
+	for (int i=1; i<idx.size(); i++)
+	{
+		double val = -X[idx[i]][0]*w[0]-X[idx[i]][1]*w[1]; 
+		n += log(1+exp(val-n)); 
+	}
+
+	double m = -Y[idx[0]];
+	for (int i=1; i<idx.size(); i++)
+	{
+		double val = -Y[idx[i]];
+		m+= log(1+exp(val-m)); // normalize
+	}
+
+	double ret = 0;
+	for (int i=0; i<idx.size(); i++) 
+	{
+		double log_val1 = -Y[idx[i]]-m;
+		double log_val2 = -X[idx[i]][0]*w[0]-X[idx[i]][1]*w[1]-n;
+		ret += (log_val1-log_val2)*exp(log_val1);
+	}
+	return ret;
+}
+
 
 double compute_bhatt(double (&w)[2], double X[][2], double Y[], vector<int> idx)
 {
 	//compute Bhattacharyya coefficient
+	//
+	// \sum_x \sqrt{p(x)*q(x)}
 	//
 	// using log(a+b) = log(a) + log(1+exp(log(b)-log(a)))
 	double n = -X[idx[0]][0]*w[0]-X[idx[0]][1]*w[1];
@@ -35,11 +68,12 @@ double compute_bhatt(double (&w)[2], double X[][2], double Y[], vector<int> idx)
 
 bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double box11, double box12, double box21, double box22)
 {
-	double eps = 1e-15;
+	double eps = 1e-10;
 	w[0] = box11; 
 	w[1] = box21;
 
-	double best = compute_bhatt(w, X, Y, idx); 
+	//double best = compute_bhatt(w, X, Y, idx); 
+	double best = compute_KL(w, X, Y, idx); 
 	double best_orig = best;
 	double w_best[2]; 
 	w_best[0]= w[0];
@@ -53,15 +87,18 @@ bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double b
 
 		double step1 = (box12-box11)/10;
 		double step2 = (box22-box21)/10;
-		assert(step1>0);
-		assert(step2>0);
-		for (double val1=box11; val1<box12; val1+=step1)
+
+		//printf("best:%.5f %.10f %.10f (%.10f) %.10f %.10f (%.10f)\n", best, box11, box12, step1, box21, box22, step2);
+		for (int i=0; i<=10; i++)
 		{
-			for (double val2=box21; val2<box22; val2+=step2) 
+			double val1=box11+i*step1; 
+			for (int j=0; j<=10; j++)
 			{
+				double val2 = box21+j*step2;
 				w[0] = val1; 
 				w[1] = val2;
-				double val = compute_bhatt(w, X, Y, idx);
+				//double val = compute_bhatt(w, X, Y, idx);
+				double val = compute_KL(w, X, Y, idx);
 				if (val<best)
 				{
 					//printf("val:%.5f, best:%.5f\n", val, best);
@@ -74,8 +111,9 @@ bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double b
 		if (box12-box11>eps)
 		{
 			double step = (box12-box11)/10;
-			for (double val1=box11; val1<box12; val1+=step)
+			for (int i=0; i<=10; i++)
 			{
+				double val1=box11+i*step; 
 				if (w_best[0] == val1 && val1>box11 && val1<box12)
 				{
 					box11 = val1-step;
@@ -97,8 +135,10 @@ bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double b
 		if (box22-box21>eps)
 		{
 			double step = (box22-box21)/10;
-			for (double val2=box21; val2<box22; val2+=step)
+			for (int j=0; j<=10; j++)
 			{
+				double val2 = box21+j*step;
+
 				if (w_best[1] == val2 && val2>box21 && val2<box22)
 				{
 					box21 = val2-step;
@@ -130,15 +170,50 @@ bool my_min(double (&w)[2], double X[][2], double Y[], vector<int> idx, double b
 vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lambda, int order)
 {
 	
+	vector<vector<double> > ret;
+
+	char fn_param[1000];
+	sprintf(fn_param, "param/loss_param_eta1%.3f_eta2%.3f_lambda%.3f_order%i.txt", eta1, eta2, lambda, order);
+
+	if (fexist(fn_param))
+	{
+		printf("parameter file exists\nload parameters from file:%s\n", fn_param);
+
+		FILE* fd = fopen(fn_param, "r");
+		while(~feof(fd))
+		{
+			char line[1000]; 
+			if (fgets(line, 1000, fd)==NULL) break; 
+
+			if (line[0]=='#')
+				continue; 
+
+			vector<char*> fields = get_fields(line);
+			
+			assert(fields.size()==5);
+			vector<double> tmp; 
+			for (int i=0; i<5; i++)
+			{
+				tmp.push_back(atof(fields[i]));
+			}
+			ret.push_back(tmp);
+		}
+		fclose(fd);
+		return ret;
+	}
+	else
+	{
+		printf("compute loss param\n");
+	}
+
 	// order of the polynom to fit the loss function
 	assert(order==1 || order==2);
 
-	vector<vector<double> > ret;
 
 	// this is the observed coverage:
 	//int xpos[] = {1, 2, 3, 5, 10, 15, 20, 35, 50, 100, 200, 500, 1000, 5000, 10000, 30000};
 	//int num_pos = sizeof(xpos)/sizeof(int);
-	vector<float> xpos = logspace<float>(1.0, 5e4, 20);
+	vector<float> xpos = logspace<float>(1.0, 5e4, 50);
 	int num_pos = xpos.size();;
 	//print_vec(&xpos2, "%.4f, ");
 
@@ -159,7 +234,7 @@ vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lam
 			{
 				continue;
 			}
-			for (float f=obs+j*std_; f<obs+(j+1)*std_; f+=std_/10)
+			for (float f=obs+j*std_; f<obs+(j+1)*std_; f+=std_/100)
 			{
 				if (f>=1)
 					mus.push_back(f);
@@ -255,14 +330,14 @@ vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lam
 			if (order==1)
 				my_min(w1, X, Y, idx1, 0, 1e-10, 1e-3, 10);
 			else
-				my_min(w1, X, Y, idx1, 1e-10, 10, 1e-10, 10);
+				my_min(w1, X, Y, idx1, 1e-10, 0.5, 1e-10, 10);
 		}
 		assert(!idx2.empty());
 		double w2[2];
 		if (order==1)
 			my_min(w2, X, Y, idx1, 0, 1e-10, 1e-3, 10);
 		else
-			my_min(w2, X, Y, idx1, 1e-10, 10, 1e-10, 10);
+			my_min(w2, X, Y, idx1, 1e-10, 0.5, 1e-10, 10);
 		
 		
 		left_l[s]=w1[1];
@@ -279,11 +354,18 @@ vector<vector<double> > create_loss_parameters(float eta1, float eta2, float lam
 		ret.push_back(tmp);
 	} 
 
+	FILE* fd = fopen(fn_param, "w");
+	if (!fd)
+	{
+		printf("could not open file %s for writing\n", fn_param);
+		exit(0);
+	}
 	printf("##observation\tleft_l\tleft_q\tright_l\tright_q\n");
 	for (int j=0; j<num_pos; j++)
 	{
-		printf("%.2f\t%.11f\t%.11f\t%.11f\t%.11f\n", xpos[j], left_l[j], left_q[j], right_l[j], right_q[j]);
+		fprintf(fd, "%.2f\t%.15f\t%.15f\t%.15f\t%.15f\n", xpos[j], left_l[j], left_q[j], right_l[j], right_q[j]);
 	}
+	fclose(fd);
 	return ret;
 }
 

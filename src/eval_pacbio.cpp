@@ -50,7 +50,7 @@ void parse_args(int argc, char** argv,  Config* c)
         {
             if (i + 1 > argc - 1)
             {
-                fprintf(stderr, "ERROR: Argument missing for option -gtf\n") ;
+                fprintf(stderr, "ERROR: Argument missing for option --gtf\n") ;
                 exit(1);
             }
             i++;

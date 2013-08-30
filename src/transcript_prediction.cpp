@@ -105,7 +105,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->C_pair = 1.0;
 	c->C_num_trans = 100.0;
 	c->C_num_trans_predef = 1.0;
-	c->L0_norm = false;
+	c->L0_norm = true;
 
     for (int i = 2; i < argc; i++)  
     {
@@ -1249,7 +1249,7 @@ void Tr_Pred::make_qp()
 #ifdef USE_CPLEX
 	printf("solve qp using cplex\n");
 	qp->result = solve_qp_cplex(qp, success);
-//#else
+#else
 #ifdef USE_GLPK
 	printf("solve lp using glpk\n");
 	qp->result = solve_lp_glpk(qp, success);
@@ -1311,10 +1311,11 @@ void Tr_Pred::make_qp()
 
 	// prepare output
 	//
+	printf("new trans: %i %i %.2f \n", t, num_annotated_trans, qp->result[I_idx[0]]); 
 	
 	for (int i=num_annotated_trans; i<t; i++)
 	{
-		if (qp->result[I_idx[i]]<0.5)// check if transcript is expressed (using the binary indicator variable)
+		if (qp->result[I_idx[i]]<1e-3)
 			continue;
 
 		vector<int> new_path;
@@ -1329,9 +1330,9 @@ void Tr_Pred::make_qp()
 		char name[1000];
 		sprintf(name, "mitie_%i_%i", graph->id, i);
 		graph->transcript_names.push_back(string(name));
-		if (graph->gene_names.size()==i)
+		if (graph->gene_names.size()==i && i>0)
 		{
-			graph->gene_names.push_back(graph->gene_names[i-1]);
+			graph->gene_names.push_back(string(graph->gene_names[i-1]));
 		}
 	}
 
@@ -1387,9 +1388,9 @@ int main(int argc, char* argv[])
 
 
 	time_t t = time(NULL);
+	printf("fit loss function picewise with polynoms of degree %i\n", c.order);
 	vector<vector<double> > loss_param = create_loss_parameters(c.eta1, c.eta2, c.lambda, c.order);
 	printf("time diff: %lu\n", time(NULL)-t);
-
 
 	printf("loading graphs from file: %s\n", c.fn_graph);
 	
@@ -1415,8 +1416,8 @@ int main(int argc, char* argv[])
 	// load graphs from binary file
 	vector<Bam_Region*> graphs; 
 	int cnt = 0;
-	//int num_return = 1e6;// run on all
-	int num_return = 3;
+	int num_return = 1e6;// run on all
+	//int num_return = 3;
 #ifdef USE_HDF
 	while (cnt<num_return)
 #else
