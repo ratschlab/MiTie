@@ -83,8 +83,20 @@ class Region
 			return seq;
 		};
 
-		bool check_region(){return (start>=0 && stop<gio->contig_len(chr_num));};
+		bool check_region()
+		{
+			if (!(start>=0 && stop<gio->contig_len(chr_num)))
+			{
+				fprintf(stderr, "chr_num: %i, chr_len: %i\n", chr_num, gio->contig_len(chr_num));
+			}
+			return (start>=0 && stop<gio->contig_len(chr_num));	
+		};
 
+		/** check translation initiation consensus for transcript i*/
+		int check_TIS(int i); 
+
+		/** check translation termination consensus for transcript i */
+		int check_TTS(int i); 
 
 		void set_gio(Genome* pgio);
 	
