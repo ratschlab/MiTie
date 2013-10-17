@@ -337,23 +337,23 @@ fi
 echo "LIBS += $HDF_LIBS" >> Makefile
 echo  >> Makefile
 
-echo "### GLPK paths and flags" >> Makefile
-echo "INCLUDE_DIRS += $GLPK_INCL" >> Makefile
-echo "LD_DIRS += $GLPK_LD" >> Makefile
-echo "LIBS += $GLPK_LIBS" >> Makefile
 if [ "$USE_GLPK" == "yes" ]; then
+	echo "### GLPK paths and flags" >> Makefile
+	echo "INCLUDE_DIRS += $GLPK_INCL" >> Makefile
+	echo "LD_DIRS += $GLPK_LD" >> Makefile
+	echo "LIBS += $GLPK_LIBS" >> Makefile
 	echo "GLPK = solve_lp_glpk.cpp -lglpk" >> Makefile
+	echo  >> Makefile
 fi
-echo  >> Makefile
-echo "### CPLEX paths and flags" >> Makefile
-echo "INCLUDE_DIRS += $CPLEX_INCL" >> Makefile
-echo "LD_DIRS += $CPLEX_LD" >> Makefile
-echo "LIBS += $CPLEX_LIBS" >> Makefile
-echo "CPLEX_FLAGS = $CPLEX_FLAGS" >> Makefile
 if [ "$USE_CPLEX" == "yes" ]; then
+	echo "### CPLEX paths and flags" >> Makefile
+	echo "INCLUDE_DIRS += $CPLEX_INCL" >> Makefile
+	echo "LD_DIRS += $CPLEX_LD" >> Makefile
+	echo "LIBS += $CPLEX_LIBS" >> Makefile
+	echo "CPLEX_FLAGS = $CPLEX_FLAGS" >> Makefile
 	echo "CPLEX = solve_qp_cplex.cpp" >> Makefile
+	echo  >> Makefile
 fi
-echo  >> Makefile
 cat Makefile.sample >> Makefile
 
 if [ "${SUCC}" == "yes" ]

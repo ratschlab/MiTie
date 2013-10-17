@@ -55,7 +55,7 @@ if [ ! -f $fn_quant.asdf ]
 then 
 	num_trans=0 # number of additional transcripts 
 	order=1
-	./transcript_prediction $fn_graph $fn_bam_all $mip_dir --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant --fn-out $fn_gff --order $order
+	./transcript_prediction $fn_graph $fn_bam_all --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant --fn-out $fn_gff --order $order
 else
 	echo $fn_quant exists
 fi
