@@ -103,7 +103,135 @@ void Region::set_gio(Genome* pgio)
 	gio = pgio;
 }
 
-int Region::check_TIS(int i)
+char* Region::get_triplet(int i, int pos, int* offset)
+{
+	assert(i<transcripts.size());
+	assert(i>=0);
+
+	// TODO: this is just for debugging
+	//pos = get_TIS(i);
+
+	//if (pos==0)
+	//	return NULL;
+
+	// the sequence in not reverse complemented
+	char* seq = get_sequence();
+	int seq_len=stop-start+1;
+
+	bool exonic=false;
+	int len=0;
+	int cds_pos=0;
+	for (unsigned int j=0; j<transcripts[i].size(); j++)	
+	{
+
+		int flag = transcripts[i][j].flag; 
+		int exon_start = transcripts[i][j].first;
+		int exon_stop = transcripts[i][j].second;
+
+		if (flag==4)// CDS
+		{
+			len += exon_stop-exon_start+1; 
+			if (exon_stop<pos)
+			{
+				cds_pos += exon_stop-exon_start+1;
+			}
+			else if (exon_start<=pos && exon_stop>=pos)
+			{
+				cds_pos += pos-exon_start;
+				exonic = true;
+
+				*offset = cds_pos%3;
+				int local=pos-start-*offset; 
+
+				char* ret = new char[4]; 
+				ret[3] = 0;
+
+				if (local<0)
+				{
+					printf("local: %i<0; pos:%i, start:%i stop:%i offset:%i\n", local, pos, start, stop, *offset);
+					return NULL;
+				}
+				assert(local<seq_len);
+
+				if (strand=='+')
+				{
+					// check if codon is split between two exons
+					if (pos-exon_start<*offset)
+					{
+						// get the rest of the codon from previous exon
+						assert(j>0);
+						int pflag = transcripts[i][j-1].flag;
+						int pexon_stop = transcripts[i][j-1].second-start;
+						assert(pflag==4);
+						
+						if (pos-exon_start<*offset-1)
+						{
+							ret[0] = seq[pexon_stop-1];
+							ret[1] = seq[pexon_stop];
+							ret[2] = seq[local+2];
+						}
+						else
+						{
+							ret[0] = seq[pexon_stop];
+							ret[1] = seq[local+1];
+							ret[2] = seq[local+2];
+						}
+					}
+					else if (exon_stop-(pos-*offset)<2)
+					{
+						// get the rest of the codon from next exon
+						assert(j+1<transcripts[i].size());
+						int nflag = transcripts[i][j+1].flag;
+						int nexon_start = transcripts[i][j+1].first-start;
+						assert(nflag==4);
+
+						if (exon_stop-(pos-*offset)<1)
+						{
+							ret[0] = seq[local];
+							ret[1] = seq[nexon_start];
+							ret[2] = seq[nexon_start+1];
+						}
+						else
+						{
+							ret[0] = seq[local];
+							ret[1] = seq[local+1];
+							ret[2] = seq[nexon_start];
+						}
+
+					}
+					else
+					{
+						ret[0] = seq[local];
+						ret[1] = seq[local+1];
+						ret[2] = seq[local+2];
+					}
+					//printf("(+)triplet: %s, offset:%i char:%c\n", ret, *offset, seq[local+*offset]);
+					return ret;
+				}
+				else
+				{
+					// reverse
+					ret[0] = seq[local+2];
+					ret[1] = seq[local+1];
+					ret[2] = seq[local];
+					// complement
+					gio->complement(ret, 4);
+					//printf("(-)triplet: %s, offset:%i char:%c\n", ret, *offset, seq[local+*offset]);
+					// because of the reverse
+					*offset = 2-*offset;
+					return ret;
+				}
+			}
+			else 
+			{
+				assert(exon_start>pos);
+			}
+		}
+	}
+	return NULL;
+}
+
+int Region::get_TTS(int i)
 {
 	assert(i<transcripts.size());
 	assert(i>=0);
@@ -117,21 +245,61 @@ int Region::check_TIS(int i)
 			if (strand=='+')
 			{
 				// tis is the start of the first coding exon
-				pos = transcripts[i][j].first-start;
+				pos = transcripts[i][j].second;
+			}
+			else
+			{
+				// tis is the end of the last coding exon
+				pos = transcripts[i][j].first;
+				break;
+			}
+		}
+	}	
+	return pos;
+}
+
+int Region::get_TIS(int i)
+{
+	assert(i<transcripts.size());
+	assert(i>=0);
+
+	int pos=0;
+	for (unsigned int j=0; j<transcripts[i].size(); j++)
+	{
+		int flag = transcripts[i][j].flag;
+		if (flag==4)//CDS
+		{
+			if (strand=='+')
+			{
+				// tis is the start of the first coding exon
+				pos = transcripts[i][j].first;
 				break;
 			}
 			else
 			{
 				// tis is the end of the last coding exon
-				pos = transcripts[i][j].second-start;
+				pos = transcripts[i][j].second;
 			}
 		}
 	}
+	return pos;
+}
+
+int Region::check_TIS(int i)
+{
+	assert(i<transcripts.size());
+	assert(i>=0);
+
+	int pos = get_TIS(i);
 	if (pos==0)
 		return -1;
 
+	// transform to local coordinates
+	pos -= start;
+
 	char* seq = get_sequence();
-	int seq_len = strlen(seq);
+	//int seq_len = strlen(seq);
+	int seq_len=stop-start+1;
 	if (pos<0)
 	{
 		printf("check_TIS: Warning: found pos: %i<0\n", pos);
@@ -154,33 +322,16 @@ int Region::check_TIS(int i)
 
 int Region::check_TTS(int i)
 {
-	assert(i<transcripts.size());
-	assert(i>=0);
-
-	int pos=0;
-	for (unsigned int j=0; j<transcripts[i].size(); j++)
-	{
-		int flag = transcripts[i][j].flag;
-		if (flag==4)//CDS
-		{
-			if (strand=='+')
-			{
-				// tis is the start of the first coding exon
-				pos = transcripts[i][j].second-start;
-			}
-			else
-			{
-				// tis is the end of the last coding exon
-				pos = transcripts[i][j].first-start;
-				break;
-			}
-		}
-	}
+	int pos = get_TTS(i);
 	if (pos==0)
 		return -1;
 
+	// transform to local coordinates
+	pos -= start;
+
 	char* seq = get_sequence();
-	int seq_len = strlen(seq);
+	//int seq_len = strlen(seq);
+	int seq_len=stop-start+1;
 	if (pos<0)
 	{
 		printf("check_TTS: Warning: found pos: %i<0\n", pos);
@@ -221,7 +372,7 @@ void Region::load_genomic_sequence()
 		print(stderr);
 		exit(-1);
 	}
-	seq = gio->read_flat_file(chr_num, start-1, stop);
+	seq = gio->read_flat_file(chr_num, start-1, stop-1);
 }
 
 void Region::print(_IO_FILE*& fd)

@@ -92,9 +92,17 @@ class Region
 			return (start>=0 && stop<gio->contig_len(chr_num));	
 		};
 
+
+		/** get the triplet codon for pos in transcript i */
+		char* get_triplet(int i, int pos, int* offset);
+
+		/** find translation initiation site for transcript i*/
+		int get_TIS(int i); 
 		/** check translation initiation consensus for transcript i*/
 		int check_TIS(int i); 
 
+		/** find translation termination site for transcript i */
+		int get_TTS(int i); 
 		/** check translation termination consensus for transcript i */
 		int check_TTS(int i); 
 
