@@ -740,7 +740,6 @@ void Tr_Pred::make_qp()
 	printf("A2: %i\n", cc);
 #endif
 
-
 	// this takes the connectivity of the splice graph and makes 
 	// sure that segment j is followed by any of the segments 
 	// it is connected to in the splice graph G=(N,E)
@@ -1253,10 +1252,70 @@ void Tr_Pred::make_qp()
 #ifdef USE_GLPK
 	printf("solve lp using glpk\n");
 	qp->result = solve_lp_glpk(qp, success);
+	
+	//for (int i=0; i<qp->result.size(); i++)
+	//{
+	//	qp->A.set(cc, i, 1);
+	//	qp->b.push_back(qp->result[i]);
+	//	qp->eq_idx.push_back(1);
+	//	cc++;
+	//}
+
+#ifdef DEBUG_GLPK
+	vector<double> res = solve_lp_glpk(qp, success);
+#endif
 #else
 	printf("no solver available; stopping here\n");
 	exit(-1);
 #endif
+#endif
+//
+#ifdef DEBUG_GLPK
+	if (false)
+	{
+		printf("U_idx\n");
+		for (int j = 0; j<U_idx.size(); j++)
+		{
+			int i = U_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+		printf("I_idx\n");
+		for (int j = 0; j<I_idx.size(); j++)
+		{
+			int i = I_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+		printf("E_idx\n");
+		for (int j = 0; j<E_idx.size(); j++)
+		{
+			int i = E_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+		printf("W_idx\n");
+		for (int j = 0; j<W_idx.size(); j++)
+		{
+			int i = W_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+		printf("L_idx\n");
+		for (int j = 0; j<L_idx.size(); j++)
+		{
+			int i = L_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+		printf("C_idx\n");
+		for (int j = 0; j<C_idx.size(); j++)
+		{
+			int i = C_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+		printf("D_idx\n");
+		for (int j = 0; j<D_idx.size(); j++)
+		{
+			int i = D_idx[j];
+			printf("CPX: %.3f, glpk:%.3f\n", qp->result[i], res[i]); 
+		}
+	}
 #endif
 
 	assert(qp->result.size() == qp->num_var);
@@ -1272,10 +1331,27 @@ void Tr_Pred::make_qp()
 				int idx = i*s*t + j*t + k;
 				exp_sr += qp->result[E_idx[idx]];
 			}
-			printf("%.2f ", exp_sr);
+			//printf("%.2f ", exp_sr);
+			printf("%.2f", exp_sr);
 		}
 		printf("\n");
 	}
+#ifdef DEBUG_GLPK
+	for (int i=0; i<r; i++)// loop over samples
+	{
+		for (int j=0; j<s; j++)
+		{
+			float exp_sr = 0.0;
+			for (int k=0; k<t; k++)
+			{
+				int idx = i*s*t + j*t + k;
+				exp_sr += res[E_idx[idx]];
+			}
+			printf("%.2f", exp_sr);
+		}
+		printf("\n");
+	}
+#endif
 
 	printf("res[L_idx]\n");
 	for (int i=0; i<r; i++)
@@ -1283,22 +1359,41 @@ void Tr_Pred::make_qp()
 		printf("left\t");
 		for (int j=0; j<s; j++)
 		{
-			printf("%.2f ", qp->result[L_idx[i*s+j+ s*r]]);
+			printf("%.2f ", fabs(qp->result[L_idx[i*s+j+ s*r]]));
 		}
 		printf("\n");
 		printf("right\t");
 		for (int j=0; j<s; j++)
 		{
-			printf("%.2f ", qp->result[L_idx[i*s+j]]);
+			printf("%.2f ", fabs(qp->result[L_idx[i*s+j]]));
 		}
 		printf("\n");
 	}
+#ifdef DEBUG_GLPK
+	for (int i=0; i<r; i++)
+	{
+		printf("left\t");
+		for (int j=0; j<s; j++)
+		{
+			printf("%.2f ", res[L_idx[i*s+j+ s*r]]);
+		}
+		printf("\n");
+		printf("right\t");
+		for (int j=0; j<s; j++)
+		{
+			printf("%.2f ", res[L_idx[i*s+j]]);
+		}
+		printf("\n");
+	}
+#endif
 
 	printf("res[W_idx]: res[U_idx]\n");
 	for (int i=0; i<t; i++)
 	{
 		for (int j=0; j<r; j++)
-			printf(" %.2f", qp->result[W_idx[j*t+i]]);
+		{
+			printf(" %.2f", fabs(qp->result[W_idx[j*t+i]]));
+		}
 		printf(": "); 
 		for (int j=0; j<s; j++)
 		{
@@ -1306,7 +1401,21 @@ void Tr_Pred::make_qp()
 		}
 		printf("\n");
 	}
-
+#ifdef DEBUG_GLPK
+	for (int i=0; i<t; i++)
+	{
+		for (int j=0; j<r; j++)
+		{
+			printf(" %.2f", res[W_idx[j*t+i]]);
+		}
+		printf(": "); 
+		for (int j=0; j<s; j++)
+		{
+			printf("%i ", res[U_idx[j*t+i]]>0.5);
+		}
+		printf("\n");
+	}
+#endif
 
 
 	// prepare output
@@ -1365,7 +1474,7 @@ void Tr_Pred::make_qp()
 				fprintf(fd_quant, "%s", graph->transcript_names[i].c_str());
 				for (int j=0; j<r; j++)
 				{
-					fprintf(fd_quant, "\t%.5f", qp->result[W_idx[j*t+i]]*cov_scale[j]); 
+					fprintf(fd_quant, "\t%.5f", fabs(qp->result[W_idx[j*t+i]]*cov_scale[j])); 
 				}
 				fprintf(fd_quant, "\n"); 
 			}

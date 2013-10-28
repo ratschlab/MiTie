@@ -1,10 +1,12 @@
 #!/bin/bash
 #
+source config.sh
 
 fn_bam="testdata/*toy.bam"
 out_dir=testdata/results
 fn_regions=$out_dir/regions.flat
 mkdir -p $out_dir
+rm $out_dir/*
 
 dir=`dirname $0`
 
@@ -46,7 +48,6 @@ echo saved $num_graphs_gtf graphs to file
 
 # perform transcript predictions
 ##############################	
-source config.sh
 
 # without annotation
 fn_result=$out_dir/result.gtf
@@ -55,15 +56,16 @@ eta1=1.00
 eta2=0.10
 lambda=0
 quantify=0
-order=2 # order of the polynom to approximate the loss function (1 or 2)
+order=1 # order of the polynom to approximate the loss function (1 or 2)
 num_trans=1
 
-echo ./transcript_prediction $fn_graph $fn_bam --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant --fn-out $fn_result --order $order
-time ./transcript_prediction $fn_graph $fn_bam --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant --fn-out $fn_result --order $order
+echo ./transcript_prediction $fn_graph $fn_bam --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 100.0 --C-exon 1.0 --C-num-trans 10.0 --fn-quant $fn_quant --fn-out $fn_result --order $order
+#gdb --args 
+time ./transcript_prediction $fn_graph $fn_bam --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 100.0 --C-exon 1.0 --C-num-trans 10.0 --fn-quant $fn_quant --fn-out $fn_result --order $order
 
 # with annotation
 fn_result_gtf=$out_dir/result_gtf.gtf
 fn_quant=$out_dir/quant_gtf.txt
-./transcript_prediction $fn_graph_gtf $fn_bam --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 10.0 --C-num-trans 100.0 --fn-quant $fn_quant --fn-out $fn_result_gtf --order $order
+./transcript_prediction $fn_graph_gtf $fn_bam --max-num-trans $num_trans --param-eta1 $eta1 --param-eta2 $eta2 --param-lambda $lambda --C-intron 100.0 --C-exon 1.0 --C-num-trans 10.0 --fn-quant $fn_quant --fn-out $fn_result_gtf --order $order
 
 

@@ -124,8 +124,8 @@ return 0;
 EOF
 	# compile
 	if [ ! -z GLPK_PATH ]; then
-		GLPK_INCL="$GLPK_PATH/src/"
-		GLPK_LD="$GLPK_PATH/src/.lib/"
+		GLPK_INCL="$GLPK_PATH/include/"
+		GLPK_LD="$GLPK_PATH/lib/"
 		GLPK_LIBS="glpk m"
 		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GLPK_LD
 	fi
@@ -308,6 +308,9 @@ echo writing config.sh
 echo 
 echo "#!/bin/bash" > config.sh
 echo  >> config.sh
+if [ "$USE_GLPK" == "yes" ]; then 
+	echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$GLPK_LD" >> config.sh
+fi
 if [ ! -z $HDF_LD ]; then
 	echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$HDF_LD" >> config.sh
 fi
