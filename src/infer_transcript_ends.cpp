@@ -6,12 +6,13 @@
 #include <algorithm>
 #include <assert.h>
 #include "bam.h"
-#include "region.h"
+#include "bam_region.h"
 #include "get_reads_direct.h"
 #include <fstream>
 #include "gtf_tools.h"
 #include "math_tools.h"
 #include "tools.h"
+#include "tools_bam.h"
 #include "file_stats.h"
 
 //includes for samtools
@@ -210,7 +211,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	return 0;
 }
 
-void find_tss_and_cleave(Region* region, Config* c)
+void find_tss_and_cleave(Bam_Region* region, Config* c)
 {
 	if (region->transcripts.size()==0)
 	{
@@ -308,25 +309,21 @@ void find_tss_and_cleave(Region* region, Config* c)
 		// add new segments to transcript
 		if (region->strand=='+')
 		{
-			segment* UTR5 = new segment(best_tss, start-1);
-			segment* UTR3 = new segment(stop+1, best_stop); 
+			segment* UTR5 = new segment(best_tss, start-1, 5);
+			segment* UTR3 = new segment(stop+1, best_stop, 3); 
 			region->transcripts[i].push_back(*UTR3);
-			region->coding_flag[i].push_back(3);
 			region->transcripts[i].insert(region->transcripts[i].begin(), *UTR5);
-			region->coding_flag[i].insert(region->coding_flag[i].begin(), 5);
 		}
 		else
 		{
-			segment* UTR5 = new segment(stop+1, best_stop); 
-			segment* UTR3 = new segment(best_tss, start-1);
+			segment* UTR5 = new segment(stop+1, best_stop, 5); 
+			segment* UTR3 = new segment(best_tss, start-1, 3);
 			region->transcripts[i].push_back(*UTR5);
-			region->coding_flag[i].push_back(5);
 			region->transcripts[i].insert(region->transcripts[i].begin(), *UTR3);
-			region->coding_flag[i].insert(region->coding_flag[i].begin(), 3);
 		}
 	}
 }
-bool compare_chr_and_strand(const Region* reg1, const Region* reg2)
+bool compare_chr_and_strand(const Bam_Region* reg1, const Bam_Region* reg2)
 {
 	if (reg1->chr_num<reg2->chr_num)
 		return true; 
@@ -372,24 +369,32 @@ int main(int argc, char* argv[])
 	FILE* fd_null = fopen("/dev/null", "w");
 	FILE* fd_out = fopen(c.fn_out, "w");
 
-	vector<Region*> gtf_regions;
+	vector<Bam_Region*> gtf_regions;
 	char strand_prev;
 	vector<CRead*>::iterator curr; 
-	Region* reg = NULL;
+	Bam_Region* reg = NULL;
 	int last_stop=0;
 	char* chr_prev = (char*) "xxx";
 
 	const char* format = determine_format(c.fn_gtf);
 	printf("loading regions from %s file: %s\n", format, c.fn_gtf);
+	vector<Region*> tmp;
 	if (strcmp(format, "gtf")==0)
-		gtf_regions = parse_gtf(c.fn_gtf);
+		tmp = parse_gtf(c.fn_gtf);
 	else if (strcmp(format, "gff3")==0)
-		gtf_regions = parse_gff(c.fn_gtf);
+		tmp = parse_gff(c.fn_gtf);
 	else
-	{
+	{   
 		printf("could not determine format of annotation file: %s\n", c.fn_gtf);
 		exit(-1);
 	}
+	// convert to Bam_Regions
+	for (int i=0; i<tmp.size(); i++)
+	{   
+		gtf_regions.push_back(new Bam_Region(tmp[i]));
+		delete tmp[i];
+	}
+
 	printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 	printf("config: reads_by_chr: %i\n", c.reads_by_chr);
 
@@ -432,7 +437,7 @@ int main(int argc, char* argv[])
 				strand_prev = gtf_regions[i]->strand;
 				printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 				delete reg;
-				reg = new Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
+				reg = new Bam_Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
 				set_chr_num(reg, header);
 				reg->stop = std::min(gtf_regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 			}
