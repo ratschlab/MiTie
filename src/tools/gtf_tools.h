@@ -11,9 +11,12 @@ vector<char*> get_fields(char* line);
 
 vector<Region*> parse_gtf(char* gtf_file);
 
+vector<Region*> parse_gtf(char* gtf_file, char* gene_name);
+
 vector<Region*> parse_gff(char* gtf_file);
 
 vector<Region*> parse_gff(char* gtf_file, const char* link_tag);
+
 
 void write_gtf(FILE* fd, Region* region, const char* source);
 

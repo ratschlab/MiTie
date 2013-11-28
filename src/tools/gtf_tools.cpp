@@ -378,9 +378,14 @@ vector<Region*> merge_overlapping_regions(vector<Region*> regions)
 	}
 	return regions;
 }
+
 vector<Region*> parse_gtf(char* gtf_file)
 {
-	
+	return parse_gtf(gtf_file, NULL);
+}
+
+vector<Region*> parse_gtf(char* gtf_file, char* gene_name)
+{
 	FILE* fd = fopen(gtf_file, "r");
 	if (!fd)
 	{
@@ -422,11 +427,26 @@ vector<Region*> parse_gtf(char* gtf_file)
 		{
 			char* tr_id = get_attribute(fields[8], "transcript_id");
 			char* gene_id = get_attribute(fields[8], "gene_id");
+			char* c_gene_name = get_attribute(fields[8], "gene_name");
 			if (!tr_id)
 			{
 				printf("Could not find transcript_id: %s\n", fields[8]);
 				exit(-1);
 			}
+
+			if (gene_name)
+			{
+				bool skip=true;
+				if (gene_id && strcmp(gene_name, gene_id)==0)
+					skip=false;
+				if (c_gene_name && strcmp(gene_name, c_gene_name)==0)
+					skip=false;
+				if (strcmp(gene_name, tr_id)==0)
+					skip=false;
+				if (skip)
+					continue;
+			}
+
 			string transcript_id(tr_id);
 			delete[] tr_id;
 
