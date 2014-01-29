@@ -105,7 +105,7 @@ void Region::set_gio(Genome* pgio)
 
 char* Region::get_triplet(int i, int pos, int* offset)
 {
-	assert(i<transcripts.size());
+	assert(i<(int)transcripts.size());
 	assert(i>=0);
 
 	// TODO: this is just for debugging
@@ -233,7 +233,7 @@ char* Region::get_triplet(int i, int pos, int* offset)
 
 int Region::get_TTS(int i)
 {
-	assert(i<transcripts.size());
+	assert(i<(int)transcripts.size());
 	assert(i>=0);
 
 	int pos=0;
@@ -260,7 +260,7 @@ int Region::get_TTS(int i)
 
 int Region::get_TIS(int i)
 {
-	assert(i<transcripts.size());
+	assert(i<(int)transcripts.size());
 	assert(i>=0);
 
 	int pos=0;
@@ -287,7 +287,7 @@ int Region::get_TIS(int i)
 
 int Region::check_TIS(int i)
 {
-	assert(i<transcripts.size());
+	assert(i<(int)transcripts.size());
 	assert(i>=0);
 
 	int pos = get_TIS(i);
