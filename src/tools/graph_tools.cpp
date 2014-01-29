@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int count_num_paths(vector<vector<float> > admat, int node1, int node2)
+long unsigned int count_num_paths(vector<vector<float> > admat, int node1, int node2)
 {
 	if (node2<node1)
 		return 0;
@@ -18,7 +18,7 @@ int count_num_paths(vector<vector<float> > admat, int node1, int node2)
 		fprintf(stderr, "node2 out of bounds");
 		exit(1);
 	}
-	int num_paths[node2-node1+1];
+	long unsigned int num_paths[node2-node1+1];
 	num_paths[0] = 1;
 	for (int i=node1+1; i<=node2; i++)
 	{

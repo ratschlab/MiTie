@@ -86,12 +86,12 @@ vector<int> Bam_Region::get_terminal_nodes()
 	}
 	return terminal;
 }
-int Bam_Region::compute_num_paths()
+long unsigned int Bam_Region::compute_num_paths()
 {
 	vector<int> initial = get_initial_nodes();
 	vector<int> terminal = get_terminal_nodes();
 
-	int num_paths = 0;
+	long unsigned int num_paths = 0;
 	for (uint i=0; i<initial.size(); i++)
 		for (uint k=0; k<terminal.size(); k++)
 			num_paths += count_num_paths(admat, initial[i]+1, terminal[k]+1);

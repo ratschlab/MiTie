@@ -362,7 +362,7 @@ int simplify_graph(Bam_Region* graph, vector<vector<vector<float> > >* all_admat
 	}
 #endif
 
-	int num_paths = graph->compute_num_paths();
+	long unsigned int num_paths = graph->compute_num_paths();
 	while (num_paths > max_num_paths)
 	{
 		num_paths = graph->compute_num_paths();
@@ -409,7 +409,7 @@ int simplify_graph(Bam_Region* graph, vector<vector<vector<float> > >* all_admat
 			all_admat->at(s)[min_j][min_k] = NO_CONNECTION; 
 		}
 
-		int num_paths_after = graph->compute_num_paths();
+		long unsigned int num_paths_after = graph->compute_num_paths();
 		printf("reduced number of paths from %i to %i\n", num_paths, num_paths_after); 
 	}
 	return 0;
@@ -1624,6 +1624,8 @@ void Tr_Pred::make_qp()
 		printf("could not open file: %s for writing\n", config->fn_quant);
 		exit(-1);
 	}
+
+	delete qp; 
 }
 
 int main(int argc, char* argv[])
@@ -1703,8 +1705,8 @@ int main(int argc, char* argv[])
 	{
 		for (uint j=0; j<graphs.size(); j++)
 		{
-			int num_paths = graphs[j]->compute_num_paths();
-			printf("num_paths\t%i\n", num_paths);
+			long unsigned int num_paths = graphs[j]->compute_num_paths();
+			printf("num_paths\t%lu\n", num_paths);
 		}
 	}
 

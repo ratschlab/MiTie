@@ -31,7 +31,7 @@ class Bam_Region: public Region
 
 		void init_admat(int num_seg);
 
-		int compute_num_paths();
+		long unsigned int compute_num_paths();
 
 		int compute_transcripts_from_paths();
 
