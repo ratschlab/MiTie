@@ -85,6 +85,23 @@ class sparse_matrix{
 		{
 			reset_it();
 		}
+
+		sparse_matrix(sparse_matrix<T>* mat)
+		{
+			mat->reset_it(); 
+			int i=0; 
+			int j=0; 
+			T val; 
+			for (;;)
+			{
+				val = mat->next(&i,&j);
+				if (i<0)
+					break; 
+				set(i, j, val); 
+			}
+			reset_it();
+		}
+
 		void reset_it()
 		{
 			it = mat.begin(); 
@@ -122,6 +139,105 @@ class sparse_matrix{
 			}
 			return it->second;
 		}
+
+		void mult(vector<T>* vec, vector<T>* result)
+		{
+			mult(vec, result, 1.0); 
+		}
+
+		void mult(vector<T>* vec, vector<T>* result, T weight)
+		{
+			reset_it(); 
+			int i=0; 
+			int j=0; 
+			T val; 
+			for (;;)
+			{
+				val = next(&i,&j);
+				if (i<0)
+					break; 
+
+				assert(i<result->size()); 
+				assert(j<vec->size()); 
+
+				result->at(i) += vec->at(j)*val*weight; 
+			}
+		}
+
+		void mult(sparse_matrix<T>* mat, sparse_matrix<T>* result)
+		{
+			reset_it(); 
+			int i1=0; 
+			int j1=0; 
+			int i2=0; 
+			int j2=0; 
+
+			for (;;)
+			{
+				T val1 = next(&i1,&j1); 
+				if (i1<0)
+					break; 
+				
+				//printf("%i, %i, %f\n", i1, j1, val1); 
+					
+				mat->reset_it(); 
+				for (;;)
+				{
+					T val2 = mat->next(&i2,&j2);
+					if (i2<0)
+						break; 
+
+					if (i2<j1)
+						continue; 
+					else if (i2>j1)
+						break; 
+					else if (i2==j1)
+					{
+						T val = result->get(i1, j2); 
+						result->set(i1, j2, val+val1*val2); 
+						//printf("%i, %i, %f, %i %i %f\n", i1, j1, val1, i2, j2, val2); 
+					}
+				}
+			}
+		}
+
+		void print()
+		{
+			reset_it(); 
+		
+			int row=0; 
+			int col=0; 
+			int i=0; 
+			int j=0; 
+			T val; 
+			for (;;)
+			{
+				val = next(&i,&j);
+				if (i<0)
+				{
+					printf("\n"); 
+					break; 
+				}
+				if (row<i)
+				{
+					col=0; 
+					row++; 
+					printf("\n"); 
+				}
+
+				while (row<i)
+				{
+					printf("%i:\t0.00, ...\n", row); 
+					row++; 
+				}
+				//printf("%i:\t", row); 
+				while (col++<j)
+					printf("0.00\t"); 
+				printf("%.2f\t", val); 
+
+			}
+		}
+
 
 		size_t size()
 		{

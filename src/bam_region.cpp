@@ -870,13 +870,21 @@ void Bam_Region::generate_segment_graph(float seg_filter, float tss_pval)
 }
 bool Bam_Region::is_annotated(int i)
 {
-	bool ret = false;
 	for (uint k=0; k<transcripts.size(); k++)
 		for (uint j=0; j<transcripts[k].size(); j++)
 			if (transcripts[k][j].first<=segments[i].first && transcripts[k][j].second>=segments[i].second)
-				ret = true;
-	return ret;
+				return true;
+	return false;
 }
+bool Bam_Region::is_annotated(int i1, int i2)
+{
+	for (uint k=0; k<transcripts.size(); k++)
+		for (uint j=0; j<transcripts[k].size()-1; j++)
+			if (transcripts[k][j].second==segments[i1].second && transcripts[k][j+1].first>=segments[i2].first)
+				return true;
+	return false;
+}
+
 bool Bam_Region::is_donor_ss(int i)
 {
 	bool ret = false;

@@ -334,7 +334,7 @@ int main(int argc, char* argv[])
 				return NULL;
 			}
 			CRead* r = new CRead();
-			parse_cigar(b, r, header);
+			parse_cigar(b, r);
 			int from = r->start_pos;
 			int to = r->get_last_position();
 			int map_idx = 2*core->tid;

@@ -58,6 +58,8 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "\t--fn-quant\t\t(default NULL) file name to write quantification values\n");
 			fprintf(stdout, "\t--fn-out\t\t(default NULL) file name to write transcript structures\n");
 			fprintf(stdout, "\t--num-trans\t\t(default 5) maximal number of transcripts predicted in addition to the annotated transcripts\n");
+			fprintf(stdout, "\t--graph-id\t\t(default -1) index of the graph in the HDF5 file (-1 for all graphs)\n");
+			fprintf(stdout, "\t--max-num-paths\t\t(default 1e6) maximal number paths in the segment graph.\n\t\t\t\t\t If there are more paths, then edges with low evidence are removed (if they are not annotated)\n");
 			fprintf(stdout, "\t\t\n");
 
 			fprintf(stdout, "loss function:\n");
@@ -92,7 +94,9 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->exon_len_filter = 0;
 	c->mm_filter = false;
 	c->max_num_trans = 5;
+	c->max_num_paths = 1000000;
 	c->min_trans_len = 100;
+	c->graph_id = -1;
 	c->use_pair = false;
 
 	c->order = 2;
@@ -138,6 +142,26 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->max_num_trans = atoi(argv[i]);
+        }
+	    else if (strcmp(argv[i], "--max-num-paths") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --max-num-paths\n") ;
+                return -1;
+            }
+            i++;
+			c->max_num_paths = atoi(argv[i]);
+        }
+	    else if (strcmp(argv[i], "--graph-id") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --graph-id\n") ;
+                return -1;
+            }
+            i++;
+			c->graph_id = atoi(argv[i]);
         }
 	    else if (strcmp(argv[i], "--order") == 0)
         {
@@ -277,6 +301,120 @@ int connect_neighbors(vector<vector<vector<float> > >* all_admat, vector<segment
 	}
 
 }
+
+int simplify_graph(Bam_Region* graph, vector<vector<vector<float> > >* all_admat, int max_num_paths)
+{
+
+#ifdef DEBUG
+	FILE* fd = fopen("/home/behrj/tmp/graphviz_Trp53", "w"); 
+
+	fprintf(fd, "digraph g {\n"); 
+	fprintf(fd, "graph [fontsize=30 labelloc=\"t\" label=\"\" splines=true overlap=false rankdir = \"LR\"];"); 
+	fprintf(fd, "ratio = auto;"); 
+#endif
+
+	// assuming that the first and the last segment are artificial source/sink nodes
+	assert(all_admat->at(0).size()>0);
+	assert(all_admat->at(0).size()==all_admat->at(0)[0].size());
+	int num_nodes = all_admat->at(0).size();
+	int num_samples = all_admat->size();
+
+	// set graph admat according to max(all_admat)
+	for (int j=1; j<num_nodes-1; j++)
+	{
+		for (int k=1; k<num_nodes-1; k++)
+		{
+			float max = -2;
+			for (int s=0; s<num_samples; s++)
+			{
+				if (all_admat->at(s)[j][k]>max)
+					max = all_admat->at(s)[j][k];
+			}
+			graph->admat[j][k] = max; 
+		}
+	}
+
+#ifdef DEBUG
+	for (uint k=0; k<graph->transcripts.size(); k++)
+	{
+		for (uint j=0; j<graph->transcripts[k].size(); j++)
+		{
+			fprintf(fd, "node [label=\"%i\" ] \"%i\";\n", graph->transcripts[k][j].first, graph->transcripts[k][j].first); 
+			fprintf(fd, "node [label=\"%i\" ] \"%i\";\n", graph->transcripts[k][j].second, graph->transcripts[k][j].second); 
+			fprintf(fd, "%i -> %i [ color=\"black\" ];\n", graph->transcripts[k][j].first, graph->transcripts[k][j].second); 
+			printf("tr%i: %i->%i\n", k, graph->transcripts[k][j].first, graph->transcripts[k][j].second); 
+		}
+		for (uint j=0; j<graph->transcripts[k].size()-1; j++)
+		{
+			if (k == 0)
+				fprintf(fd, "%i -> %i [ color=\"orange\"] \n", graph->transcripts[k][j].second, graph->transcripts[k][j+1].first); 
+			else if (k == 1)
+				fprintf(fd, "%i -> %i [ color=\"blue\"] \n", graph->transcripts[k][j].second, graph->transcripts[k][j+1].first); 
+			else if (k == 2)
+				fprintf(fd, "%i -> %i [ color=\"green\"] \n", graph->transcripts[k][j].second, graph->transcripts[k][j+1].first); 
+			else if (k == 3)
+				fprintf(fd, "%i -> %i [ color=\"yellow\"] \n", graph->transcripts[k][j].second, graph->transcripts[k][j+1].first); 
+			else if (k == 4)
+				fprintf(fd, "%i -> %i [ color=\"cyan\"] \n", graph->transcripts[k][j].second, graph->transcripts[k][j+1].first); 
+			else
+				fprintf(fd, "%i -> %i [ color=\"grey\"] \n", graph->transcripts[k][j].second, graph->transcripts[k][j+1].first); 
+		}
+	}
+#endif
+
+	int num_paths = graph->compute_num_paths();
+	while (num_paths > max_num_paths)
+	{
+		num_paths = graph->compute_num_paths();
+
+		float min = 1e20; 
+		int min_j = -1;
+		int min_k = -1;
+		for (int j=1; j<num_nodes-1; j++)
+		{
+			for (int k=1; k<num_nodes-1; k++)
+			{
+				//check if this intron is part of the annotation
+				bool anno = graph->is_annotated(j, k); 
+				//printf("is annotated: %i %i %i\n", j, k, anno); 
+
+				if (anno)
+					continue; 
+
+				if (graph->admat[j][k] <= NEIGHBOR)
+					continue; 
+
+				if (min>graph->admat[j][k])
+				{
+					min = graph->admat[j][k]; 
+					min_j = j; 
+					min_k = k; 
+				}
+			}
+		}
+		if (min_j<1 || min_k<1) 
+			break; 
+
+		graph->admat[min_j][min_k] = NO_CONNECTION; 
+#ifdef DEBUG	
+		printf("remove %i %i\n", graph->segments[min_j].second, graph->segments[min_k].first); 
+		fprintf(fd, "node [label=\"%i\", color=\"red\"] \"%i\";\n", graph->segments[min_j].second, graph->segments[min_j].second); 
+		fprintf(fd, "node [label=\"%i\", color=\"red\" ] \"%i\";\n", graph->segments[min_k].first, graph->segments[min_k].first); 
+		fprintf(fd, "%i -> %i [ color=\"red\"] \n", graph->segments[min_j].second, graph->segments[min_k].first); 
+		fprintf(fd, "}"); 
+		fclose(fd); 
+#endif
+		for (int s=0; s<num_samples; s++)
+		{
+			all_admat->at(s)[min_j][min_k] = NO_CONNECTION; 
+		}
+
+		int num_paths_after = graph->compute_num_paths();
+		printf("reduced number of paths from %i to %i\n", num_paths, num_paths_after); 
+	}
+	return 0;
+}
+
 
 int union_connections(vector<vector<vector<float> > >* all_admat)
 {
@@ -1526,6 +1664,11 @@ int main(int argc, char* argv[])
 	vector<Bam_Region*> graphs; 
 	int cnt = 0;
 	int num_return = 1e6;// run on all
+	if (c.graph_id>=0)
+	{
+		cnt = c.graph_id;
+		num_return = c.graph_id+1; 
+	}
 	//int num_return = 3;
 #ifdef USE_HDF
 	while (cnt<num_return)
@@ -1585,13 +1728,13 @@ int main(int argc, char* argv[])
 			graphs[j]->fd_out = fd_null;
 			graphs[j]->clear_reads();
 			graphs[j]->get_reads(&bams[0], bams.size(), intron_len_filter, filter_mismatch, exon_len_filter, mm_filter);
-			printf("admat.size():%i  segments.size():%i\n", (int) graphs[j]->segments.size(), (int) graphs[j]->admat.size());
+			//printf("admat.size():%i  segments.size():%i\n", (int) graphs[j]->segments.size(), (int) graphs[j]->admat.size());
 			graphs[j]->update_coverage_information();
 			printf("num_reads: %i\n", (int) graphs[j]->reads.size());
 			graphs[j]->compute_coverage();
 			graphs[j]->compute_seg_cov();
 			graphs[j]->compute_pair_mat();
-			printf("admat.size():%i  segments.size():%i\n", (int) graphs[j]->segments.size(), (int) graphs[j]->admat.size());
+			//printf("admat.size():%i  segments.size():%i\n", (int) graphs[j]->segments.size(), (int) graphs[j]->admat.size());
 			all_admat.push_back(graphs[j]->admat);
 			//print_mat(&graphs[j]->admat, "%.2f ");
 			all_pair_mat.push_back(graphs[j]->pair_mat);
@@ -1605,6 +1748,8 @@ int main(int argc, char* argv[])
 		// make sure connections are valid in each sample if 
 		// they have evidence in one sample
 		union_connections(&all_admat);
+
+		simplify_graph(graphs[j], &all_admat, c.max_num_paths); 
 
 		Tr_Pred* tr_pred = new Tr_Pred();
 		tr_pred->graph = graphs[j];

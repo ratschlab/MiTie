@@ -1,5 +1,6 @@
 
 #include "tools/basic_tools.h"
+#include <cstring>
 
 std::vector<char*> separate(char* str, char sep)
 {
@@ -35,3 +36,14 @@ std::vector<char*> get_fields(char* line)
 	return ret;
 }
 
+std::vector<char*> my_str_tok(char* line, const char* sep)
+{
+	std::vector<char*> ret;
+	char* tok = strtok(line, sep); 
+	while (tok)
+	{
+		ret.push_back(tok); 
+		tok = strtok(NULL, sep);
+	}
+	return ret;
+}

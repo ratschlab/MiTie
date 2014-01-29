@@ -82,3 +82,29 @@ std::vector<T> prctile(std::vector<T> vec, std::vector<float> pos)
 	return ret;
 }
 
+template <typename T>
+T pearson(std::vector<T>* vec1, std::vector<T>* vec2)
+{
+	double s1 = 0; 
+	double s2 = 0; 
+	assert(vec1->size()==vec2->size()); 
+	for (int i=0; i<vec1->size(); i++) 
+		s1 += vec1->at(i); 
+	for (int i=0; i<vec2->size(); i++) 
+		s2 += vec2->at(i); 
+
+	s1 /= vec1->size(); 
+	s2 /= vec2->size(); 
+
+	T num = 0.0; 
+	T var1 = 0.0; 
+	T var2 = 0.0; 
+	for (int i=0; i<vec1->size(); i++)
+	{
+		num += (vec1->at(i)-s1)*(vec2->at(i)-s2); 
+		var1 += (vec1->at(i)-s1)*(vec1->at(i)-s1);
+		var2 += (vec2->at(i)-s2)*(vec2->at(i)-s2);
+	}
+	return num/(sqrt(var1)*sqrt(var2)); 
+}
+

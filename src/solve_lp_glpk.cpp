@@ -4,7 +4,7 @@
 #include "solve_lp_glpk.h"
 #include "QP.h"
 
-#define DEBUG_GLPK
+//#define DEBUG_GLPK
 
 vector<double> solve_lp_glpk(QP* qp, bool& success)
 { 
@@ -136,12 +136,13 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 			if (qp->binary_idx[i]==1 && qp->lb[i]!=qp->ub[i])
 				glp_set_col_kind(lp,i+1,GLP_BV);
 
+			assert(qp->lb[i]<=qp->ub[i]); 
 			// set box constraints for variables
 			if (qp->lb[i]==qp->ub[i])
 			{
-				//glp_set_col_bnds(lp,i+1,GLP_FX,qp->lb[i],qp->ub[i]);
+				glp_set_col_bnds(lp,i+1,GLP_FX,qp->lb[i],qp->ub[i]);
 				//glp_set_col_kind(lp,i+1,GLP_BV);
-				glp_set_col_bnds(lp,i+1,GLP_DB, qp->lb[i]-1e-5, qp->ub[i]+1e-5);
+				//glp_set_col_bnds(lp,i+1,GLP_DB, qp->lb[i]-1e-5, qp->ub[i]+1e-5);
 				//glp_set_col_bnds(lp,i+1,GLP_LO, qp->lb[i]-1e-5, 0.0);
 				//glp_set_col_bnds(lp,i+1,GLP_UP, 0.0, qp->ub[i]+1e-5);
 			}
@@ -156,6 +157,10 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 			else if (qp->ub[i]<1e10)
 			{
 				glp_set_col_bnds(lp,i+1,GLP_UP,0.0,qp->ub[i]);
+			}
+			else 
+			{
+				glp_set_col_bnds(lp,i+1,GLP_FR,0.0,0.0);
 			}
 
 			if (qp->F[i]!=0)
@@ -178,19 +183,24 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		glp_init_iocp(&parm);
 		parm.presolve = GLP_ON;
 		parm.cov_cuts = GLP_ON;
+		parm.gmi_cuts = GLP_ON; 
+		parm.mir_cuts = GLP_ON; 
+		parm.clq_cuts = GLP_ON; 
 		int err = glp_intopt(lp, &parm);
  
 		/*recover results*/
 		double z = glp_mip_obj_val(lp);
 		int status = glp_mip_status(lp); 
+		success = status==GLP_OPT; 
 		printf("glpk mip obj: %.3f status: %i %i %i %i %i \n", z, status, GLP_UNDEF, GLP_OPT, GLP_FEAS, GLP_NOFEAS);
 
 		printf("glpk_version: %s\n", glp_version());
 #ifdef DEBUG_GLPK
-		glp_write_mip(lp, "//cbio/grlab/home/jonas/tmp/glpk_mip_result_cplex.txt");
+		glp_write_mip(lp, "/home/behrj/tmp/glpk_mip_result.txt");
 		int flag = 0;//this is ignored according to the glpk manual
-		int ret = glp_write_prob(lp, flag, "/cbio/grlab/home/jonas/tmp/glpk_mip_problem_cplex.glpk");
-		assert(ret==0);
+		//int ret = glp_write_prob(lp, flag, "/home/behrj/tmp/glpk_mip_problem_cplex.glpk");
+		int ret = glp_write_lp(lp, NULL, "/home/behrj/tmp/glpk_mip_problem_cplex.glpk");
+		//assert(ret==0);
 #endif
                       
 		for(int nt=0;nt<qp->num_var;nt++) 

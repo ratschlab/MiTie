@@ -57,7 +57,11 @@ class Bam_Region: public Region
 
 		void add_bias_counts(vector<int>* vec);
 
+		// check if segment i is fully contained in annotated exon
 		bool is_annotated(int i);
+
+		// check for annotated intron
+		bool is_annotated(int i1, int i2);
 
 		bool is_acceptor_ss(int i);
 

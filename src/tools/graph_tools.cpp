@@ -26,6 +26,7 @@ int count_num_paths(vector<vector<float> > admat, int node1, int node2)
 		// sum over parents
 		for (int j=node1; j<i; j++)
 		{
+			assert(num_paths[j-node1]>=0); 
 			if (admat[j][i]>=-1)
 				num_paths[i-node1] += num_paths[j-node1];
 		}

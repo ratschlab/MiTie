@@ -35,6 +35,7 @@ struct Config
 	char* fn_gtf;
 	char* fn_regions;
 	char* fn_out;
+	char* gene;
 	float seg_filter;
 	float tss_pval;
 	bool split_chr;
@@ -56,6 +57,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "Usage: %s <fn_out> [options] <fn_bam1> <fn_bam2> ...\n", argv[0]);
 			fprintf(stdout, "\n");
 			fprintf(stdout, "options:\n");
+			fprintf(stdout, "\t--gene\t\t(gene name) generate graph only for a given gene\n");
 			fprintf(stdout, "\t--regions\t\t(file name) specify regions flat file (e.g. output of define_regions)\n");
 			fprintf(stdout, "\t--few-regions \t\t(flag) load data not for whole chromosome, but for each region separate \n");
 			fprintf(stdout, "\t--max-junk \t\t(default 2e7) if flag --few-regions not set, load reads for junk at once\n");
@@ -80,6 +82,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->fn_gtf = NULL;
 	c->fn_regions = NULL;	
 	c->fn_out = argv[1];	
+	c->gene = NULL;	
 	c->gtf_offset = 10000;
 	c->strand_specific = true;
 	c->reads_by_chr = true;
@@ -127,6 +130,17 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->gtf_offset = atoi(argv[i]);
+        }
+	    else if (strcmp(argv[i], "--gene") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --gene\n") ;
+                return -1;
+            }
+            i++;
+			c->gene = argv[i];
+			printf("\n\n\nlooking at gene %s\n\n\n", c->gene); 
         }
 	    else if (strcmp(argv[i], "--min-exonic-len") == 0)
         {
@@ -386,8 +400,14 @@ int main(int argc, char* argv[])
 		const char* format = determine_format(c.fn_gtf);
 		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
 		vector<Region*> tmp;
-		if (strcmp(format, "gtf")==0)
+		if (strcmp(format, "gtf")==0 && c.gene)
+		{
+			tmp = parse_gtf(c.fn_gtf, c.gene);
+		}
+		else if (strcmp(format, "gtf")==0)
+		{
 			tmp = parse_gtf(c.fn_gtf);
+		}
 		else if (strcmp(format, "gff3")==0)
 			tmp = parse_gff(c.fn_gtf);
 		else
@@ -462,7 +482,11 @@ int main(int argc, char* argv[])
 		const char* format = determine_format(c.fn_gtf);
 		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
 		vector<Region*> tmp;
-		if (strcmp(format, "gtf")==0)
+		if (strcmp(format, "gtf")==0 && c.gene)
+		{
+			tmp = parse_gtf(c.fn_gtf, c.gene);
+		}
+		else if (strcmp(format, "gtf")==0)
 			tmp = parse_gtf(c.fn_gtf);
 		else if (strcmp(format, "gff3")==0)
 			tmp = parse_gff(c.fn_gtf);

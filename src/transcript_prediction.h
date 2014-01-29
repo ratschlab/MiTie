@@ -12,7 +12,9 @@ struct Config
 	int filter_mismatch;
 	int exon_len_filter;
 	int max_num_trans;
+	int max_num_paths;
 	int min_trans_len;
+	int graph_id;
 	bool use_pair;
 
 	// loss
