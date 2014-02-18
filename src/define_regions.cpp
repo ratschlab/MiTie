@@ -177,6 +177,11 @@ void parse_args(int argc, char** argv,  Config* c)
 	if (argc<2)
 	{
 		fprintf(stderr, "Usage: %s [-o <fn_out>] fn_bam1 [fn_bam2] ...", argv[0]);
+		fprintf(stderr, "Options:\n");
+		fprintf(stderr, "\t--max-len\t[200000] maximal length of regions (only restric this for run-time reasons)\n");
+		fprintf(stderr, "\t--no-strand\treads are not strand specific\n");
+		//fprintf(stderr, "\t--shrink\tsave memory\n");
+		fprintf(stderr, "\t--cut-regions\tproduce smaller regions by cutting out areas with low coverage\n\t\t\t\t (this may be beneficial if long (potentially wrong) spliced alignments merge several genes into one region)\n");
 		exit(1);
 	}
 	c->strand_specific = true;

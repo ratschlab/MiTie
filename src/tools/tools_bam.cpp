@@ -5,6 +5,11 @@
 
 vector<Bam_Region*> parse_bam_regions(char* fn_regions)
 {
+	return parse_bam_regions(fn_regions, NULL); 
+}
+
+vector<Bam_Region*> parse_bam_regions(char* fn_regions, char* chr_name)
+{
 	FILE* fd = fopen(fn_regions, "r");
 	if (!fd)
 	{
@@ -32,6 +37,12 @@ vector<Bam_Region*> parse_bam_regions(char* fn_regions)
 		{
 			fprintf(stderr, "tools: Error parsing line: %s\n", line);
 			exit(-2);
+		}
+		if (chr_name && strcmp(chr_name, chr)!=0)
+		{
+			delete[] strand;
+			delete[] chr;
+			continue; 
 		}
 		Bam_Region* reg = new Bam_Region(start, stop, chr, strand[0]);
 		regions.push_back(reg);

@@ -375,7 +375,7 @@ int simplify_graph(Bam_Region* graph, vector<vector<vector<float> > >* all_admat
 			for (int k=1; k<num_nodes-1; k++)
 			{
 				//check if this intron is part of the annotation
-				bool anno = graph->is_annotated(j, k); 
+				bool anno = graph->is_annotated(j-1, k-1); //shift by -1 because of start node 
 				//printf("is annotated: %i %i %i\n", j, k, anno); 
 
 				if (anno)
@@ -395,12 +395,18 @@ int simplify_graph(Bam_Region* graph, vector<vector<vector<float> > >* all_admat
 		if (min_j<1 || min_k<1) 
 			break; 
 
+		if (min > 10) 
+		{
+			printf("stop removing more potential introns: min coverage in now: %.2f\n", min); 
+			break; 
+		}
+
+		printf("remove intron %i %i (maximal coverage: %.2f\n", graph->segments[min_j-1].second, graph->segments[min_k-1].first, min); 
 		graph->admat[min_j][min_k] = NO_CONNECTION; 
 #ifdef DEBUG	
-		printf("remove %i %i\n", graph->segments[min_j].second, graph->segments[min_k].first); 
-		fprintf(fd, "node [label=\"%i\", color=\"red\"] \"%i\";\n", graph->segments[min_j].second, graph->segments[min_j].second); 
-		fprintf(fd, "node [label=\"%i\", color=\"red\" ] \"%i\";\n", graph->segments[min_k].first, graph->segments[min_k].first); 
-		fprintf(fd, "%i -> %i [ color=\"red\"] \n", graph->segments[min_j].second, graph->segments[min_k].first); 
+		fprintf(fd, "node [label=\"%i\", color=\"red\"] \"%i\";\n", graph->segments[min_j-1].second, graph->segments[min_j-1].second); 
+		fprintf(fd, "node [label=\"%i\", color=\"red\" ] \"%i\";\n", graph->segments[min_k-1].first, graph->segments[min_k-1].first); 
+		fprintf(fd, "%i -> %i [ color=\"red\"] \n", graph->segments[min_j-1].second, graph->segments[min_k-1].first); 
 		fprintf(fd, "}"); 
 		fclose(fd); 
 #endif
@@ -1685,11 +1691,15 @@ int main(int argc, char* argv[])
 		int ret = r->read_HDF5(c.fn_graph, cnt);
 		r->id = cnt;
 		if (ret==0)
+		{
 #else
 		int ret = r->read_binary(&ifs);
 		if (!ifs.eof() && ret==0)
+		{
 #endif
+			printf("push back region %i\n", cnt); 
 			graphs.push_back(r);
+		}
 		else
 		{
 			printf("read from file %s, %i, read %lu graphs\n", c.fn_graph, ret, graphs.size());

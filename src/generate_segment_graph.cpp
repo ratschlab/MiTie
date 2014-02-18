@@ -36,6 +36,7 @@ struct Config
 	char* fn_regions;
 	char* fn_out;
 	char* gene;
+	char* chr;
 	float seg_filter;
 	float tss_pval;
 	bool split_chr;
@@ -58,6 +59,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "\n");
 			fprintf(stdout, "options:\n");
 			fprintf(stdout, "\t--gene\t\t(gene name) generate graph only for a given gene\n");
+			fprintf(stdout, "\t--chr\t\t(chr name) generate graphs only for a given chromosome\n");
 			fprintf(stdout, "\t--regions\t\t(file name) specify regions flat file (e.g. output of define_regions)\n");
 			fprintf(stdout, "\t--few-regions \t\t(flag) load data not for whole chromosome, but for each region separate \n");
 			fprintf(stdout, "\t--max-junk \t\t(default 2e7) if flag --few-regions not set, load reads for junk at once\n");
@@ -83,6 +85,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->fn_regions = NULL;	
 	c->fn_out = argv[1];	
 	c->gene = NULL;	
+	c->chr = NULL;	
 	c->gtf_offset = 10000;
 	c->strand_specific = true;
 	c->reads_by_chr = true;
@@ -140,7 +143,16 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->gene = argv[i];
-			printf("\n\n\nlooking at gene %s\n\n\n", c->gene); 
+        }
+	    else if (strcmp(argv[i], "--chr") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --chr\n") ;
+                return -1;
+            }
+            i++;
+			c->chr = argv[i];
         }
 	    else if (strcmp(argv[i], "--min-exonic-len") == 0)
         {
@@ -418,7 +430,10 @@ int main(int argc, char* argv[])
 		// convert to Bam_Regions
 		for (int i=0; i<tmp.size(); i++)
 		{
-			gtf_regions.push_back(new Bam_Region(tmp[i]));
+			if (!c.chr || strcmp(c.chr, tmp[i]->chr)==0)
+			{
+				gtf_regions.push_back(new Bam_Region(tmp[i]));
+			}
 			delete tmp[i];
 		}
 
@@ -464,7 +479,7 @@ int main(int argc, char* argv[])
 	if (c.fn_regions)
 	{
 		printf("loading regions from flat file: %s\n", c.fn_regions);
-		regions = parse_bam_regions(c.fn_regions);
+		regions = parse_bam_regions(c.fn_regions, c.chr);
 		printf("number of regions from flat file: %i\n", (int) regions.size());
 	}
 	int num_reg = regions.size();
@@ -498,7 +513,10 @@ int main(int argc, char* argv[])
 		// convert to Bam_Regions
 		for (int i=0; i<tmp.size(); i++)
 		{
-			gtf_regions.push_back(new Bam_Region(tmp[i]));
+			if (!c.chr || strcmp(c.chr, tmp[i]->chr)==0)
+			{
+				gtf_regions.push_back(new Bam_Region(tmp[i]));
+			}
 			delete tmp[i];
 		}
 

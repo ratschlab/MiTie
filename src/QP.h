@@ -163,7 +163,29 @@ class sparse_matrix{
 				result->at(i) += vec->at(j)*val*weight; 
 			}
 		}
+		void left_mult(vector<T>* vec, vector<T>* result)
+		{
+			left_mult(vec, result, 1.0); 
+		}
 
+		void left_mult(vector<T>* vec, vector<T>* result, T weight)
+		{
+			reset_it(); 
+			int i=0; 
+			int j=0; 
+			T val; 
+			for (;;)
+			{
+				val = next(&i,&j);
+				if (i<0)
+					break; 
+
+				assert(i<result->size()); 
+				assert(j<vec->size()); 
+
+				result->at(j) += vec->at(i)*val*weight; 
+			}
+		}
 		void mult(sparse_matrix<T>* mat, sparse_matrix<T>* result)
 		{
 			reset_it(); 

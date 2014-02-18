@@ -870,6 +870,8 @@ void Bam_Region::generate_segment_graph(float seg_filter, float tss_pval)
 }
 bool Bam_Region::is_annotated(int i)
 {
+	assert(i>=0); 
+	assert(i<segments.size()); 
 	for (uint k=0; k<transcripts.size(); k++)
 		for (uint j=0; j<transcripts[k].size(); j++)
 			if (transcripts[k][j].first<=segments[i].first && transcripts[k][j].second>=segments[i].second)
@@ -878,6 +880,10 @@ bool Bam_Region::is_annotated(int i)
 }
 bool Bam_Region::is_annotated(int i1, int i2)
 {
+	assert(i1>=0); 
+	assert(i2>=0); 
+	assert(i1<segments.size()); 
+	assert(i2<segments.size()); 
 	for (uint k=0; k<transcripts.size(); k++)
 		for (uint j=0; j<transcripts[k].size()-1; j++)
 			if (transcripts[k][j].second==segments[i1].second && transcripts[k][j+1].first>=segments[i2].first)
