@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "sam.h"
+#include "bam.h"
 #include "get_reads_direct.h"
 
 #include <vector>
@@ -296,52 +297,77 @@ void parse_cigar(const bam1_t* b, CRead* read)
 		}
 	}
 	// parse auxiliary data
-    uint8_t* s = bam1_aux(b);
-	uint8_t* end = b->data + b->data_len; 
-	while (s < end) 
+	uint8_t* val = bam_aux_get(b, "XS");
+	if (val)
 	{
-		 uint8_t type, key[2];
-		 key[0] = s[0]; key[1] = s[1];
-		 s += 2; type = *s; ++s;
-		 //fprintf(stdout, "\n%c%c:%c\n", key[0], key[1], type);
-		 if (type == 'A')
-		 {
-			if ( key[0] =='X' && key[1] == 'S')
-			{
-				read->set_strand((char) *s);
-			}
-		 	++s;
-		 }
-		else if (type == 'C')
-		{ 
-			if ( key[0] =='H' && key[1] == '0')
-			{
-				uint8_t matches = *s;
-				read->matches = (int) matches;
-			}
-			if ( key[0] =='N' && key[1] == 'M')
-			{
-				uint8_t mismatches = *s;
-				read->mismatches = (int) mismatches;
-			}
-			if ( key[0] =='H' && key[1] == 'I')
-			{
-				uint8_t mai = *s;
-				read->multiple_alignment_index = (int) mai;
-			}
-
-			++s;
-		}
-		else if (type == 'c') { ++s; }
-		else if (type == 'S') { s += 2;	}
-		else if (type == 's') { s += 2;	}
-		else if (type == 'I') { s += 4; }
-		else if (type == 'i') { s += 4; }
-		else if (type == 'f') { s += 4;	}
-		else if (type == 'd') { s += 8;	}
-		else if (type == 'Z') { ++s; }
-		else if (type == 'H') { ++s; }
+		char strand = bam_aux2A(val);
+		if (strand != '+' && strand != '-')
+			strand = '.'; 
+		 read->set_strand(strand); 
 	}
+	val = bam_aux_get(b, "NM");
+	if (val)
+	{
+		read->mismatches = bam_aux2i(val);
+	}
+	val = bam_aux_get(b, "H0");
+	if (val)
+	{
+		read->matches = bam_aux2i(val);
+	}
+	val = bam_aux_get(b, "HI");
+	if (val)
+	{
+		read->multiple_alignment_index = bam_aux2i(val);
+	}
+
+
+    //uint8_t* s = bam1_aux(b);
+	//uint8_t* end = b->data + b->data_len; 
+	//while (s < end) 
+	//{
+	//	 uint8_t type, key[2];
+	//	 key[0] = s[0]; key[1] = s[1];
+	//	 s += 2; type = *s; ++s;
+	//	 //fprintf(stdout, "\n%c%c:%c\n", key[0], key[1], type);
+	//	 if (type == 'A')
+	//	 {
+	//		if ( key[0] =='X' && key[1] == 'S')
+	//		{
+	//			read->set_strand((char) *s);
+	//		}
+	//	 	++s;
+	//	 }
+	//	else if (type == 'C')
+	//	{ 
+	//		if ( key[0] =='H' && key[1] == '0')
+	//		{
+	//			uint8_t matches = *s;
+	//			read->matches = (int) matches;
+	//		}
+	//		if ( key[0] =='N' && key[1] == 'M')
+	//		{
+	//			uint8_t mismatches = *s;
+	//			read->mismatches = (int) mismatches;
+	//		}
+	//		if ( key[0] =='H' && key[1] == 'I')
+	//		{
+	//			uint8_t mai = *s;
+	//			read->multiple_alignment_index = (int) mai;
+	//		}
+
+	//		++s;
+	//	}
+	//	else if (type == 'c') { ++s; }
+	//	else if (type == 'S') { s += 2;	}
+	//	else if (type == 's') { s += 2;	}
+	//	else if (type == 'I') { s += 4; }
+	//	else if (type == 'i') { s += 4; }
+	//	else if (type == 'f') { s += 4;	}
+	//	else if (type == 'd') { s += 8;	}
+	//	else if (type == 'Z') { ++s; }
+	//	else if (type == 'H') { ++s; }
+	//}
 
 	//if (read->strand[0]=='0' && strand_from_flag)
 	//{
