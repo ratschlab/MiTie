@@ -507,7 +507,7 @@ vector<Region*> parse_gtf(char* gtf_file, char* gene_name)
 				if (!((tit-1)->flag==4 || tit->flag==4))
 				{
 					// one should be a CDS exon
-					printf("%s (cnt:%i): (%i %i %i)(%i %i %i)\n", it->first.c_str(), cnt, (tit-1)->first, (tit-1)->second, (tit-1)->flag, tit->first, tit->second, tit->flag);
+					printf("error: %s (cnt:%i): (%i %i %i)(%i %i %i)\n", it->first.c_str(), cnt, (tit-1)->first, (tit-1)->second, (tit-1)->flag, tit->first, tit->second, tit->flag);
 					exit(-1);
 				}
 				if ((tit-1)->second==tit->second)

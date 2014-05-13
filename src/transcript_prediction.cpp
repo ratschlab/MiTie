@@ -21,6 +21,7 @@
 #include <time.h>
 #include "transcript_prediction.h"
 #include "config.h"
+#include "loss_tangent.h"
 
 #ifdef USE_CPLEX
 #include "solve_qp_cplex.h"
@@ -43,6 +44,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+#define MAX_LOSS
 #define USE_HDF
 //#define DEBUG
 //#define DEBUG2
@@ -594,7 +596,7 @@ void Tr_Pred::make_qp()
 	vector<int> L_idx = range(num_var, num_var+s*r*2-1);    num_var += L_idx.size();
 	vector<int> C_idx = range(num_var, num_var+c*t*r-1);    num_var += C_idx.size();
 	vector<int> D_idx = range(num_var, num_var+c*r*2-1);    num_var += D_idx.size();
-	
+
 #ifdef DEBUG2
 	printf("U_idx: %i-%i\n", U_idx[0], U_idx[U_idx.size()-1]);
 	printf("I_idx: %i-%i\n", I_idx[0], I_idx[I_idx.size()-1]);
@@ -688,6 +690,7 @@ void Tr_Pred::make_qp()
 		qp->lb[C_idx[i]] = 0;
 		qp->ub[C_idx[i]] = 1;
 	}
+#ifndef MAX_LOSS
 	for (int i=0; i<L_idx.size(); i++)
 	{
 		qp->lb[L_idx[i]] = 0;
@@ -696,6 +699,33 @@ void Tr_Pred::make_qp()
 	{
 		qp->lb[D_idx[i]] = 0;
 	}
+#else
+	// there are two L-variables for each segment/D-variables for each intron
+	// the first computes the difference 
+	// and the second the loss
+	// set only the second part to >= zero
+	for (int i=0; i<r; i++)// loop over samples
+	{
+		for (int j=0; j<s; j++)
+		{
+			int x2 = L_idx[i*s+j+s*r];
+			qp->lb[x2] = 0; 
+		}
+		int j=0;
+		while (c>0)//dont do this if there are no introns
+		{
+			int x2 = D_idx[i*c+j+c*r];
+			qp->lb[x2] = 0; 
+			int tmp1 = 0;
+			int tmp2 = 0;
+			vector<float>* conf = intron_list.next(&tmp1, &tmp2);
+
+			if (tmp1==-1)
+				break;
+			j++;
+		}
+	}
+#endif
 
 	// fix solution for known transcripts 
 	//for (int i=0; i<num_annotated_trans; i++)
@@ -756,13 +786,13 @@ void Tr_Pred::make_qp()
 			int readlen = 100;
 			int x1 = L_idx[i*s+j]; // loss right hand side
 			int x2 = L_idx[i*s+j+s*r]; // loss left hand side
+#ifndef MAX_LOSS
 			float val = all_seg_cov->at(i)->at(j) * cov_scale[i];
 
 			//get linear and quadratic coefficients of the loss function
 			// [ll lq rl rq]
 			float coef[4];
 			get_loss_coef(coef, val);
-
 #ifdef DEBUG
 			printf("val[%i][%i]:%.4f (left)coef[1]:%.10f, (right)coef[3]:%.10f\n", i, j, val, coef[1], coef[3]);
 			printf("reg_parts: %.10f %.10f %.10f %.10f %.10f\n", 1.0/r, coef[3], config->C_exon, (float) all_len[j]/readlen, cov_scale[i]); 
@@ -773,6 +803,12 @@ void Tr_Pred::make_qp()
 			qp->Q.set(x2,x2, 1.0/r*coef[1]*config->C_exon*pow(((float) all_len[j])/readlen*cov_scale[i], 2));
 			qp->F[x1] = 1.0/r*coef[2]*config->C_exon*all_len[j]/readlen*cov_scale[i];
 			qp->F[x2] = 1.0/r*coef[0]*config->C_exon*all_len[j]/readlen*cov_scale[i];
+	
+#else
+			// x1 >> this is the deviation from the observed value 
+			// x2 >> this is the loss
+			qp->F[x2] = config->C_exon; 
+#endif
 		}
 	}
 	// set objective coefficients for intron counts
@@ -791,6 +827,7 @@ void Tr_Pred::make_qp()
 			if (tmp1==-1)
 				break;
 
+#ifndef MAX_LOSS
 			float val = conf->at(i);
 			//printf("val[%i][%i]:%.4f\n", i, j, val);
 			float coef[4];
@@ -802,6 +839,9 @@ void Tr_Pred::make_qp()
 			qp->F[x1] = 1.0/r*coef[2]*config->C_intron*cov_scale[i];
 			qp->F[x2] = 1.0/r*coef[0]*config->C_intron*cov_scale[i];
 			j++;
+#else
+			qp->F[x2] = config->C_intron; 
+#endif
 		}
 	}
 
@@ -829,6 +869,9 @@ void Tr_Pred::make_qp()
 	// L_sr1: loss right hand side
 	// L_sr2: loss left hand side
 	// sum_t E_str -L_sr1 + L_sr2= O_sr
+	//
+	// using MAX_LOSS:
+	// sum_t E_str - L_sr1 = O_sr
 	int cc = 0; // constraint count
 	if (A1)
 	{
@@ -846,10 +889,42 @@ void Tr_Pred::make_qp()
 				//if (i==0)
 				//	printf("L[%i] - L[%i] = %.2f\n", i*s+j+s*r, i*s+j, all_seg_cov->at(i)->at(j));
 				qp->A.set(cc, L_idx[i*s+j], -1); 
+#ifndef MAX_LOSS
 				qp->A.set(cc, L_idx[i*s+j+s*r], 1); 
+#endif
 				qp->b.push_back(all_seg_cov->at(i)->at(j));
 				qp->eq_idx.push_back(1);
 				cc++;
+#ifdef MAX_LOSS
+				float obs = all_seg_cov->at(i)->at(j) * cov_scale[i]; 
+				float std_= sqrt(config->eta1*(obs) + pow(config->eta2*obs, 2)) + sqrt(config->lambda) + 1.0;
+
+				//printf("eta1:%.3f eta2:%.3f lambda:%i\n", config->eta1, config->eta2, config->lambda); 
+				double offset = compute_loss(config->eta1, config->eta2, config->lambda, obs, obs); 
+				// +- five std
+				for (int st=-10; st<10; st++)
+				{
+					float mu = obs+st*std_; 
+					float h = 0.1; 
+					if (mu<=h)
+						continue; 
+
+					double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
+					double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
+					double b = fx-offset-deriv*(mu-obs); 
+					//printf("obs:%.3f mu:%.3f, offset:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, offset, fx, deriv, b); 
+
+					// add constraint
+					// L_sr2 >= L_sr1*cov_scale[i]*deriv+b
+					// <=>
+					// deriv*L_sr1-L_sr2 <= -b
+					qp->A.set(cc, L_idx[i*s+j], deriv*cov_scale[i]); 
+					qp->A.set(cc, L_idx[i*s+j+s*r], -1); 
+					qp->b.push_back(-b);
+					qp->eq_idx.push_back(0);
+					cc++; 
+				}
+#endif
 			}
 		}
 	}
@@ -1287,21 +1362,55 @@ void Tr_Pred::make_qp()
 					break;
 
 				assert(conf->size()==r);
+
 				for (int x=0; x<t; x++)
 				{
 					int cnt = i*t*c+x*c+xx;
 					qp->A.set(cc, C_idx[cnt], 1); 
 				}
 				qp->A.set(cc, D_idx[i*c+xx], -1); 
+#ifndef MAX_LOSS
 				qp->A.set(cc, D_idx[i*c+xx+c*r], 1); 
+#endif
 		
 				cc++;
 				qp->b.push_back(conf->at(i)/cov_scale[i]);
 				qp->eq_idx.push_back(1);
+#ifdef MAX_LOSS
+				float obs = conf->at(i); 
+				float std_= sqrt(config->eta1*(obs) + pow(config->eta2*obs, 2)) + sqrt(config->lambda) + 1.0;
+
+				//printf("eta1:%.3f eta2:%.3f lambda:%i\n", config->eta1, config->eta2, config->lambda); 
+				double offset = compute_loss(config->eta1, config->eta2, config->lambda, obs, obs); 
+				// +- five std
+				for (int st=-10; st<10; st++)
+				{
+					float mu = obs+st*std_; 
+					float h = 0.1; 
+					if (mu<=h)
+						continue; 
+
+					double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
+					double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
+					double b = fx-offset-deriv*(mu-obs); 
+					//printf("obs:%.3f mu:%.3f, offset:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, offset, fx, deriv, b); 
+
+					// add constraint
+					// D_2 >= L_1*cov_scale[i]*deriv+b
+					// <=>
+					// deriv*cov_scale[i]*D_1-D_2 <= -b
+					qp->A.set(cc, D_idx[i*c+xx], deriv*cov_scale[i]); 
+					qp->A.set(cc, D_idx[i*c+xx+c*r], -1); 
+					qp->b.push_back(-b);
+					qp->eq_idx.push_back(0);
+					cc++; 
+				}
+#endif
 				xx++;
 			}
 		}
 	}
+
 
 	// for introns (j,k) not in splicegraph
 	// do not allow the usage of this intron:
@@ -1389,6 +1498,8 @@ void Tr_Pred::make_qp()
 
 
 	bool success = true;
+
+	time_t solvetime = time(NULL);
 #ifdef USE_CPLEX
 	printf("solve qp using cplex\n");
 	qp->result = solve_qp_cplex(qp, success);
@@ -1413,6 +1524,12 @@ void Tr_Pred::make_qp()
 	exit(-1);
 #endif
 #endif
+	FILE* fd = fopen("time.txt", "a"); 
+	if (fd)
+	{
+		fprintf(fd, "%.6f\n", time(NULL)-solvetime);
+		fclose(fd); 
+	}
 //
 #ifdef DEBUG_GLPK
 	if (false)
@@ -1467,6 +1584,14 @@ void Tr_Pred::make_qp()
 	// sum_t E_str -L_sr = O_sr
 	for (int i=0; i<r; i++)// loop over samples
 	{
+		printf("OBS\t");
+		for (int j=0; j<s; j++)
+		{
+			float obs = all_seg_cov->at(i)->at(j); 
+			printf("%.2f ", obs);
+		}
+		printf("\n");
+		printf("EXP\t");
 		for (int j=0; j<s; j++)
 		{
 			float exp_sr = 0.0;
@@ -1475,14 +1600,14 @@ void Tr_Pred::make_qp()
 				int idx = i*s*t + j*t + k;
 				exp_sr += qp->result[E_idx[idx]];
 			}
-			//printf("%.2f ", exp_sr);
-			printf("%.2f", exp_sr);
+			printf("%.2f ", exp_sr);
 		}
 		printf("\n");
 	}
 #ifdef DEBUG_GLPK
 	for (int i=0; i<r; i++)// loop over samples
 	{
+		printf("\t");
 		for (int j=0; j<s; j++)
 		{
 			float exp_sr = 0.0;
@@ -1491,19 +1616,20 @@ void Tr_Pred::make_qp()
 				int idx = i*s*t + j*t + k;
 				exp_sr += res[E_idx[idx]];
 			}
-			printf("%.2f", exp_sr);
+			printf("%.2f ", exp_sr);
 		}
 		printf("\n");
 	}
 #endif
 
+#ifndef MAX_LOSS
 	printf("res[L_idx]\n");
 	for (int i=0; i<r; i++)
 	{
 		printf("left\t");
 		for (int j=0; j<s; j++)
 		{
-			printf("%.2f ", fabs(qp->result[L_idx[i*s+j+ s*r]]));
+			printf("%.2f ", qp->result[L_idx[i*s+j+ s*r]]);
 		}
 		printf("\n");
 		printf("right\t");
@@ -1513,6 +1639,24 @@ void Tr_Pred::make_qp()
 		}
 		printf("\n");
 	}
+#else
+	printf("res[L_idx]\n");
+	for (int i=0; i<r; i++)
+	{
+		printf("delta \t");
+		for (int j=0; j<s; j++)
+		{
+			printf("%.2f ", qp->result[L_idx[i*s+j]]);
+		}
+		printf("\n");
+		printf("loss\t");
+		for (int j=0; j<s; j++)
+		{
+			printf("%.2f ", qp->result[L_idx[i*s+j+ s*r]]);
+		}
+		printf("\n");
+	}
+#endif
 #ifdef DEBUG_GLPK
 	for (int i=0; i<r; i++)
 	{
@@ -1642,10 +1786,12 @@ int main(int argc, char* argv[])
 		return ret;
 
 
+#ifndef MAX_LOSS
 	time_t t = time(NULL);
 	printf("fit loss function picewise with polynoms of degree %i\n", c.order);
 	vector<vector<double> > loss_param = create_loss_parameters(c.eta1, c.eta2, c.lambda, c.order);
 	printf("time diff: %lu\n", time(NULL)-t);
+#endif
 
 	printf("loading graphs from file: %s\n", c.fn_graph);
 	
@@ -1769,8 +1915,9 @@ int main(int argc, char* argv[])
 		tr_pred->all_pair_mat = &all_pair_mat;
 		tr_pred->all_seg_cov = &all_seg_cov; 
 		tr_pred->config = &c;
+#ifndef MAX_LOSS
 		tr_pred->loss_param = &loss_param;
-		
+#endif
 		tr_pred->make_qp(); 
 
 		//printf("number of constraints: %lu\n", tr_pred->qp->b.size());

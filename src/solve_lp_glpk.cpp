@@ -68,10 +68,14 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 			}
 		}
 
+		printf("num constraints:%lu num coef :%i\n", qp->b.size(), cnt); 
 		num_constraints=qp->b.size();
-		double ar[cnt+1];
-		int ia[cnt+1];
-		int ja[cnt+1];
+		//double ar[cnt+1];
+		//int ia[cnt+1];
+		//int ja[cnt+1];
+		double* ar = new double[cnt+1]; assert(ar); 
+		int* ia = new int[cnt+1]; assert(ia); 
+		int* ja = new int[cnt+1]; assert(ja); 
 
 		/*createproblem*/
 		lp=glp_create_prob();
@@ -214,6 +218,9 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		/*housekeeping*/
 		glp_delete_prob(lp);
 		glp_free_env();
+		delete ar; 
+		delete ia; 
+		delete ja; 
 
 
 #ifdef DEBUG_GLPK

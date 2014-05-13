@@ -13,7 +13,6 @@
 
 struct Config
 {
-	vector<char*> pacbio_gffs;
 	char* fn_pred;
 	char* fn_anno;
 	FILE* fd_out;
@@ -21,13 +20,13 @@ struct Config
 
 void parse_args(int argc, char** argv,  Config* c)
 {
-	if (argc<2)
+	if (argc<3)
 	{
-		fprintf(stderr, "Usage: %s fn_pred --gtf fn_anno ...", argv[0]);
+		fprintf(stderr, "Usage: %s fn_pred fn_anno ...", argv[0]);
 		exit(1);
 	}
 	c->fn_pred = argv[1];
-	c->fn_anno = NULL;
+	c->fn_anno = argv[2];
 	c->fd_out = stdout;
     for (int i = 2; i < argc; i++)  
     {
@@ -46,32 +45,6 @@ void parse_args(int argc, char** argv,  Config* c)
                 exit(1);
 			}
         }
-		else if (strcmp(argv[i], "--gtf") == 0)
-        {
-            if (i + 1 > argc - 1)
-            {
-                fprintf(stderr, "ERROR: Argument missing for option --gtf\n") ;
-                exit(1);
-            }
-            i++;
-			c->fn_anno = argv[i];
-        }
-		else
-		{
-			c->pacbio_gffs.push_back(argv[i]);
-		}
-	}
-
-	printf("Found prediction file: %s\n", c->fn_pred);
-	if (c->fn_anno)
-	{
-		printf("Found gtf file: %s\n", c->fn_anno);
-	}
-	if (c->pacbio_gffs.size()>0)
-	{
-		printf("Found %i PacBio alignment files:\n", (int) c->pacbio_gffs.size());
-		for (int i=0; i<c->pacbio_gffs.size(); i++)
-			printf("\t%s\n", c->pacbio_gffs[i]);
 	}
 }
 
@@ -335,40 +308,29 @@ int main(int argc, char* argv[])
 	Config c;
 	parse_args(argc, argv, &c);
 
-
 	// parse prediction
 	//vector<Region*> pred_genes; 
 	//parse_gff_file(c.fn_pred, &pred_genes);
 	vector<Region*> pred_genes = parse_gtf(c.fn_pred);
-	printf("Read %i transcripts from prediction file\n", (int) pred_genes.size());
+	printf("Read %i genes from prediction file\n", (int) pred_genes.size());
 
-	// parse PacBio alignments
-	vector<Region*> frags; 
-	if (c.fn_anno)
-	{
-		frags = parse_gtf(c.fn_anno);	
-	}
-	else
-	{
-		for (int i=0; i<c.pacbio_gffs.size(); i++)
-		{
-			parse_gff_file(c.pacbio_gffs[i], &frags);
-			printf("Read %i transcripts from file: %s\n", (int) frags.size(), c.pacbio_gffs[i]);
-		}
-	}
-	// start evaluation
-	
-	vector<vector<int> > ov_list = region_overlap(pred_genes, frags);
+	vector<Region*> anno_genes = parse_gtf(c.fn_anno);	
+	printf("Read %i genes from annotation file\n", (int) anno_genes.size());
+
+
+	vector<vector<int> > ov_list = region_overlap(pred_genes, anno_genes);
 
 	int* correct = new int[pred_genes.size()];
 	int* num_pred = new int[pred_genes.size()];
-	int* matched = new int[frags.size()];
-	int* num_anno = new int[frags.size()];
+	int* matched = new int[anno_genes.size()];
+	int* num_anno = new int[anno_genes.size()];
 
 	memset(correct, 0, pred_genes.size()*sizeof(int));
 	memset(num_pred, 0, pred_genes.size()*sizeof(int));
-	memset(matched, 0, frags.size()*sizeof(int));
-	memset(num_anno, 0, frags.size()*sizeof(int));
+	memset(matched, 0, anno_genes.size()*sizeof(int));
+	memset(num_anno, 0, anno_genes.size()*sizeof(int));
+
+	printf("found %i overlapping genes\n", ov_list.size()); 
 
 	int cnt=0;
 	for (int i=0; i<ov_list.size(); i++)
@@ -376,26 +338,26 @@ int main(int argc, char* argv[])
 		num_pred[i] = pred_genes[i]->transcripts.size();
 		for (int j=0; j<ov_list[i].size(); j++)
 		{
-			if (pred_genes[i]->strand!=frags[ov_list[i][j]]->strand)
-				continue;
-			if (strcmp(pred_genes[i]->chr, frags[ov_list[i][j]]->chr)!=0)
+			//if (pred_genes[i]->strand!=anno_genes[ov_list[i][j]]->strand)
+			//	continue;
+			if (strcmp(pred_genes[i]->chr, anno_genes[ov_list[i][j]]->chr)!=0)
 				continue;
 			int m = 0; 
 			int c = 0; 
 			int compatible = 0;
-			//eval_genes(pred_genes[i], frags[ov_list[i][j]], &m, &c, &compatible);
-			eval_all_intron_level(pred_genes[i], frags[ov_list[i][j]], &m, &c);
+			//eval_genes(pred_genes[i], anno_genes[ov_list[i][j]], &m, &c, &compatible);
+			eval_all_intron_level(pred_genes[i], anno_genes[ov_list[i][j]], &m, &c);
 			correct[i] += c;
 			matched[ov_list[i][j]] += m;
-			num_anno[ov_list[i][j]] = frags[ov_list[i][j]]->transcripts.size();
+			num_anno[ov_list[i][j]] = anno_genes[ov_list[i][j]]->transcripts.size();
 
 			//if (false && c==0 && m==0)
-			if (cnt++<-1)
+			if (cnt++<10)
 			{
 				printf("Prediction: %i\n", c);
 				print_exons(pred_genes[i]);
-				printf("Fragment: %i\n", m);
-				print_exons(frags[ov_list[i][j]]);
+				printf("Annotation: %i\n", m);
+				print_exons(anno_genes[ov_list[i][j]]);
 				printf("\n");
 			}
 		}
@@ -409,9 +371,10 @@ int main(int argc, char* argv[])
 	}
 	int num_matched = 0;
 	int num_trans_anno = 0;
-	for (int i=0; i<frags.size(); i++)
+	for (int i=0; i<anno_genes.size(); i++)
 	{
-		num_trans_anno += num_anno[i];
+		//num_trans_anno += num_anno[i];
+		num_trans_anno += anno_genes[i]->transcripts.size();
 		num_matched+=matched[i];
 	}
 	printf("%i/%i (%.4f) correct, %i/%i (%.4f) matched\n", num_correct, num_trans_pred, ((float) num_correct)/num_trans_pred, num_matched, num_trans_anno, ((float) num_matched)/num_trans_anno);
