@@ -95,7 +95,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->filter_mismatch = 10;
 	c->exon_len_filter = 0;
 	c->mm_filter = false;
-	c->max_num_trans = 5;
+	c->max_num_trans = 2;
 	c->max_num_paths = 1000000;
 	c->min_trans_len = 100;
 	c->graph_id = -1;
@@ -107,7 +107,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->lambda = 3;
 
 	c->C_exon = 1.0;
-	c->C_intron = 10.0;
+	c->C_intron = 100.0;
 	c->C_pair = 1.0;
 	c->C_num_trans = 100.0;
 	c->C_num_trans_predef = 1.0;
