@@ -352,7 +352,7 @@ int main(int argc, char* argv[])
 			num_anno[ov_list[i][j]] = anno_genes[ov_list[i][j]]->transcripts.size();
 
 			//if (false && c==0 && m==0)
-			if (cnt++<10)
+			if (cnt++<-1)
 			{
 				printf("Prediction: %i\n", c);
 				print_exons(pred_genes[i]);

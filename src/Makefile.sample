@@ -36,7 +36,7 @@ LDFLAGS += $(foreach library,$(LIBS),-l$(library))
 
 .PHONY: all clean 
 
-all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_pacbio transcript_prediction 
+all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_gtf transcript_prediction 
 
 subfolders:
 	@echo "##################################################" 
@@ -56,8 +56,8 @@ transcript_prediction: transcript_prediction.cpp QP.o ${ALL_O} ${GLPK} ${CPLEX}
 ath_count_reads_in_region: ath_count_reads_in_region.o ${ALL_O}
 	$(CXX) $(CXXFLAGS) ath_count_reads_in_region.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o ath_count_reads_in_region
 
-eval_pacbio: eval_pacbio.o ${ALL_O}
-	$(CXX) $(CXXFLAGS) eval_pacbio.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o eval_pacbio
+eval_gtf: eval_gtf.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) eval_gtf.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o eval_gtf
 
 eval_quant: eval_quant.cpp
 	${CXX} eval_quant.cpp -o eval_quant -I. -Itools tools/basic_tools.cpp
@@ -67,7 +67,7 @@ clean:
 	@- $(RM) $(TOOLS_O)
 	@- $(RM) $(GENOME_TOOLS_O)
 	@- $(RM) $(NGS_TOOLS_O)
-	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_pacbio eval_quant
+	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_gtf eval_quant
 	$(MAKE) -C tools/samtools clean
 
 
