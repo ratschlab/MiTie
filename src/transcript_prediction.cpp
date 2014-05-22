@@ -1935,10 +1935,21 @@ void Tr_Pred::make_qp()
 		{
 			if (i<graph->transcript_names.size())
 			{
+				int trans_len=0; 
+				for (int j=0; j<s; j++)
+				{
+					trans_len += all_len[j]*(qp->result[U_idx[j*t+i]]>0.5);
+				}
+				if(trans_len==0)
+				{
+					printf("skip over transcript %s\n", graph->transcript_names[i].c_str());
+					continue; 
+				}
 				fprintf(fd_quant, "%s", graph->transcript_names[i].c_str());
+
 				for (int j=0; j<r; j++)
 				{
-					fprintf(fd_quant, "\t%.5f", fabs(qp->result[W_idx[j*t+i]]*cov_scale[j])); 
+					fprintf(fd_quant, "\t%.5f", fabs(qp->result[W_idx[j*t+i]]*cov_scale[j]/100*1000/trans_len)); 
 				}
 				fprintf(fd_quant, "\n"); 
 			}
