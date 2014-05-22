@@ -814,6 +814,7 @@ void Tr_Pred::make_qp()
 			int x1 = L_idx[i*s+j]; // loss right hand side
 			int x2 = L_idx[i*s+j+s*r]; // loss left hand side
 #ifndef MAX_LOSS
+			// all_seg_cov is the mean coverage 
 			float val = all_seg_cov->at(i)->at(j) * cov_scale[i];
 
 			//get linear and quadratic coefficients of the loss function
@@ -923,7 +924,12 @@ void Tr_Pred::make_qp()
 				qp->eq_idx.push_back(1);
 				cc++;
 #ifdef MAX_LOSS
-				float obs = all_seg_cov->at(i)->at(j) * cov_scale[i]; 
+				// estimate number of reads
+				// all_seg_cov: mean coverage
+				// cov_scale: scale factor such that the maximum value is equal to 1
+				// all_len: length of segment
+				// 100: approx read length
+				float obs = all_seg_cov->at(i)->at(j) * cov_scale[i]/100*all_len[i]; 
 				float std_= sqrt(config->eta1*(obs) + pow(config->eta2*obs, 2)) + sqrt(config->lambda) + 1.0;
 
 				//printf("eta1:%.3f eta2:%.3f lambda:%i\n", config->eta1, config->eta2, config->lambda); 
@@ -1026,7 +1032,7 @@ void Tr_Pred::make_qp()
 						// L_sr2 >= L_sr1*cov_scale[i]*deriv+b
 						// <=>
 						// deriv*L_sr1-L_sr2 <= -b
-						qp->A.set(cc, L_idx[i*s+j], deriv*cov_scale[i]); 
+						qp->A.set(cc, L_idx[i*s+j], deriv*cov_scale[i]/100*all_len[i]); 
 						qp->A.set(cc, L_idx[i*s+j+s*r], -1); 
 						qp->b.push_back(-b);
 						qp->eq_idx.push_back(0);
@@ -1644,8 +1650,9 @@ void Tr_Pred::make_qp()
 	{
 		// set all segments variables for transcript x to zero
 		for (int j=0; j<s && x<max_num_trans && config->iter_approx; j++)
+		{
 			qp->ub[U_idx[j*t+x]] = 0; 
-
+		}
 #ifdef USE_CPLEX
 		printf("solve qp using cplex\n");
 		qp->result = solve_qp_cplex(qp, success);
@@ -1666,6 +1673,8 @@ void Tr_Pred::make_qp()
 
 		// fix previous solution and free bound for next transcript
 		bool all_zero = true;
+		// reduce costs for transcripts that have been found already -> we don't want to find the same again
+		qp->F[I_idx[x-1]] *= 0.9;
 		for (int j=0; j<s; j++)
 		{
 			all_zero = all_zero && qp->result[U_idx[j*t+x-1]]<0.5; 

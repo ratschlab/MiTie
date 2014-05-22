@@ -312,7 +312,7 @@ void Bam_Region::get_reads(char** bam_files, int num_bam_files, int intron_len_f
 {
 
 	char* reg_str = get_region_str();
-	int subsample = 1000;
+	int subsample = 1000; // 0-> no reads, 1000 -> all reads
 	for (int i=0; i<num_bam_files; i++)
 	{
     	char* fn_bam = bam_files[i];
