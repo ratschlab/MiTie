@@ -16,6 +16,7 @@ struct Config
 	int min_trans_len;
 	int graph_id;
 	bool use_pair;
+	bool iter_approx; 
 
 	// loss
 	int order;

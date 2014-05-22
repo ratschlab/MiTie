@@ -59,30 +59,34 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "general options:\n");
 			fprintf(stdout, "\t--fn-quant\t\t(default NULL) file name to write quantification values\n");
 			fprintf(stdout, "\t--fn-out\t\t(default NULL) file name to write transcript structures\n");
-			fprintf(stdout, "\t--num-trans\t\t(default 5) maximal number of transcripts predicted in addition to the annotated transcripts\n");
+			fprintf(stdout, "\t--num-trans\t\t(default 2) maximal number of transcripts predicted in addition to the annotated transcripts\n");
 			fprintf(stdout, "\t--graph-id\t\t(default -1) index of the graph in the HDF5 file (-1 for all graphs)\n");
 			fprintf(stdout, "\t--max-num-paths\t\t(default 1e6) maximal number paths in the segment graph.\n\t\t\t\t\t If there are more paths, then edges with low evidence are removed (if they are not annotated)\n");
+			fprintf(stdout, "\t--no-iter-approx\t\t(flag) find all transcripts simultaneously instead of using \n\t\t\t\t\t the iterative approach to find them one by one\n");
 			fprintf(stdout, "\t\t\n");
 
 			fprintf(stdout, "loss function:\n");
-			fprintf(stdout, "\t--order\t\t(default 2) order of the polynom to fit the loss function 1 (lp) or 2 (qp)\n");
+			//fprintf(stdout, "\t--order\t\t(default 2) order of the polynom to fit the loss function 1 (lp) or 2 (qp)\n");
 			fprintf(stdout, "\t--param-eta1\t\t(default 1.0)\n");
-			fprintf(stdout, "\t--param-eta2\t\t(default 0.1)\n");
+			fprintf(stdout, "\t--param-eta2\t\t(default 0.2)\n");
 			fprintf(stdout, "\t--param-lambda\t\t(default 3)\n");
 			fprintf(stdout, "\t\t\n");
 
 			fprintf(stdout, "read related options:\n");
 			fprintf(stdout, "\t--min-exonic-len\t(default 0) minimal number of aligned positions on each side of an intron\n");
 			fprintf(stdout, "\t--mismatches\t\t(default 10) maximal number of mismatches\n");
-			fprintf(stdout, "\t--best\t\t\t(flag) filter for best alignment\n");
+			fprintf(stdout, "\t--best\t\t\t(flag default:true) filter for best alignment\n");
+			fprintf(stdout, "\t--keep-secondary-alignments\t(flag default:false) keep secondary alignments\n");
 			fprintf(stdout, "\t\t\n");
 
 			fprintf(stdout, "regularization related options:\n");
 			fprintf(stdout, "\t--C-exon\t\t(default 1.0) loss param exon read count\n");
-			fprintf(stdout, "\t--C-intron\t\t(default 10.0) loss param intron read count\n");
+			fprintf(stdout, "\t--C-intron\t\t(default 100.0) loss param intron read count\n");
 			fprintf(stdout, "\t--C-pair\t\t(default 1.0) unexplained pair count penalty\n");
 			fprintf(stdout, "\t--C-num-trans\t\t(default 100.0) l_0 norm penalty for newly predicted transcripts\n");
 			fprintf(stdout, "\t--C-num-trans-predef\t(default 1.0) l_0 norm penalty for annotated transcripts\n");
+			fprintf(stdout, "\t--min-trans-len\t(default 200) only consider transcripts longer than this during optimization\n");
+
 			fprintf(stdout, "\t\t\n");
 			return -1;
 	}
@@ -94,16 +98,17 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->intron_len_filter = 200000;
 	c->filter_mismatch = 10;
 	c->exon_len_filter = 0;
-	c->mm_filter = false;
+	c->mm_filter = true;
 	c->max_num_trans = 2;
 	c->max_num_paths = 1000000;
-	c->min_trans_len = 100;
+	c->min_trans_len = 200;
 	c->graph_id = -1;
 	c->use_pair = false;
+	c->iter_approx = true; 
 
 	c->order = 2;
 	c->eta1 = 1.0;
-	c->eta2 = 0.1;
+	c->eta2 = 0.2;
 	c->lambda = 3;
 
 	c->C_exon = 1.0;
@@ -125,6 +130,18 @@ int parse_args(int argc, char** argv,  Config* c)
             i++;
 			c->exon_len_filter = atoi(argv[i]);
         }
+	    else if (strcmp(argv[i], "--keep-secondary-alignments") == 0)
+        {
+			c->filter_mismatch = false;
+        }
+	    else if (strcmp(argv[i], "--no-iter-approx") == 0)
+        {
+			c->iter_approx = false;
+        }
+	    else if (strcmp(argv[i], "--best") == 0)
+        {
+			c->filter_mismatch = true;
+        }
 	    else if (strcmp(argv[i], "--mismatches") == 0)
         {
             if (i + 1 > argc - 1)
@@ -134,6 +151,16 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->filter_mismatch = atoi(argv[i]);
+        }
+	    else if (strcmp(argv[i], "--min-trans-len") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --min-trans-len\n") ;
+                return -1;
+            }
+            i++;
+			c->min_trans_len = atoi(argv[i]);
         }
 	    else if (strcmp(argv[i], "--max-num-trans") == 0)
         {
@@ -549,7 +576,7 @@ void Tr_Pred::make_qp()
 		len += all_len[i];
 	}
 	printf("length of all segments: %i\n", len);
-	int min_trans_len = min(len, config->min_trans_len);
+	int min_trans_len = config->min_trans_len; //min(len, config->min_trans_len);
 
 	semi_sparse_3d_matrix<float> intron_list = compute_intron_list(all_admat);
 	semi_sparse_3d_matrix<float> pair_list = compute_pair_list(all_pair_mat);
@@ -901,28 +928,110 @@ void Tr_Pred::make_qp()
 
 				//printf("eta1:%.3f eta2:%.3f lambda:%i\n", config->eta1, config->eta2, config->lambda); 
 				double offset = compute_loss(config->eta1, config->eta2, config->lambda, obs, obs); 
-				// +- five std
-				for (int st=-10; st<10; st++)
+				//printf("offset:%.3f, std:%.3f\n", offset, std_); 
+				
+				
+				if (false)// plot loss and deriv
 				{
-					float mu = obs+st*std_; 
-					float h = 0.1; 
-					if (mu<=h)
-						continue; 
+					char fname[1000];
+					sprintf(fname , "loss_plot/obs_%.4f", obs);  
+					FILE* fd = fopen(fname , "w"); 
+					assert(fd); 
 
-					double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
-					double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
-					double b = fx-offset-deriv*(mu-obs); 
-					//printf("obs:%.3f mu:%.3f, offset:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, offset, fx, deriv, b); 
+					float points[] = {10.0, 7.0, 5.0, 3.0, 2.0, 1.0, 0.5, 0.2, 0.1};
+					int num_points = sizeof(points)/sizeof(float); 
+				
+					for (int sign=-1; sign<2; sign+=2)
+					{
+						double prev = -1e5; 
+						for (int p=0; p<num_points; p++)
+						{
+							float mu = obs+sign*points[p]*std_; 
+							if (sign>0)
+								mu = obs+sign*points[num_points-p-1]*std_; 
+							float h = 0.1; 
+							if (mu<=h)
+								continue; 
 
-					// add constraint
-					// L_sr2 >= L_sr1*cov_scale[i]*deriv+b
-					// <=>
-					// deriv*L_sr1-L_sr2 <= -b
-					qp->A.set(cc, L_idx[i*s+j], deriv*cov_scale[i]); 
-					qp->A.set(cc, L_idx[i*s+j+s*r], -1); 
-					qp->b.push_back(-b);
-					qp->eq_idx.push_back(0);
-					cc++; 
+								
+
+							double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
+							double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
+							double b = fx-offset-deriv*(mu-obs); 
+					//printf("obs:%.3f mu:%.3f, points[%i]:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, p, points[p], fx, deriv, b); 
+							fprintf(fd, "%.3f\t%.3f\n", mu-obs, fx-offset); 
+
+							if (p>0 && deriv < prev )
+							{
+								// numerical instability 
+								break; 
+							}
+							prev = deriv; 
+
+							char fname[1000];
+							sprintf(fname , "loss_plot/obs_%.4f_%.4f", obs, mu);  
+							FILE* fd = fopen(fname , "w"); 
+							assert(fd); 
+
+							for (int sign=-1; sign<2; sign+=2)
+							{
+								for (int p=0; p<num_points; p++)
+								{
+									float mu2 = obs+sign*points[p]*std_; 
+									if (sign>0)
+										mu2 = obs+sign*points[num_points-p-1]*std_; 
+									float h = 0.1; 
+									if (mu2<=h)
+										continue; 
+
+									if ((mu2-obs)*deriv + b < -10 || (mu2-obs)*deriv + b > 100 )
+										continue; 
+
+									fprintf(fd, "%.3f\t%.3f\n", mu2-obs, (mu2-obs)*deriv + b); 
+								}
+							}
+						}
+					}
+					fclose(fd); 
+					exit(1); 
+				}
+
+				// +- std deviation steps
+				float points[] = {10.0, 7.0, 5.0, 3.0, 2.0, 1.0, 0.5, 0.2, 0.1};
+				int num_points = sizeof(points)/sizeof(float); 
+				for (int sign=-1; sign<2; sign+=2)
+				{
+					double prev = -1e5; 
+					for (int p=0; p<num_points; p++)
+					{
+						float mu = obs+sign*points[num_points-p-1]*std_; 
+						float h = 0.1; 
+						if (mu<=h)
+							continue; 
+
+
+						double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
+						double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
+						double b = fx-offset-deriv*(mu-obs); 
+						//printf("obs:%.3f mu:%.3f, points[%i]:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, p, points[p], fx, deriv, b); 
+
+						if (p>0 && abs(deriv) < prev )
+						{
+							// numerical instability 
+							break; 
+						}
+						prev = abs(deriv); 
+
+						// add constraint
+						// L_sr2 >= L_sr1*cov_scale[i]*deriv+b
+						// <=>
+						// deriv*L_sr1-L_sr2 <= -b
+						qp->A.set(cc, L_idx[i*s+j], deriv*cov_scale[i]); 
+						qp->A.set(cc, L_idx[i*s+j+s*r], -1); 
+						qp->b.push_back(-b);
+						qp->eq_idx.push_back(0);
+						cc++; 
+					}
 				}
 #endif
 			}
@@ -1149,11 +1258,26 @@ void Tr_Pred::make_qp()
 	printf("A4 A5 A6: %i\n", cc);
 #endif
 
+	// minimum length of reported transcripts
+	// sum_j U_kj*len_j -minlen * I_j >= 0
+	// <=>
+	// sum_j -U_kj*len_j + minlen * I_j <= 0 
+	for (int k=0; k<t; k++)
+	{
+		for (int j=0; j<s; j++)
+		{
+			qp->A.set(cc, U_idx[j*t+k], -all_len[j]);
+		}
+		qp->A.set(cc, I_idx[k], min_trans_len);
+		qp->b.push_back(0);
+		qp->eq_idx.push_back(0);
+		cc++; 
+	}
+
 
 	// I_t
 	// indicator for transcripts with weight >0 in any sample
 	// sum_r W_tr - r*I_t <=0 
-	// -I_1 <= -1 predict at least one transcript
 	if (A9)
 	{
 		for (int x=0; x<t; x++)
@@ -1382,28 +1506,43 @@ void Tr_Pred::make_qp()
 
 				//printf("eta1:%.3f eta2:%.3f lambda:%i\n", config->eta1, config->eta2, config->lambda); 
 				double offset = compute_loss(config->eta1, config->eta2, config->lambda, obs, obs); 
-				// +- five std
-				for (int st=-10; st<10; st++)
+
+				// +- std deviation steps
+				float points[] = {10.0, 7.0, 5.0, 3.0, 2.0, 1.0, 0.5, 0.2, 0.1};
+				int num_points = sizeof(points)/sizeof(float); 
+				for (int sign=-1; sign<2; sign+=2)
 				{
-					float mu = obs+st*std_; 
-					float h = 0.1; 
-					if (mu<=h)
-						continue; 
+					double prev = -1e5; 
+					for (int p=0; p<num_points; p++)
+					{
+						float mu = obs+sign*points[num_points-p-1]*std_; 
+						float h = 0.1; 
+						if (mu<=h)
+							continue; 
 
-					double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
-					double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
-					double b = fx-offset-deriv*(mu-obs); 
-					//printf("obs:%.3f mu:%.3f, offset:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, offset, fx, deriv, b); 
 
-					// add constraint
-					// D_2 >= L_1*cov_scale[i]*deriv+b
-					// <=>
-					// deriv*cov_scale[i]*D_1-D_2 <= -b
-					qp->A.set(cc, D_idx[i*c+xx], deriv*cov_scale[i]); 
-					qp->A.set(cc, D_idx[i*c+xx+c*r], -1); 
-					qp->b.push_back(-b);
-					qp->eq_idx.push_back(0);
-					cc++; 
+						double fx = compute_loss(config->eta1, config->eta2, config->lambda, obs, mu); 
+						double deriv = compute_loss_deriv(config->eta1, config->eta2, config->lambda, obs, mu, h); 
+						double b = fx-offset-deriv*(mu-obs); 
+						//printf("obs:%.3f mu:%.3f, points[%i]:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, p, points[p], fx, deriv, b); 
+
+						if (p>0 && abs(deriv) < prev )
+						{
+							// numerical instability 
+							break; 
+						}
+						prev = abs(deriv); 
+
+						// add constraint
+						// D_2 >= L_1*cov_scale[i]*deriv+b
+						// <=>
+						// deriv*cov_scale[i]*D_1-D_2 <= -b
+						qp->A.set(cc, D_idx[i*c+xx], deriv*cov_scale[i]); 
+						qp->A.set(cc, D_idx[i*c+xx+c*r], -1); 
+						qp->b.push_back(-b);
+						qp->eq_idx.push_back(0);
+						cc++; 
+					}
 				}
 #endif
 				xx++;
@@ -1499,30 +1638,58 @@ void Tr_Pred::make_qp()
 
 	bool success = true;
 
+
 	time_t solvetime = time(NULL);
+	for (int x=num_annotated_trans+1; x<=max_num_trans; x++)
+	{
+		// set all segments variables for transcript x to zero
+		for (int j=0; j<s && x<max_num_trans && config->iter_approx; j++)
+			qp->ub[U_idx[j*t+x]] = 0; 
+
 #ifdef USE_CPLEX
-	printf("solve qp using cplex\n");
-	qp->result = solve_qp_cplex(qp, success);
+		printf("solve qp using cplex\n");
+		qp->result = solve_qp_cplex(qp, success);
 #else
 #ifdef USE_GLPK
-	printf("solve lp using glpk\n");
-	qp->result = solve_lp_glpk(qp, success);
+		printf("solve lp using glpk\n");
+		qp->result = solve_lp_glpk(qp, success);
 	
-	//for (int i=0; i<qp->result.size(); i++)
-	//{
-	//	qp->A.set(cc, i, 1);
-	//	qp->b.push_back(qp->result[i]);
-	//	qp->eq_idx.push_back(1);
-	//	cc++;
-	//}
-
 #ifdef DEBUG_GLPK
-	vector<double> res = solve_lp_glpk(qp, success);
+		vector<double> res = solve_lp_glpk(qp, success);
 #endif
 #else
-	printf("no solver available; stopping here\n");
-	exit(-1);
+		printf("no solver available; stopping here\n");
+		exit(-1);
 #endif
+		if (!config->iter_approx)
+			break; 
+
+		// fix previous solution and free bound for next transcript
+		bool all_zero = true;
+		for (int j=0; j<s; j++)
+		{
+			all_zero = all_zero && qp->result[U_idx[j*t+x-1]]<0.5; 
+			qp->ub[U_idx[j*t+x-1]] = qp->result[U_idx[j*t+x-1]]>0.5; 
+			qp->lb[U_idx[j*t+x-1]] = qp->result[U_idx[j*t+x-1]]>0.5; 
+			
+			if (x<max_num_trans)
+			{
+				qp->ub[U_idx[j*t+x]] = 1; 
+				qp->lb[U_idx[j*t+x]] = 0; 
+			}
+		}
+		if (all_zero)
+		{
+			printf("break: found %i transcripts (num_annotated:%i max:%i) \n", x, num_annotated_trans, max_num_trans); 
+			break; 
+		}
+		else
+		{
+			printf("found %i transcripts (num_annotated:%i max:%i) \n", x, num_annotated_trans, max_num_trans); 
+		}
+	}
+
+
 #endif
 	FILE* fd = fopen("time.txt", "a"); 
 	if (fd)
@@ -1878,10 +2045,10 @@ int main(int argc, char* argv[])
 			// each string in bam_files may be a comma separated list of files
 			vector<char*> bams = samples[k];
 
-			int intron_len_filter = 200000;
-			int filter_mismatch = 10;
-			int exon_len_filter = 0;
-			bool mm_filter = false;//multi mappers
+			int intron_len_filter = c.intron_len_filter;
+			int filter_mismatch = c.filter_mismatch;
+			int exon_len_filter = c.exon_len_filter;
+			bool mm_filter = c.mm_filter;//multi mappers
 			//printf("chr: %s\n", graphs[j]->chr);
 			graphs[j]->fd_out = fd_null;
 			graphs[j]->clear_reads();

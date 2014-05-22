@@ -5,7 +5,9 @@
 
 double gammaln(double x);
 
-double factln(int n);
+//double factln(int n);
+
+double factln(float n);
 
 double bino_pdf(int k, int n, float p);
 

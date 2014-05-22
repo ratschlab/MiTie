@@ -21,7 +21,10 @@ double compute_loss(float eta1, float eta2, int lambda, float obs, float mu)
 	double p = 1-(mu/var_);
 	double r = mu*(1-p)/p;
 	
+	double logrp1 = factln(r-1); 
+	double logrp2 = r*log(1-p); 
 	double res; 
+	double t1, t2, t3, t4, t5 = 0.0; 
 	// A ~ Pois(lambda)
 	// B ~ NB(r,p)
 	// obs = A+B 
@@ -50,7 +53,14 @@ double compute_loss(float eta1, float eta2, int lambda, float obs, float mu)
 		}
 		else
 		{
-			nb = factln(obs-i+r-1) - factln(obs-i) - factln(r-1) + r*log(1-p) + (obs-i)*log(p); 
+			nb = factln(obs-i+r-1) - factln(obs-i) - logrp1 + logrp2 + (obs-i)*log(p); 
+			//printf("%.3f %.3f %.3f %.3f %.3f\n", factln(obs-i+r-1),  -factln(obs-i), -factln(r-1), r*log(1-p), (obs-i)*log(p)); 
+			//t1 += factln(obs-i+r-1); 
+			//t2 += - factln(obs-i); 
+			//t3 += -logrp1;
+			//t4 += logrp2; 
+			//t5 += (obs-i)*log(p); 
+
 		}
 	
 		// naive: Y(k) = Y(k) + exp(pois+nb); 
@@ -59,13 +69,15 @@ double compute_loss(float eta1, float eta2, int lambda, float obs, float mu)
 		{
 			res = -(nb+pois);
 			//if (obs==mu)
-			//	printf("nb:%.3f, pois:%.3f\n", nb, pois); 
+				//printf("nb:%.3f, pois:%.3f\n", nb, pois); 
 		}
 		else
 		{
 			res = res - (log(1+exp(nb+pois-res)));
 		}
 	}
+
+	//printf("%.3f %.3f %.3f %.3f %.3f\n", t1, t2, t3, t4, t5); 
 	return res; 
 }
 

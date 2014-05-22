@@ -20,26 +20,30 @@ double gammaln(double x)
     return -tmp+log(2.5066282746310005*ser/x);
 }
 
-double factln(int n)
+//double factln(int n)
+//{
+//    double ret;
+//
+//    static double a[101]; // static array is automatically initialized to zero
+//    if (n<0)
+//	{
+//        printf("gammaln function only defined for positive values");
+//		assert(n>=0);
+//	}
+//    else if (n<=1)
+//        ret = 0;
+//    else if (n<=100)
+//        ret = a[n] ? a[n] : (a[n]=gammaln(n+1.0));
+//    else
+//        ret = gammaln(n+1);
+//
+//	return ret;
+//}
+
+double factln(float h)
 {
-    double ret;
-
-    static double a[101]; // static array is automatically initialized to zero
-    if (n<0)
-	{
-        printf("gammaln function only defined for positive values");
-		assert(n>=0);
-	}
-    else if (n<=1)
-        ret = 0;
-    else if (n<=100)
-        ret = a[n] ? a[n] : (a[n]=gammaln(n+1.0));
-    else
-        ret = gammaln(n+1);
-
-	return ret;
+	return gammaln(h+1.0); 
 }
-
 
 double bino_pdf(int k, int n, float p)
 {   
