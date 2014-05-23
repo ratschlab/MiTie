@@ -1886,18 +1886,49 @@ void Tr_Pred::make_qp()
 	//
 	printf("new trans: %i %i %.2f \n", t, num_annotated_trans, qp->result[I_idx[0]]); 
 	
-	for (int i=num_annotated_trans; i<t; i++)
+	graph->transcript_quant.clear(); 
+	for (int i=0; i<t; i++)
 	{
+		//int trans_len=0; 
+		//for (int j=0; j<s; j++)
+		//{
+		//	trans_len += all_len[j]*(qp->result[U_idx[j*t+i]]>0.5);
+		//}
+
+		// compute quantification values for samples
+		vector<float> quant; 
+		for (int j=0; j<r; j++)
+		{
+			if (qp->result[I_idx[i]]<1e-3)
+				quant.push_back(0.0); 
+			else
+			{
+				// quant val
+				// coverage * len / readlen = reads
+				// rpk = reads / len * 1000
+				// => rpk = coverage / readlen * 1000
+				quant.push_back(qp->result[W_idx[j*t+i]]*cov_scale[j]/100*1000); 
+			}
+		}
+
+		// annotated transcripts
+		if (i<num_annotated_trans)
+		{
+			graph->transcript_quant.push_back(quant); 
+			continue; 
+		}
+		
 		if (qp->result[I_idx[i]]<1e-3)
 			continue;
 
+		graph->transcript_quant.push_back(quant); 
 		vector<int> new_path;
 		for (int j=0; j<s; j++)
 		{
 			if (qp->result[U_idx[j*t+i]]>0.5)
 				new_path.push_back(j);
 		}
-		assert(new_path.size()>0);
+		//assert(new_path.size()>0);
 		graph->transcript_paths.push_back(new_path);
 
 		char name[1000];
@@ -1931,28 +1962,17 @@ void Tr_Pred::make_qp()
 	FILE* fd_quant; 
 	if (config->fn_quant && (fd_quant = fopen(config->fn_quant, "a")))
 	{
-		for (int i=0; i<t; i++)
+		assert(graph->transcript_names.size()==graph->transcript_quant.size()); 
+		for (int i=0; i<graph->transcript_names.size(); i++)
 		{
-			if (i<graph->transcript_names.size())
-			{
-				int trans_len=0; 
-				for (int j=0; j<s; j++)
-				{
-					trans_len += all_len[j]*(qp->result[U_idx[j*t+i]]>0.5);
-				}
-				if(trans_len==0)
-				{
-					printf("skip over transcript %s\n", graph->transcript_names[i].c_str());
-					continue; 
-				}
-				fprintf(fd_quant, "%s", graph->transcript_names[i].c_str());
 
-				for (int j=0; j<r; j++)
-				{
-					fprintf(fd_quant, "\t%.5f", fabs(qp->result[W_idx[j*t+i]]*cov_scale[j]/100*1000/trans_len)); 
-				}
-				fprintf(fd_quant, "\n"); 
+			fprintf(fd_quant, "%s", graph->transcript_names[i].c_str());
+
+			for (int j=0; j<graph->transcript_quant[i].size(); j++)
+			{
+				fprintf(fd_quant, "\t%.5f", graph->transcript_quant[i][j]); 
 			}
+			fprintf(fd_quant, "\n"); 
 		}
 		fclose(fd_quant);
 	}

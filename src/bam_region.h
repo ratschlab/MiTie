@@ -16,6 +16,7 @@ class Bam_Region: public Region
 		vector<float> seg_cov;
 		vector<vector<float> > admat;
 		vector<vector<int> > pair_mat;
+		vector<vector<float> > transcript_quant; 
 
 
 		Bam_Region();

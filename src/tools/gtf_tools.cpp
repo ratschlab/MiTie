@@ -234,7 +234,8 @@ void write_gtf(FILE* fd, Region* region, const char* source)
 	int end = 0;
 	for (uint i=0; i<region->transcripts.size(); i++)
 	{
-		assert(region->transcripts[i].size()>0);
+		if (region->transcripts[i].size()==0)
+			continue; 
 		if (region->transcripts[i].front().first<start)
 			start = region->transcripts[i].front().first;
 		if (region->transcripts[i].back().second>end)
@@ -243,6 +244,9 @@ void write_gtf(FILE* fd, Region* region, const char* source)
 
 	for (uint i=0; i<region->transcripts.size(); i++)
 	{
+		if (region->transcripts[i].size()==0)
+			continue; 
+
 		assert(i<region->transcript_names.size());
 		start = region->transcripts[i].front().first;
 		end = region->transcripts[i].back().second;

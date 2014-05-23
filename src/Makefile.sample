@@ -37,6 +37,7 @@ LDFLAGS += $(foreach library,$(LIBS),-l$(library))
 .PHONY: all clean 
 
 all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_gtf transcript_prediction 
+all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_gtf transcript_prediction visualize_predictions
 
 subfolders:
 	@echo "##################################################" 
@@ -62,12 +63,15 @@ eval_gtf: eval_gtf.o ${ALL_O}
 eval_quant: eval_quant.cpp
 	${CXX} eval_quant.cpp -o eval_quant -I. -Itools tools/basic_tools.cpp
 
+visualize_predictions: visualize_predictions.o ${ALL_O}
+	${CXX} visualize_predictions.cpp ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o visualize_predictions 
+
 clean:
 	@- $(RM) $(MITIE_O)
 	@- $(RM) $(TOOLS_O)
 	@- $(RM) $(GENOME_TOOLS_O)
 	@- $(RM) $(NGS_TOOLS_O)
-	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_gtf eval_quant
+	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_gtf eval_quant visualize_predictions
 	$(MAKE) -C tools/samtools clean
 
 

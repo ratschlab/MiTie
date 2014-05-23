@@ -127,14 +127,31 @@ bool compare_intron(segment intr1, segment intr2, int tol)
 }
 bool all_intron_compare(vector<segment> trans1, vector<segment> trans2)
 {
-	if (trans1.size() != trans2.size())
-		return false;
+		
+	vector<segment> introns1; 
+	vector<segment> introns2; 
 	
 	for (uint i=0; i<trans1.size()-1; i++)
 	{
-		if (trans1[i].second!=trans2[i].second)
+		if (trans1[i].second==trans1[i+1].first || trans1[i].second==trans1[i+1].first-1)
+			continue; 
+		introns1.push_back(segment(trans1[i].second, trans1[i+1].first)); 
+	}
+	for (uint i=0; i<trans2.size()-1; i++)
+	{
+		if (trans2[i].second==trans2[i+1].first || trans2[i].second==trans2[i+1].first-1)
+			continue; 
+		introns2.push_back(segment(trans2[i].second, trans2[i+1].first)); 
+	}
+
+	if (introns1.size() != introns2.size())
+		return false;
+
+	for (uint i=0; i<introns1.size(); i++)
+	{
+		if (introns1[i].first!=introns2[i].first)
 			return false;
-		if (trans1[i+1].first!=trans2[i+1].first)
+		if (introns1[i].second!=introns2[i].second)
 			return false;
 	}
 	return true;
