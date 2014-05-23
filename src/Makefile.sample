@@ -15,7 +15,7 @@ LIBS += bam z curses pthread
 ### MITIE tools
 GENOME = tools/genome/
 GENOME_TOOLS = ${GENOME}/genome.cpp ${GENOME}/genome_tools.cpp
-MITIE_CPP = bam_region.cpp region.cpp
+MITIE_CPP = bam_region.cpp region.cpp eval.cpp
 TOOLS_DIR = tools/
 TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}tools_bam.cpp ${TOOLS_DIR}math_tools.cpp ${TOOLS_DIR}graph_tools.cpp ${TOOLS_DIR}basic_tools.cpp
 TOOLS_O = $(TOOLS:.cpp=.o)

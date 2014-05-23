@@ -2,6 +2,7 @@
 #include "gtf_tools.h"
 #include <numeric>
 #include <math.h>
+#include "eval.h"
 
 int* get_bam_cnt(vector<char*>* bams)
 {
@@ -126,7 +127,6 @@ int main(int argc, char** args)
 	char* fn_gtf_pred = args[3]; 
 	char* fn_gtf_anno = args[4]; 
 
-
 	char fn_tmp[1000]; 
 	char fn_gnu[1000]; 
 	char fn_ps[1000]; 
@@ -182,6 +182,25 @@ int main(int argc, char** args)
 		if (skip)
 			continue; 
 
+		// eval
+		int eval[regions[j]->transcript_names.size()]; 
+		for (int i=0; i<regions[j]->transcript_names.size(); i++)
+		{
+			eval[i] = -1;
+			if (strstr(regions[j]->transcript_names[i].c_str(), "anno_"))
+				continue;
+			eval[i] = 0; 
+			for (int k=0; k<regions[j]->transcript_names.size(); k++)
+			{
+				if (strstr(regions[j]->transcript_names[k].c_str(), "pred_"))
+					continue; 
+				bool ret = all_intron_compare(regions[j]->transcripts[i], regions[j]->transcripts[k]);
+
+				if (ret)
+					eval[i] = 1; 
+			}
+			printf("eval trans%i: %i\n", i, eval[i]); 
+		}
 		if (regions[j]->start>1000)
 			regions[j]->start -= 1000; 
 		else
@@ -283,7 +302,9 @@ int main(int argc, char** args)
 
 				int bstart = cum_len[b]-(blocks[b].second-exon_start);
 				int bstop = cum_len[b]-(blocks[b].second-exon_stop);
-				if (flag==4)
+				if (eval[k]==1)
+					fprintf(fd_plot, "set arrow from %i,%i to %i,%i nohead lc rgb \'black\'\n", bstart, y, bstop, y);
+				else if (flag==4)
 					fprintf(fd_plot, "set arrow from %i,%i to %i,%i nohead lc rgb \'red\'\n", bstart, y, bstop, y);
 				else
 					fprintf(fd_plot, "set arrow from %i,%i to %i,%i nohead lc rgb \'blue\'\n", bstart, y, bstop, y);

@@ -80,7 +80,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "\t\t\n");
 
 			fprintf(stdout, "regularization related options:\n");
-			fprintf(stdout, "\t--C-exon\t\t(default 1.0) loss param exon read count\n");
+			fprintf(stdout, "\t--C-exon\t\t(default 10.0) loss param exon read count\n");
 			fprintf(stdout, "\t--C-intron\t\t(default 100.0) loss param intron read count\n");
 			fprintf(stdout, "\t--C-pair\t\t(default 1.0) unexplained pair count penalty\n");
 			fprintf(stdout, "\t--C-num-trans\t\t(default 100.0) l_0 norm penalty for newly predicted transcripts\n");
@@ -111,7 +111,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->eta2 = 0.2;
 	c->lambda = 3;
 
-	c->C_exon = 1.0;
+	c->C_exon = 10.0;
 	c->C_intron = 100.0;
 	c->C_pair = 1.0;
 	c->C_num_trans = 100.0;
@@ -1649,9 +1649,12 @@ void Tr_Pred::make_qp()
 	for (int x=num_annotated_trans+1; x<=max_num_trans; x++)
 	{
 		// set all segments variables for transcript x to zero
-		for (int j=0; j<s && x<max_num_trans && config->iter_approx; j++)
+		for (int xx=x; xx<max_num_trans; xx++)
 		{
-			qp->ub[U_idx[j*t+x]] = 0; 
+			for (int j=0; j<s && config->iter_approx; j++)
+			{
+				qp->ub[U_idx[j*t+xx]] = 0; 
+			}
 		}
 #ifdef USE_CPLEX
 		printf("solve qp using cplex\n");
@@ -1687,7 +1690,7 @@ void Tr_Pred::make_qp()
 				qp->lb[U_idx[j*t+x]] = 0; 
 			}
 		}
-		if (all_zero)
+		if (all_zero || qp->result[I_idx[x-1]]<0.5)
 		{
 			printf("break: found %i transcripts (num_annotated:%i max:%i) \n", x, num_annotated_trans, max_num_trans); 
 			break; 
