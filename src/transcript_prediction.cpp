@@ -1664,12 +1664,13 @@ void Tr_Pred::make_qp()
 		printf("solve lp using glpk\n");
 		qp->result = solve_lp_glpk(qp, success);
 	
-#ifdef DEBUG_GLPK
-		vector<double> res = solve_lp_glpk(qp, success);
-#endif
+//#ifdef DEBUG_GLPK
+//		vector<double> res = solve_lp_glpk(qp, success);
+//#endif
 #else
 		printf("no solver available; stopping here\n");
 		exit(-1);
+#endif
 #endif
 		if (!config->iter_approx)
 			break; 
@@ -1702,7 +1703,6 @@ void Tr_Pred::make_qp()
 	}
 
 
-#endif
 	FILE* fd = fopen("time.txt", "a"); 
 	if (fd)
 	{
