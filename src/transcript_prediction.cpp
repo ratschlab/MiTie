@@ -1021,12 +1021,12 @@ void Tr_Pred::make_qp()
 						double b = fx-offset-deriv*(mu-obs); 
 						//printf("obs:%.3f mu:%.3f, points[%i]:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, p, points[p], fx, deriv, b); 
 
-						if (p>0 && abs(deriv) < prev )
+						if (p>0 && fabs(deriv) < prev )
 						{
 							// numerical instability 
 							break; 
 						}
-						prev = abs(deriv); 
+						prev = fabs(deriv); 
 
 						// add constraint
 						// L_sr2 >= L_sr1*cov_scale[i]*deriv+b
@@ -1532,12 +1532,12 @@ void Tr_Pred::make_qp()
 						double b = fx-offset-deriv*(mu-obs); 
 						//printf("obs:%.3f mu:%.3f, points[%i]:%.3f, f(x):%.3f f'(x):%.3f b:%.3f\n", obs, mu, p, points[p], fx, deriv, b); 
 
-						if (p>0 && abs(deriv) < prev )
+						if (p>0 && fabs(deriv) < prev )
 						{
 							// numerical instability 
 							break; 
 						}
-						prev = abs(deriv); 
+						prev = fabs(deriv); 
 
 						// add constraint
 						// D_2 >= L_1*cov_scale[i]*deriv+b
