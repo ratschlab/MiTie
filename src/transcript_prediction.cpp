@@ -108,7 +108,7 @@ int parse_args(int argc, char** argv,  Config* c)
 
 	c->order = 2;
 	c->eta1 = 1.0;
-	c->eta2 = 0.2;
+	c->eta2 = 0.1;
 	c->lambda = 3;
 
 	c->C_exon = 10.0;

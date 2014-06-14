@@ -130,16 +130,22 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 				ia[cnt] = i+1;
 				ja[cnt] = idx->at(j)+1;
 				ar[cnt] = coef->at(j);
+				if (cnt<5)
+					printf("ia[%i]:%i ja[%i]%i ar[%i]%f\n", cnt, ia[cnt], cnt, ja[cnt], cnt, ar[cnt]); 
+
 				cnt++;
 			}
 		}
 
+		bool any_binary = false; 
 		glp_add_cols(lp, qp->num_var);
 		for(int i=0;i<qp->num_var;i++)
 		{
 			if (qp->binary_idx[i]==1 && qp->lb[i]!=qp->ub[i])
+			{
+				any_binary = true; 
 				glp_set_col_kind(lp,i+1,GLP_BV);
-
+			}
 			assert(qp->lb[i]<=qp->ub[i]); 
 			// set box constraints for variables
 			if (qp->lb[i]==qp->ub[i])
@@ -183,20 +189,23 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		double z1 = glp_get_obj_val(lp);
 		printf("glpk simplex obj: %.3f\n", z1);
 
-		glp_iocp parm;
-		glp_init_iocp(&parm);
-		parm.presolve = GLP_ON;
-		parm.cov_cuts = GLP_ON;
-		parm.gmi_cuts = GLP_ON; 
-		parm.mir_cuts = GLP_ON; 
-		parm.clq_cuts = GLP_ON; 
-		int err = glp_intopt(lp, &parm);
- 
-		/*recover results*/
-		double z = glp_mip_obj_val(lp);
-		int status = glp_mip_status(lp); 
-		success = status==GLP_OPT; 
-		printf("glpk mip obj: %.3f status: %i %i %i %i %i \n", z, status, GLP_UNDEF, GLP_OPT, GLP_FEAS, GLP_NOFEAS);
+		if (any_binary)
+		{
+			glp_iocp parm;
+			glp_init_iocp(&parm);
+			parm.presolve = GLP_ON;
+			parm.cov_cuts = GLP_ON;
+			parm.gmi_cuts = GLP_ON; 
+			parm.mir_cuts = GLP_ON; 
+			parm.clq_cuts = GLP_ON; 
+			int err = glp_intopt(lp, &parm);
+ 		
+			/*recover results*/
+			double z = glp_mip_obj_val(lp);
+			int status = glp_mip_status(lp); 
+			success = status==GLP_OPT; 
+			printf("glpk mip obj: %.3f status: %i %i %i %i %i \n", z, status, GLP_UNDEF, GLP_OPT, GLP_FEAS, GLP_NOFEAS);
+ 		}
 
 		printf("glpk_version: %s\n", glp_version());
 #ifdef DEBUG_GLPK
@@ -209,8 +218,10 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
                       
 		for(int nt=0;nt<qp->num_var;nt++) 
 		{
-			res[nt]=glp_mip_col_val(lp, nt+1);
-			//res[nt]=glp_get_col_prim(lp,nt+1);
+			if (any_binary)
+				res[nt]=glp_mip_col_val(lp, nt+1);
+			else
+				res[nt]=glp_get_col_prim(lp, nt+1);
 		}
 
 		//glp_write_prob(lp, 0, "temp_prob"); 	

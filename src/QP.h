@@ -33,7 +33,7 @@ class semi_sparse_matrix{
 			{
 				return -1;
 			}
-
+			assert(false);// I think this is buggy
 			p_idx = &(*it);
 			p_coef = &(*it2);
 			it++;
