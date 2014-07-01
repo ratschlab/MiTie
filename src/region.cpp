@@ -162,7 +162,7 @@ char* Region::get_triplet(int i, int pos, int* offset)
 						assert(j>0);
 						int pflag = transcripts[i][j-1].flag;
 						int pexon_stop = transcripts[i][j-1].second-start;
-						assert(pflag==4);
+						assert(pflag==4); 
 						
 						if (pos-exon_start<*offset-1)
 						{
@@ -183,7 +183,15 @@ char* Region::get_triplet(int i, int pos, int* offset)
 						assert(j+1<transcripts[i].size());
 						int nflag = transcripts[i][j+1].flag;
 						int nexon_start = transcripts[i][j+1].first-start;
-						assert(nflag==4);
+						if(nflag!=4)
+						{
+							//printf("chr:%s pos:%i trans_num:%i exon:%i start:%i, end:%i\n", chr, pos, i, j, transcripts[i][j].first, transcripts[i][j].second);
+							//if (transcript_names.size()>i)
+							//	printf("transcript_name: %s\n", transcript_names[i].c_str()); 
+							//printf("Checked a few casses and found annotation bugs\n");  
+							printf("[%s] Warning, this is a split codon, but the next exon of this transcript is not annotated as a coding exon\n", __func__); 
+							return NULL;
+						}
 
 						if (exon_stop-(pos-*offset)<1)
 						{

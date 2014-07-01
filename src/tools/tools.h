@@ -17,6 +17,10 @@ vector<char*> separate(char* str, char sep);
 
 void write_regions(vector<Region*> regions, FILE* fd);
 
+vector<Region*> parse_regions(char* fn_regions); 
+
+vector<Region*> parse_bed(char* fn_regions); 
+
 // interval overlapp code
 ////////////////////////////////////////////////////////////////////////////////
 typedef struct {

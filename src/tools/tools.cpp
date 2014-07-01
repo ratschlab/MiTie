@@ -23,13 +23,66 @@ bool compare_second(segment intr1, segment intr2)
 }
 
 
+vector<Region*> parse_bed(char* fn_regions)
+{
+	FILE* fd = fopen(fn_regions, "r");
+	if (!fd)
+	{
+		fprintf(stderr, "tools: Could not open file: %s for reading\n", fn_regions);
+		exit(1);	
+	}
+	int num_bytes = 1000;
+
+	int skip=0; 
+	vector<Region*> regions;
+	while (!feof(fd))
+	{
+		char line[num_bytes]; 
+		if (!fgets(line, num_bytes, fd))
+		{
+			break;
+		}
+		if (line[0]=='%' || line[0]=='#')
+			continue;
+
+		if (strstr(line, "browser"))
+			continue; 
+		if (strstr(line, "track"))
+			continue; 
+
+		char* chr = new char[1000];
+		char* strand = new char[1000];
+		sprintf(strand, "."); 
+		int start = 0;
+		int stop = 0;
+		int num_read = sscanf(line, "%s\t%i\t%i", chr, &start, &stop);
+		if (num_read!=3)
+		{
+			skip++;
+			//printf("[%s]: skip line: %s\n", __func__, line); 
+		}
+		else
+		{
+			Region* reg = new Region(start, stop, chr, strand[0]);
+			regions.push_back(reg);
+		}
+		delete[] strand; 
+		delete[] chr;
+	}
+	if (skip>0)
+		printf("[%s] skipped %i lines\n", __func__, skip); 
+
+	fclose(fd);
+
+	return regions;
+}
 vector<Region*> parse_regions(char* fn_regions)
 {
 	FILE* fd = fopen(fn_regions, "r");
 	if (!fd)
 	{
 		fprintf(stderr, "tools: Could not open file: %s for reading\n", fn_regions);
-	
+		exit(1); 
 	}
 	int num_bytes = 1000;
 
@@ -63,6 +116,7 @@ vector<Region*> parse_regions(char* fn_regions)
 
 	return regions;
 }
+
 void write_regions(vector<Region*> regions, FILE* fd)
 {
 	for (uint i=0; i<regions.size(); i++)

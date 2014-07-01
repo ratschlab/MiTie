@@ -1,0 +1,43 @@
+
+
+Availability
+
+You can checkout the code from GitHub: git@github.com:ratschlab/MiTie.git
+
+The the code is now written in C++ with shell script wrappers. We convert the transcript 
+prediction task into a general mixed integer optimization problem and use third party solvers 
+for this. We currently support CPLEX and glpk. Due to the significantly better runtime we 
+recommend using CPLEX if you have many samples or many complex splice structures. This is 
+a proprietary software, but free academic licenses can be obtained.
+
+Setup
+
+Installation:
+
+change into the src directory and type
+
+./configure -glpk-dir=<path_to_glpk>
+
+or
+
+./configure -cplex-dir=<path_to_cplex>
+
+and then
+
+make
+
+mitie_example.sh demonstrates two strategies (with and without a genome annotation) to 
+run MiTie on a tiny toy data set.
+
+Parallelization:
+
+MiTie stores splice graphs in an HDF5 file. You can run the transcript_prediction for 
+each graph in that file in parallel.
+
+Support:
+
+We are happy to hear about your suggestions to improve the software. If you encounter 
+any difficulties please let us know. We are also happy to implement additional features, 
+if they are of general interest.
+
+
