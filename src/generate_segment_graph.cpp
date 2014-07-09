@@ -515,6 +515,29 @@ int main(int argc, char* argv[])
 		{
 			if (!c.chr || strcmp(c.chr, tmp[i]->chr)==0)
 			{
+				//Bam_Region* reg = new Bam_Region();
+				//reg->start = tmp[i]->start; 
+				//reg->stop = tmp[i]->stop;
+				//reg->strand = tmp[i]->strand;
+				//reg->chr_num = tmp[i]->chr_num;
+				//if (tmp[i]->chr)
+				//{
+				//	reg->chr = new char[strlen(tmp[i]->chr)+1];
+				//	strcpy(reg->chr, tmp[i]->chr);
+				//}
+				//else
+				//{
+				//	reg->chr = NULL;
+				//}
+				////reg->seq = NULL;
+				//reg->fd_out = tmp[i]->fd_out;
+				//reg->gio = NULL;
+				//reg->segments = tmp[i]->segments;
+				//reg->transcripts = tmp[i]->transcripts;
+				//reg->transcript_names = tmp[i]->transcript_names;
+				//reg->transcript_paths = tmp[i]->transcript_paths;
+
+				//gtf_regions.push_back(reg); 
 				gtf_regions.push_back(new Bam_Region(tmp[i]));
 			}
 			delete tmp[i];

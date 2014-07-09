@@ -5,6 +5,89 @@
 #include "QP.h"
 
 //#define DEBUG_GLPK
+void simplify(QP* qp)
+{
+	// simplify
+	bool keep_running = true; 
+	int iter=0; 
+	int keep = 0; 
+	while (keep_running)
+	{
+		iter++; 
+		keep_running = false; 
+		int num_constraints = qp->b.size(); 
+		int discard = 0; 
+		keep=0; 
+		int delete_coef = 0; 
+		for(int i=0;i<num_constraints;i++)
+		{
+			vector<int>* idx = NULL;
+			vector<float>* coef = NULL;
+			int ret = qp->A.get(&idx, &coef, i);
+			assert(idx!=NULL);
+			assert(coef!=NULL);
+			assert(ret>0);
+			assert(idx->size()==coef->size());
+
+			for (int j=0; j<idx->size();j++)
+			{
+				assert(idx->at(j)<qp->lb.size()); 
+				if (qp->lb[idx->at(j)]==qp->ub[idx->at(j)])
+				{
+					// variable is fixed
+					qp->b[i]-=coef->at(j); 
+					idx->erase(idx->begin()+j); 
+					coef->erase(coef->begin()+j); 
+					delete_coef++; 
+					keep_running = true;
+					break; 
+				}
+			}
+
+			if (idx->size()==1 && qp->eq_idx[i]>0.5)// equality constraints
+			{
+				assert(qp->lb[idx->at(0)]*coef->at(0) <= qp->b[i]+0.001); 
+				assert(qp->ub[idx->at(0)]*coef->at(0) >= qp->b[i]-0.001); 
+
+				qp->lb[idx->at(0)] = qp->b[i]/coef->at(0); 
+				qp->ub[idx->at(0)] = qp->b[i]/coef->at(0); 
+
+				idx->erase(idx->begin());
+				coef->erase(coef->begin()); 
+				discard++; 
+			}
+			else if (idx->size()==1 && qp->eq_idx[i]<0.5)// inequality constraints 
+			{
+				float eps = 1e-5; 
+				if (coef->at(0) > eps)
+				{
+					assert(qp->lb[idx->at(0)]*coef->at(0) <= qp->b[i]+0.001); 
+
+					if (qp->ub[idx->at(0)]>qp->b[i]/coef->at(0))
+						qp->ub[idx->at(0)] = qp->b[i]/coef->at(0); 
+				}
+				else if (coef->at(0) < -eps)
+				{
+					assert(qp->ub[idx->at(0)]*coef->at(0) <= qp->b[i]+0.001); 
+					if (qp->lb[idx->at(0)]<qp->b[i]/coef->at(0))
+						qp->lb[idx->at(0)] = qp->b[i]/coef->at(0); 
+				}
+				idx->erase(idx->begin());
+				coef->erase(coef->begin()); 
+
+				discard++; 
+			}	
+			
+			if (idx->size()>1)
+				keep++; 
+
+		}
+		if (iter%30==0)
+			printf("iteration: %i: discard %i constraints keep:%i delete_coef: %i\n", iter, discard, keep, delete_coef); 
+	}
+	printf("[%s] reduced number of constraints from %i to %i\n", __func__, qp->b.size(), keep); 
+}
+
 
 vector<double> solve_lp_glpk(QP* qp, bool& success)
 { 
@@ -16,7 +99,7 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 
 
 		/* convert equality constraints into inequalities */
-		int num_constraints=qp->b.size();
+		// int num_constraints=qp->b.size();
 		//int cc = qp->b.size();
 		//for(int i=0;i<num_constraints;i++)
 		//{
@@ -51,8 +134,10 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		//assert(cc==qp->b.size());
 		//assert(cc==qp->eq_idx.size());
 
+		int num_constraints = 0; 
+
 		int cnt = 1; 
-		for(int i=0;i<num_constraints;i++)
+		for(int i=0;i<qp->b.size();i++)
 		{
 			vector<int>* idx = NULL;
 			vector<float>* coef = NULL;
@@ -62,6 +147,8 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 			assert(ret>0);
 			assert(idx->size()==coef->size());
 
+			if (idx->size()>0)
+				num_constraints++; 
 			for (int j=0; j<idx->size(); j++)
 			{
 				cnt++;
@@ -69,7 +156,6 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		}
 
 		printf("num constraints:%lu num coef :%i\n", qp->b.size(), cnt); 
-		num_constraints=qp->b.size();
 		//double ar[cnt+1];
 		//int ia[cnt+1];
 		//int ja[cnt+1];
@@ -85,38 +171,10 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		glp_add_rows(lp,num_constraints);
 		//glp_set_row_name(lp,1,"p1");
 		cnt = 1;
-		for(int i=0;i<num_constraints;i++)
+		int c_cnt = 0; 
+		for(int i=0;i<qp->b.size();i++)
 		{
-			if (false && i==590)
-			{
-				vector<int>* idx = NULL;
-				vector<float>* coef = NULL;
-				int ret = qp->A.get(&idx, &coef, i);
-				assert(idx!=NULL);
-				assert(coef!=NULL);
-				assert(ret>0);
-				assert(idx->size()==coef->size());
 
-				for (int j=0; j<idx->size(); j++)
-				{
-					printf("%i->%f ", idx->at(j)+1, coef->at(j));
-				}
-
-				printf("i0: b:%.3f equality:%i\n", qp->b[i], qp->eq_idx[i]);
-			}
-			if (qp->eq_idx[i]>0.5)// equality constraints
-			{
-				//printf("ERRORERRORERROR\n");
-				//glp_set_row_bnds(lp,i+1,GLP_LO, qp->b[i] , 0.0);
-				//glp_set_row_bnds(lp,i+1,GLP_UP, 0.0 , qp->b[i]);
-				//glp_set_row_bnds(lp,i+1,GLP_DB, qp->b[i] , qp->b[i]+1e-5);
-				glp_set_row_bnds(lp,i+1,GLP_FX, qp->b[i] , qp->b[i]);
-			}
-			else
-			{
-				glp_set_row_bnds(lp,i+1,GLP_UP, 0.0 , qp->b[i]);
-			}
-			// fill constraint matrix
 			vector<int>* idx = NULL;
 			vector<float>* coef = NULL;
 			int ret = qp->A.get(&idx, &coef, i);
@@ -125,17 +183,36 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 			assert(ret>0);
 			assert(idx->size()==coef->size());
 
+			if (idx->size()==0)
+				continue; 
+
+			if (qp->eq_idx[i]>0.5)// equality constraints
+			{
+				//printf("ERRORERRORERROR\n");
+				//glp_set_row_bnds(lp,i+1,GLP_LO, qp->b[i] , 0.0);
+				//glp_set_row_bnds(lp,i+1,GLP_UP, 0.0 , qp->b[i]);
+				//glp_set_row_bnds(lp,i+1,GLP_DB, qp->b[i] , qp->b[i]+1e-5);
+				glp_set_row_bnds(lp, c_cnt+1, GLP_FX, qp->b[i] , qp->b[i]);
+			}
+			else
+			{
+				glp_set_row_bnds(lp, c_cnt+1, GLP_UP, 0.0 , qp->b[i]);
+			}
+			// fill constraint matrix
+
 			for (int j=0; j<idx->size(); j++)
 			{
-				ia[cnt] = i+1;
+				ia[cnt] = c_cnt+1;
 				ja[cnt] = idx->at(j)+1;
 				ar[cnt] = coef->at(j);
-				if (cnt<5)
-					printf("ia[%i]:%i ja[%i]%i ar[%i]%f\n", cnt, ia[cnt], cnt, ja[cnt], cnt, ar[cnt]); 
+				//if (cnt<5)
+				//	printf("ia[%i]:%i ja[%i]%i ar[%i]%f\n", cnt, ia[cnt], cnt, ja[cnt], cnt, ar[cnt]); 
 
 				cnt++;
 			}
+			c_cnt++; 
 		}
+		assert(c_cnt==num_constraints); 
 
 		bool any_binary = false; 
 		glp_add_cols(lp, qp->num_var);
@@ -234,59 +311,59 @@ vector<double> solve_lp_glpk(QP* qp, bool& success)
 		delete ja; 
 
 
-#ifdef DEBUG_GLPK
-		// check constraints
-		for(int i=0;i<num_constraints;i++)
-		{
-			
-			vector<int>* idx = NULL;
-			vector<float>* coef = NULL;
-			int ret = qp->A.get(&idx, &coef, i);
-			assert(idx!=NULL);
-			assert(coef!=NULL);
-			assert(ret>0);
-			assert(idx->size()==coef->size());
-
-			double left = 0.0;
-			for (int j=0; j<idx->size(); j++)
-			{
-				//printf("%i->%f ", idx->at(j)+1, coef->at(j));
-				left += coef->at(j)*res[idx->at(j)]; 
-			}
-			if (qp->eq_idx[i]>0.5 && (left-qp->b[i]>1e-2 || qp->b[i]-left>1e-2))
-			{
-				printf("violated constraint %i: left:%.3f, b:%.3f equality:%i\n", i, left, qp->b[i], qp->eq_idx[i]);
-			}
-			else if (left-qp->b[i]>1e-2)
-			{
-				printf("violated constraint %i: left:%.3f, b:%.3f equality:%i\n", i, left, qp->b[i], qp->eq_idx[i]);
-				for (int j=0; j<idx->size(); j++)
-					printf("%i->%.3f res:%.3f ", idx->at(j), coef->at(j), res[idx->at(j)]);
-			}
-		}
-
-		// compute objective
-		double obj = 0.0;
-		for(int i=0;i<qp->num_var;i++)
-		{
-		 	obj+=qp->F[i]*res[i];
-		}
-		printf("my obj is: %.3f\n", obj); 
-
-		//check box constraints
-		for(int i=0;i<qp->num_var;i++)
-		{
-			if ( res[i]>qp->lb[i]-1e-3 && res[i]<qp->ub[i]+1e-3)
-			{}
-			else 
-				printf("box constraint violated: %i (%.3f<=%.3f<=%.3f) binary:%i\n", i, qp->lb[i], res[i], qp->ub[i], qp->binary_idx[i]);
-			if (qp->binary_idx[i]>0.5)
-			{
-				if ((res[i]-1>1e-3 || 1-res[i]>1e-3) && (res[i]>1e-3 || -res[i]>1e-3))
-					printf("binary constraint violated: %i\n", i);
-			}		
-		}
-#endif
+//#ifdef DEBUG_GLPK
+//		// check constraints
+//		for(int i=0;i<num_constraints;i++)
+//		{
+//			
+//			vector<int>* idx = NULL;
+//			vector<float>* coef = NULL;
+//			int ret = qp->A.get(&idx, &coef, i);
+//			assert(idx!=NULL);
+//			assert(coef!=NULL);
+//			assert(ret>0);
+//			assert(idx->size()==coef->size());
+//
+//			double left = 0.0;
+//			for (int j=0; j<idx->size(); j++)
+//			{
+//				//printf("%i->%f ", idx->at(j)+1, coef->at(j));
+//				left += coef->at(j)*res[idx->at(j)]; 
+//			}
+//			if (qp->eq_idx[i]>0.5 && (left-qp->b[i]>1e-2 || qp->b[i]-left>1e-2))
+//			{
+//				printf("violated constraint %i: left:%.3f, b:%.3f equality:%i\n", i, left, qp->b[i], qp->eq_idx[i]);
+//			}
+//			else if (left-qp->b[i]>1e-2)
+//			{
+//				printf("violated constraint %i: left:%.3f, b:%.3f equality:%i\n", i, left, qp->b[i], qp->eq_idx[i]);
+//				for (int j=0; j<idx->size(); j++)
+//					printf("%i->%.3f res:%.3f ", idx->at(j), coef->at(j), res[idx->at(j)]);
+//			}
+//		}
+//
+//		// compute objective
+//		double obj = 0.0;
+//		for(int i=0;i<qp->num_var;i++)
+//		{
+//		 	obj+=qp->F[i]*res[i];
+//		}
+//		printf("my obj is: %.3f\n", obj); 
+//
+//		//check box constraints
+//		for(int i=0;i<qp->num_var;i++)
+//		{
+//			if ( res[i]>qp->lb[i]-1e-3 && res[i]<qp->ub[i]+1e-3)
+//			{}
+//			else 
+//				printf("box constraint violated: %i (%.3f<=%.3f<=%.3f) binary:%i\n", i, qp->lb[i], res[i], qp->ub[i], qp->binary_idx[i]);
+//			if (qp->binary_idx[i]>0.5)
+//			{
+//				if ((res[i]-1>1e-3 || 1-res[i]>1e-3) && (res[i]>1e-3 || -res[i]>1e-3))
+//					printf("binary constraint violated: %i\n", i);
+//			}		
+//		}
+//#endif
 
 		return res;
 }

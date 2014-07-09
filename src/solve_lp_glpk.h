@@ -5,6 +5,7 @@
 #include <vector>
 	using std::vector;
 
+void simplify(QP* qp);	
 vector<double> solve_lp_glpk(QP* qp, bool& success);	
 
 #endif

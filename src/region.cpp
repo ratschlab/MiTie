@@ -40,6 +40,7 @@ Region::Region(int pstart, int pstop, int pchr_num, char pstrand, const char* gi
 		return;
 	}
 }
+
 /** constructor*/
 Region::Region(int pstart, int pstop, int pchr_num, char pstrand)
 {
@@ -52,6 +53,7 @@ Region::Region(int pstart, int pstop, int pchr_num, char pstrand)
 	fd_out = stdout;
 	gio = NULL;
 }
+
 /** constructor*/
 Region::Region(int pstart, int pstop, char* pchr, char pstrand)
 {
@@ -65,6 +67,7 @@ Region::Region(int pstart, int pstop, char* pchr, char pstrand)
 	fd_out = stdout;
 	gio = NULL;
 }
+
 /** constructor*/
 Region::Region(Region* reg)
 {
