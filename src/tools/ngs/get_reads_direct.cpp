@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "sam.h"
+#include "bam.h"
 #include "get_reads_direct.h"
 
 #include <vector>
@@ -23,6 +24,13 @@ typedef struct {
     uint64_t u, v;
 } pair64_t;
 
+typedef struct {
+
+	unsigned long num_reads; 
+	vector<CRead>* reads; 
+
+} read_buf; 
+
 static inline int is_overlap(uint32_t beg, uint32_t end, const bam1_t *b)
 {
     uint32_t rbeg = b->core.pos;
@@ -30,9 +38,33 @@ static inline int is_overlap(uint32_t beg, uint32_t end, const bam1_t *b)
     return (rend > beg && rbeg < end);
 }
 
+// callback function for bam_fetch
+static int fetch_func(const bam1_t* b, void* data)
+{
+	read_buf* rbuf = (read_buf*) data; 
+
+	if (rbuf->reads->size()<rbuf->num_reads+1)
+	{
+		int num_new;
+		if (rbuf->num_reads<1e6)
+			num_new = 10000+rbuf->num_reads*2;
+		else if (rbuf->num_reads<1e7)
+			num_new = rbuf->num_reads*1.5;
+		else 
+			num_new = rbuf->num_reads*1.2;
+
+		rbuf->reads->resize(num_new);
+	}
+	CRead* read = &(rbuf->reads->at(rbuf->num_reads));
+	parse_cigar(b, read);
+	rbuf->num_reads++; 
+
+	return 0;
+}
+
 pair64_t * get_chunk_coordinates(const bam_index_t *idx, int tid, int beg, int end, int* cnt_off);
 
-  int bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int end, void *data, bam_header_t* header, vector<CRead*>* reads, char strand);
+int bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int end, void *data, bam_header_t* header, vector<CRead*>* reads, char strand);
 
 // callback for bam_plbuf_init()
 static int pileup_func(uint32_t tid, uint32_t pos, int n, const bam_pileup1_t *pl, void *data)
@@ -64,7 +96,7 @@ int get_reads_from_bam(char* filename, char* region, vector<CRead>* reads, char 
 	}
 	int ref;
 	bam_index_t *idx;
-	bam_plbuf_t *buf;
+	//bam_plbuf_t *buf;
 	idx = bam_index_load(filename); // load BAM index
 	if (idx == 0) {
 		fprintf(stderr, "BAM indexing file is not available.\n");
@@ -80,14 +112,19 @@ int get_reads_from_bam(char* filename, char* region, vector<CRead>* reads, char 
 		return 1;
 	}
 
-	buf = bam_plbuf_init(pileup_func, &tmp); // initialize pileup
+	//buf = bam_plbuf_init(pileup_func, &tmp); // initialize pileup
 
-	my_bam_fetch_reads(tmp.in->x.bam, idx, ref, tmp.beg, tmp.end, buf, tmp.in->header, reads, strand);
+	read_buf rbuf; 
+	rbuf.reads = reads; 
+	rbuf.num_reads = reads->size(); 
+	bam_fetch(tmp.in->x.bam, idx, ref, tmp.beg, tmp.end, &rbuf, fetch_func);
+	reads->resize(rbuf.num_reads);
+	//my_bam_fetch_reads(tmp.in->x.bam, idx, ref, tmp.beg, tmp.end, buf, tmp.in->header, reads, strand);
 	//fprintf(stdout, "intron_list: %d \n", intron_list->size());
 
-	bam_plbuf_push(0, buf); // finalize pileup
+	//bam_plbuf_push(0, buf); // finalize pileup
 	bam_index_destroy(idx);
-	bam_plbuf_destroy(buf);
+	//bam_plbuf_destroy(buf);
 	samclose(tmp.in);
 	return 0;
 }
@@ -140,7 +177,7 @@ int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int
 							reads->resize(num_new);
 						}
 						CRead* read = &(reads->at(num_reads));
-						parse_cigar(b, read, header);
+						parse_cigar(b, read);
 
 						//printf("read->start_pos: %i", read->start_pos);
 						if (strand == '0' || strand==read->strand[0] || read->strand[0]=='0')
@@ -183,7 +220,7 @@ int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int
 	return 0;
 }
 
-void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header)
+void parse_cigar(const bam1_t* b, CRead* read)
 {
 	read->left = (b->core.flag & left_flag_mask) >0;
 	read->right = (b->core.flag & right_flag_mask) >0;
@@ -260,52 +297,77 @@ void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header)
 		}
 	}
 	// parse auxiliary data
-    uint8_t* s = bam1_aux(b);
-	uint8_t* end = b->data + b->data_len; 
-	while (s < end) 
+	uint8_t* val = bam_aux_get(b, "XS");
+	if (val)
 	{
-		 uint8_t type, key[2];
-		 key[0] = s[0]; key[1] = s[1];
-		 s += 2; type = *s; ++s;
-		 //fprintf(stdout, "\n%c%c:%c\n", key[0], key[1], type);
-		 if (type == 'A')
-		 {
-			if ( key[0] =='X' && key[1] == 'S')
-			{
-				read->set_strand((char) *s);
-			}
-		 	++s;
-		 }
-		else if (type == 'C')
-		{ 
-			if ( key[0] =='H' && key[1] == '0')
-			{
-				uint8_t matches = *s;
-				read->matches = (int) matches;
-			}
-			if ( key[0] =='N' && key[1] == 'M')
-			{
-				uint8_t mismatches = *s;
-				read->mismatches = (int) mismatches;
-			}
-			if ( key[0] =='H' && key[1] == 'I')
-			{
-				uint8_t mai = *s;
-				read->multiple_alignment_index = (int) mai;
-			}
-
-			++s;
-		}
-		else if (type == 'c') { ++s; }
-		else if (type == 'S') { s += 2;	}
-		else if (type == 's') { s += 2;	}
-		else if (type == 'I') { s += 4; }
-		else if (type == 'i') { s += 4; }
-		else if (type == 'f') { s += 4;	}
-		else if (type == 'd') { s += 8;	}
-		else if (type == 'Z') { ++s; }
-		else if (type == 'H') { ++s; }
+		char strand = bam_aux2A(val);
+		if (strand != '+' && strand != '-')
+			strand = '.'; 
+		 read->set_strand(strand); 
 	}
+	val = bam_aux_get(b, "NM");
+	if (val)
+	{
+		read->mismatches = bam_aux2i(val);
+	}
+	val = bam_aux_get(b, "H0");
+	if (val)
+	{
+		read->matches = bam_aux2i(val);
+	}
+	val = bam_aux_get(b, "HI");
+	if (val)
+	{
+		read->multiple_alignment_index = bam_aux2i(val);
+	}
+
+
+    //uint8_t* s = bam1_aux(b);
+	//uint8_t* end = b->data + b->data_len; 
+	//while (s < end) 
+	//{
+	//	 uint8_t type, key[2];
+	//	 key[0] = s[0]; key[1] = s[1];
+	//	 s += 2; type = *s; ++s;
+	//	 //fprintf(stdout, "\n%c%c:%c\n", key[0], key[1], type);
+	//	 if (type == 'A')
+	//	 {
+	//		if ( key[0] =='X' && key[1] == 'S')
+	//		{
+	//			read->set_strand((char) *s);
+	//		}
+	//	 	++s;
+	//	 }
+	//	else if (type == 'C')
+	//	{ 
+	//		if ( key[0] =='H' && key[1] == '0')
+	//		{
+	//			uint8_t matches = *s;
+	//			read->matches = (int) matches;
+	//		}
+	//		if ( key[0] =='N' && key[1] == 'M')
+	//		{
+	//			uint8_t mismatches = *s;
+	//			read->mismatches = (int) mismatches;
+	//		}
+	//		if ( key[0] =='H' && key[1] == 'I')
+	//		{
+	//			uint8_t mai = *s;
+	//			read->multiple_alignment_index = (int) mai;
+	//		}
+
+	//		++s;
+	//	}
+	//	else if (type == 'c') { ++s; }
+	//	else if (type == 'S') { s += 2;	}
+	//	else if (type == 's') { s += 2;	}
+	//	else if (type == 'I') { s += 4; }
+	//	else if (type == 'i') { s += 4; }
+	//	else if (type == 'f') { s += 4;	}
+	//	else if (type == 'd') { s += 8;	}
+	//	else if (type == 'Z') { ++s; }
+	//	else if (type == 'H') { ++s; }
+	//}
 
 	//if (read->strand[0]=='0' && strand_from_flag)
 	//{

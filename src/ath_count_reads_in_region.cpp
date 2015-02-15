@@ -6,10 +6,10 @@
 #include <algorithm>
 #include <assert.h>
 #include "bam.h"
-#include "region.h"
+#include "bam_region.h"
 #include "get_reads_direct.h"
 #include <fstream>
-#include "tools.h"
+#include "tools_bam.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
 	}
 
 	FILE* fd_null = fopen("/dev/null", "w");
-	vector<Region*> regions = parse_regions(fn_regions);
+	vector<Bam_Region*> regions = parse_bam_regions(fn_regions);
 	printf("read %i regions from file: %s\n", (int)regions.size(), fn_regions);
 
 	int** read_counts = new int*[regions.size()];

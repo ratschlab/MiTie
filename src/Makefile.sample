@@ -1,0 +1,77 @@
+
+
+### general
+#CXX = g++ -O9
+CXXFLAGS += -g
+NGS = tools/ngs
+NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp 
+
+### samtools
+SAMDIR = tools/samtools
+INCLUDE_DIRS += ${SAMDIR}
+LD_DIRS += ${SAMDIR}
+LIBS += bam z curses pthread 
+
+### MITIE tools
+GENOME = tools/genome/
+GENOME_TOOLS = ${GENOME}/genome.cpp ${GENOME}/genome_tools.cpp
+MITIE_CPP = bam_region.cpp region.cpp eval.cpp
+TOOLS_DIR = tools/
+TOOLS = ${TOOLS_DIR}file_stats.cpp ${TOOLS_DIR}gtf_tools.cpp ${TOOLS_DIR}tools.cpp ${TOOLS_DIR}tools_bam.cpp ${TOOLS_DIR}math_tools.cpp ${TOOLS_DIR}graph_tools.cpp ${TOOLS_DIR}basic_tools.cpp
+TOOLS_O = $(TOOLS:.cpp=.o)
+GENOME_TOOLS_O = $(GENOME_TOOLS:.cpp=.o)
+NGS_TOOLS_O = $(NGS_TOOLS:.cpp=.o)
+MITIE_O = $(MITIE_CPP:.cpp=.o)
+ALL_O = ${MITIE_O} ${NGS_TOOLS_O} ${GENOME_TOOLS_O} ${TOOLS_O}
+
+#### Mex utils
+MEX_UTILS = tools/mex/
+
+### combine 
+INCLUDE_DIRS += . ${NGS} ${GENOME} ${TOOLS_DIR}
+
+CPPFLAGS += $(foreach includedir,$(INCLUDE_DIRS),-I$(includedir))
+LDFLAGS += $(foreach librarydir,$(LD_DIRS),-L$(librarydir))
+LDFLAGS += $(foreach library,$(LIBS),-l$(library))
+
+.PHONY: all clean 
+
+all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_gtf transcript_prediction 
+all: subfolders eval_quant define_regions generate_segment_graph ath_count_reads_in_region eval_gtf transcript_prediction visualize_predictions
+
+subfolders:
+	@echo "##################################################" 
+	@echo "# compiling samtools"
+	@echo "##################################################" 
+	$(MAKE) -C tools/samtools
+
+define_regions: define_regions.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) define_regions.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o define_regions
+
+generate_segment_graph: generate_segment_graph.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) generate_segment_graph.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o generate_segment_graph
+
+transcript_prediction: transcript_prediction.cpp QP.o ${ALL_O} ${GLPK} ${CPLEX}
+	$(CXX) $(CXXFLAGS) transcript_prediction.cpp QP.o ${CPLEX} ${ALL_O} $(CPPFLAGS) $(LDFLAGS) ${GLPK} ${CPLEX_FLAGS} -o transcript_prediction
+
+ath_count_reads_in_region: ath_count_reads_in_region.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) ath_count_reads_in_region.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o ath_count_reads_in_region
+
+eval_gtf: eval_gtf.o ${ALL_O}
+	$(CXX) $(CXXFLAGS) eval_gtf.o ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o eval_gtf
+
+eval_quant: eval_quant.cpp
+	${CXX} eval_quant.cpp -o eval_quant -I. -Itools tools/basic_tools.cpp
+
+visualize_predictions: visualize_predictions.o ${ALL_O}
+	${CXX} visualize_predictions.cpp ${ALL_O} $(CPPFLAGS) $(LDFLAGS) -o visualize_predictions 
+
+clean:
+	@- $(RM) $(MITIE_O)
+	@- $(RM) $(TOOLS_O)
+	@- $(RM) $(GENOME_TOOLS_O)
+	@- $(RM) $(NGS_TOOLS_O)
+	@- $(RM) define_regions generate_segment_graph transcript_prediction ath_count_reads_in_region eval_gtf eval_quant visualize_predictions
+	$(MAKE) -C tools/samtools clean
+
+

@@ -10,18 +10,16 @@
   using std::sort;
   using std::min;
   using std::max;
-#include <region.h>
-#include "bam.h"
 
 bool compare_second(segment intr1, segment intr2);
 
 vector<char*> separate(char* str, char sep);
 
-vector<Region*> parse_regions(char* fn_regions);
-
 void write_regions(vector<Region*> regions, FILE* fd);
 
-void set_chr_num(Region* reg, bam_header_t* header);
+vector<Region*> parse_regions(char* fn_regions); 
+
+vector<Region*> parse_bed(char* fn_regions); 
 
 // interval overlapp code
 ////////////////////////////////////////////////////////////////////////////////
@@ -43,5 +41,6 @@ void scan(interval_t f, vector<interval_t>* Wf, interval_t g, vector<interval_t>
 vector<int> interval_overlap(vector<int> starts1, vector<int> stops1, vector<int> starts2, vector<int>stops2);
 
 vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> regions2);
+
 
 #endif 

@@ -11,11 +11,16 @@ vector<char*> get_fields(char* line);
 
 vector<Region*> parse_gtf(char* gtf_file);
 
+vector<Region*> parse_gtf(char* gtf_file, char* gene_name);
+
 vector<Region*> parse_gff(char* gtf_file);
 
 vector<Region*> parse_gff(char* gtf_file, const char* link_tag);
 
-void write_gff(vector<Region*> regions, char* fname, const char* source);
+
+void write_gtf(FILE* fd, Region* region, const char* source);
+
+void write_gff(FILE* fd, Region* region, const char* source);
 
 vector<Region*> regions_from_map(map<string, Region*> transcripts);
 

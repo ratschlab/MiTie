@@ -28,7 +28,11 @@
 #ifndef BCF_H
 #define BCF_H
 
-#define BCF_VERSION "0.1.17-dev (r973:277)"
+#ifndef VERSION
+#define BCF_VERSION "0.1.19+"
+#else
+#define BCF_VERSION VERSION
+#endif
 
 #include <stdint.h>
 #include <zlib.h>
@@ -63,6 +67,7 @@ typedef struct {
 	// derived info: fmt, len (<-bcf1_t::fmt)
 } bcf_ginfo_t;
 
+/* BCF record structure */
 typedef struct {
 	int32_t tid, pos; // refID and 0-based position
 	int32_t l_str, m_str; // length and the allocated size of ->str
@@ -73,6 +78,7 @@ typedef struct {
 	bcf_ginfo_t *gi; // array of geno fields
 	int n_alleles, n_smpl; // number of alleles and samples
 	// derived info: ref, alt, flt, info, fmt (<-str), n_gi (<-fmt), n_alleles (<-alt), n_smpl (<-bcf_hdr_t::n_smpl)
+    uint8_t *ploidy;    // ploidy of all samples; if NULL, ploidy of 2 is assumed.
 } bcf1_t;
 
 typedef struct {
@@ -122,6 +128,10 @@ extern "C" {
 	char *bcf_fmt(const bcf_hdr_t *h, bcf1_t *b);
 	// append more info
 	int bcf_append_info(bcf1_t *b, const char *info, int l);
+    // remove tag
+    int remove_tag(char *string, const char *tag, char delim);
+    // remove info tag, string is the kstring holder of bcf1_t.str
+    void rm_info(kstring_t *string, const char *key);
 	// copy
 	int bcf_cpy(bcf1_t *r, const bcf1_t *b);
 
@@ -142,6 +152,8 @@ extern "C" {
 
 	// keep the first n alleles and discard the rest
 	int bcf_shrink_alt(bcf1_t *b, int n);
+    // keep the masked alleles and discard the rest
+	void bcf_fit_alt(bcf1_t *b, int mask);
 	// convert GL to PL
 	int bcf_gl2pl(bcf1_t *b);
 	// if the site is an indel

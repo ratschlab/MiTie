@@ -9,6 +9,7 @@
 	using std::max;
 #include <fstream>
 #include "tools.h"
+#include "bam_region.h"
 
 /*
 */
@@ -22,67 +23,46 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
 	char* fname = get_string(prhs[0]);
 	
-	int num_return = get_int(prhs[1]);
-	static std::ifstream ifs;
-	if (num_return<0 && ifs && ifs.is_open())
-	{
-		printf("load_regions_bin: closing binary file\n"); 
-		ifs.close();
-		return;
-	}
+	int gene_id = get_int(prhs[1]);
 
 	vector<char*> bam_files;
 	for (int i=2; i<nrhs; i++)
 		bam_files.push_back(get_string(prhs[i]));
 		
-	printf("load_regions_bin: found %i samples\n", (int)bam_files.size());
+	//printf("load_regions_bin: found %i samples\n", (int)bam_files.size());
 	vector<vector<char*> > samples;
 	for (int i=0; i<bam_files.size(); i++)
 	{
-		printf("Sample %i:\n", i+1);
+		//printf("Sample %i:\n", i+1);
 		vector<char*> bams = separate(bam_files[i], ',');
-		for (int j = 0; j<bams.size(); j++)
-			printf("\t%s\n", bams[j]);
+		//for (int j = 0; j<bams.size(); j++)
+		//	printf("\t%s\n", bams[j]);
 
 		samples.push_back(bams);
 	}
-
-	if (!ifs.is_open())
-	{
-		printf("load_regions_bin: opening binary file\n"); 
-		ifs.open(fname, std::ios::binary);
-	}
 	FILE* fd_null = fopen("/dev/null", "w");
 
-	vector<Region*> regions; 
+	vector<Bam_Region*> regions; 
 	int cnt = 0;
-	//while (!ifs.eof()&& cnt<num_return)
-	while (ifs.good()&& cnt<num_return)
 	{
-		if ((cnt++)%100==0)
-			printf("\r %i", cnt);
-		Region* r = new Region();
-		int ret = r->read_binary(&ifs);
-		// TODO load reads and compute coverage and intron counts
-		if (!ifs.eof() && ret==0)
+		Bam_Region* r = new Bam_Region();
+		int ret = r->read_HDF5(fname, gene_id);
+		if (ret==0)
 			regions.push_back(r);
 		else
 		{
-			printf("read from file %s, %i, read %lu regions\n", fname, ret, regions.size());
+			printf("could not read gene %i from file: %s\n", gene_id, fname);
 			delete r;
-			break;
+			exit(-1);
 		}
 	}
-
-
-	//ifs.close();
 	//r->write_segment_graph(stdout);
 
 	const char *field_names[] = {"chr", "strand", "start", "stop", "segments", "coverage", "seg_admat", "transcripts", "transcript_names", "pair_mat"};
 	int nof_fields = 10;
 
 	int num = regions.size();
-	printf("\nparsed %i regions from file\n", num);
+	//printf("\nparsed %i regions from file\n", num);
 
 	mwSize dims[2] = {1, num};
 	plhs[0] = mxCreateStructArray(2, dims, nof_fields, field_names);
@@ -241,7 +221,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 	}
 
+
 	// cleanup
 	for (int j=0; j<num; j++)
 		delete regions[j];
+	
+	fclose(fd_null);
 }

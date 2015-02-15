@@ -23,6 +23,6 @@ int get_reads_from_bam(char* filename, char* region, vector<CRead>* reads, char 
 
 int my_bam_fetch_reads(bamFile fp, const bam_index_t *idx, int tid, int beg, int end, void *data, bam_header_t* header, vector<CRead>* reads, char strand);
 
-void parse_cigar(bam1_t* b, CRead* read, bam_header_t* header);
+void parse_cigar(const bam1_t* b, CRead* read);
 
 #endif

@@ -11,6 +11,8 @@
 #include <algorithm>
 #include "region.h"
 #include "tools.h"
+#include "basic_tools.h"
+#include <limits> 
 
 char* get_attribute(char* line, const char* tag)
 {
@@ -46,22 +48,6 @@ char* get_attribute(char* line, const char* tag)
 	return result;
 }
 
-vector<char*> get_fields(char* line)
-{
-	vector<char*> ret;
-	int i=0;
-	ret.push_back(line);
-	while (line[i]!=0)
-	{
-		if (line[i]=='\t')
-		{
-			line[i]=0;
-			ret.push_back(line+i+1);
-		}
-		i++;
-	}
-	return ret;
-}
 const char* determine_format(char* filename)
 {
 	return determine_format(filename, "Parent");
@@ -94,11 +80,17 @@ const char* determine_format(char* filename, const char* gff_link_tag)
 
 		char* tr_id = strstr(fields[8], "transcript_id");
 		if (tr_id)
+		{
+			ret = "gtf";
 			trid_cnt++;
+		}
 
 		char* parent = strstr(fields[8], gff_link_tag);
 		if (parent)
+		{
+			ret = "gff3";
 			parent_cnt++;
+		}
 
 		if (parent_cnt>10 && trid_cnt==0)
 		{
@@ -203,6 +195,18 @@ vector<Region*> parse_gff(char* gtf_file, const char* link_tag)
 			segment* seg = new segment;
 			seg->first = start;
 			seg->second = stop;
+			if (strcmp(type, "five_prime_UTR")==0)
+				seg->flag = 5;
+			else if (strcmp(type, "three_prime_UTR")==0)
+				seg->flag = 3;
+			else if (strcmp(type, "CDS")==0)
+				seg->flag = 4;
+			else	
+			{
+				printf("Invalid exon type: %s\n", type);
+				exit(-1);
+			}
+
 			Region* reg = transcripts[transcript_id];
 			if (!reg)
 			{
@@ -210,21 +214,8 @@ vector<Region*> parse_gff(char* gtf_file, const char* link_tag)
 				transcripts[transcript_id] = reg;
 				vector<segment> vec;
 				reg->transcripts.push_back(vec);
-				vector<int> flags;
-				reg->coding_flag.push_back(flags);
 			}
 			reg->transcripts[0].push_back(*seg);
-			if (strcmp(type, "five_prime_UTR")==0)
-				reg->coding_flag[0].push_back(5);
-			else if (strcmp(type, "three_prime_UTR")==0)
-				reg->coding_flag[0].push_back(3);
-			else if (strcmp(type, "CDS")==0)
-				reg->coding_flag[0].push_back(4);
-			else	
-			{
-				printf("Invalid exon type: %s\n", type);
-				exit(-1);
-			}
 
 			delete seg;
 		}
@@ -237,9 +228,77 @@ vector<Region*> parse_gff(char* gtf_file, const char* link_tag)
 	return regions;
 }
 
-void write_gff(vector<Region*> regions, char* fname, const char* source)
+void write_gtf(FILE* fd, Region* region, const char* source)
 {
-	
+	int start = std::numeric_limits<int>::max();
+	int end = 0;
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		if (region->transcripts[i].size()==0)
+			continue; 
+		if (region->transcripts[i].front().first<start)
+			start = region->transcripts[i].front().first;
+		if (region->transcripts[i].back().second>end)
+			end = region->transcripts[i].back().second;
+	}
+
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		if (region->transcripts[i].size()==0)
+			continue; 
+
+		assert(i<region->transcript_names.size());
+		start = region->transcripts[i].front().first;
+		end = region->transcripts[i].back().second;
+		if (region->gene_names.size()>i)
+			fprintf(fd, "%s\t%s\ttranscript\t%i\t%i\t.\t%c\t.\tgene_id \"%s\"; transcript_id \"%s\"\n", region->chr, source, start, end, region->strand, region->gene_names[i].c_str(), region->transcript_names[i].c_str());
+		else
+			fprintf(fd, "%s\t%s\ttranscript\t%i\t%i\t.\t%c\t.\ttranscript_id \"%s\"\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
+
+		for (uint j=0; j<region->transcripts[i].size(); j++)
+		{
+			start = region->transcripts[i][j].first;
+			end = region->transcripts[i][j].second;
+			fprintf(fd, "%s\t%s\texon\t%i\t%i\t.\t%c\t.\ttranscript_id \"%s\"\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
+		}
+	}
+}
+
+void write_gff(FILE* fd, Region* region, const char* source)
+{
+	int start = std::numeric_limits<int>::max();
+	int end = 0;
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		assert(region->transcripts[i].size()>0);
+		if (region->transcripts[i].front().first<start)
+			start = region->transcripts[i].front().first;
+		if (region->transcripts[i].back().second>end)
+			end = region->transcripts[i].back().second;
+	}
+	for (uint i=0; i<region->transcripts.size(); i++)
+	{
+		assert(i<region->transcript_names.size());
+		start = region->transcripts[i].front().first;
+		end = region->transcripts[i].back().second;
+		fprintf(fd, "%s\t%s\tmRNA\t%i\t%i\t.\t%c\t.\tID=%s\n", region->chr, source, start, end, region->strand, region->transcript_names[i].c_str());
+		for (uint j=0; j<region->transcripts[i].size(); j++)
+		{
+			char tag[1000];
+			if (region->transcripts[i][j].flag==3)
+				sprintf(tag, "three_prime_UTR"); 
+			else if (region->transcripts[i][j].flag==4)
+				sprintf(tag, "CDS"); 
+			else if (region->transcripts[i][j].flag==5)
+				sprintf(tag, "five_prime_UTR"); 
+			else
+				sprintf(tag, "exon");
+
+			start = region->transcripts[i][j].first;
+			end = region->transcripts[i][j].second;
+			fprintf(fd, "%s\t%s\t%s\t%i\t%i\t.\t%c\t.\tParent=%s\n", region->chr, source, tag, start, end, region->strand, region->transcript_names[i].c_str());
+		}
+	}
 }
 
 vector<Region*> regions_from_map(map<string, Region*> transcripts)
@@ -256,16 +315,10 @@ vector<Region*> regions_from_map(map<string, Region*> transcripts)
 		// sort exons
 		sort(reg->transcripts[0].begin(), reg->transcripts[0].end(), compare_second);
 
-		if (reg->coding_flag.size()>0)
-		{
-			sort(reg->coding_flag[0].begin(), reg->coding_flag[0].end());
-			if (reg->strand=='+')
-				reverse(reg->coding_flag[0].begin(), reg->coding_flag[0].end());
-		}
-		//printf("coding flag: \n");
-		//for (uint i=0; i<reg->coding_flag[0].size(); i++)
-		//	printf("%i, ", reg->coding_flag[0][i]);
-		//printf("\n");
+		// warn if exons overlapp
+		for (unsigned int i=1; i<reg->transcripts[0].size(); i++)
+			if (reg->transcripts[0][i-1].second>=reg->transcripts[0][i].first && reg->transcripts[0][i-1].flag==reg->transcripts[0][i].flag)
+				printf("\nWarning: found overlapping exons in transcript %s: (%i %i) (%i %i)\n", transcript_id.c_str(), reg->transcripts[0][i-1].first, reg->transcripts[0][i-1].second, reg->transcripts[0][i].first, reg->transcripts[0][i].second);
 
 		// addjust start and stop
 		reg->start = reg->transcripts[0].front().first;
@@ -310,7 +363,7 @@ vector<Region*> merge_overlapping_regions(vector<Region*> regions)
 				// append transcripts of r2 to r1
 				r1->transcripts.insert(r1->transcripts.end(), r2->transcripts.begin(), r2->transcripts.end()); 
 				r1->transcript_names.insert(r1->transcript_names.end(), r2->transcript_names.begin(), r2->transcript_names.end()); 
-				r1->coding_flag.insert(r1->coding_flag.end(), r2->coding_flag.begin(), r2->coding_flag.end()); 
+				r1->gene_names.insert(r1->gene_names.end(), r2->gene_names.begin(), r2->gene_names.end()); 
 
 				r1->start = std::min(r1->start, r2->start);
 				r1->stop = std::max(r1->stop, r2->stop);
@@ -329,9 +382,14 @@ vector<Region*> merge_overlapping_regions(vector<Region*> regions)
 	}
 	return regions;
 }
+
 vector<Region*> parse_gtf(char* gtf_file)
 {
-	
+	return parse_gtf(gtf_file, NULL);
+}
+
+vector<Region*> parse_gtf(char* gtf_file, char* gene_name)
+{
 	FILE* fd = fopen(gtf_file, "r");
 	if (!fd)
 	{
@@ -369,14 +427,30 @@ vector<Region*> parse_gtf(char* gtf_file)
 		char* chr = fields[0];
 
 		// parse exons
-		if (strcmp(type, "exon")==0)
+		if (strcmp(type, "exon")==0 || strcmp(type, "CDS")==0)
 		{
 			char* tr_id = get_attribute(fields[8], "transcript_id");
+			char* gene_id = get_attribute(fields[8], "gene_id");
+			char* c_gene_name = get_attribute(fields[8], "gene_name");
 			if (!tr_id)
 			{
 				printf("Could not find transcript_id: %s\n", fields[8]);
 				exit(-1);
 			}
+
+			if (gene_name)
+			{
+				bool skip=true;
+				if (gene_id && strcmp(gene_name, gene_id)==0)
+					skip=false;
+				if (c_gene_name && strcmp(gene_name, c_gene_name)==0)
+					skip=false;
+				if (strcmp(gene_name, tr_id)==0)
+					skip=false;
+				if (skip)
+					continue;
+			}
+
 			string transcript_id(tr_id);
 			delete[] tr_id;
 
@@ -386,6 +460,13 @@ vector<Region*> parse_gtf(char* gtf_file)
 			segment* seg = new segment;
 			seg->first = start;
 			seg->second = stop;
+			if (strcmp(type, "exon")==0)
+				seg->flag = 5;
+			else if (strcmp(type, "CDS")==0)
+				seg->flag = 4;
+			else
+				assert(false);
+
 			Region* reg = transcripts[transcript_id];
 			if (!reg)
 			{
@@ -393,14 +474,125 @@ vector<Region*> parse_gtf(char* gtf_file)
 				transcripts[transcript_id] = reg;
 				vector<segment> vec;
 				reg->transcripts.push_back(vec);
+				if (gene_id)
+					reg->gene_names.push_back(string(gene_id));
+				else 
+					reg->gene_names.push_back(string("-"));
 			}
 			reg->transcripts[0].push_back(*seg);
+
+			transcript_id.clear();
 			delete seg;
 		}
 		//else
 		//{
 		//	printf("skip over line: %s\n", line);
 		//}
+	}
+
+	// remove duplicated exons ("exon" and "CDS")
+	map<string, Region*>::iterator it;
+	cnt = 0;
+	for (it=transcripts.begin(); it!=transcripts.end(); it++)
+	{
+		cnt++;
+		Region* reg = it->second;
+		// sort exons
+		sort(reg->transcripts[0].begin(), reg->transcripts[0].end(), compare_second);
+
+		// discard duplicated exons and split CDS/UTR exons
+
+		vector<segment>::iterator tit = reg->transcripts[0].begin();
+		tit++;
+		for (; tit != reg->transcripts[0].end(); tit++)
+		{
+			if ((tit-1)->first==tit->first)
+			{
+				if (!((tit-1)->flag==4 || tit->flag==4))
+				{
+					// one should be a CDS exon
+					printf("error: %s (cnt:%i): (%i %i %i)(%i %i %i)\n", it->first.c_str(), cnt, (tit-1)->first, (tit-1)->second, (tit-1)->flag, tit->first, tit->second, tit->flag);
+					exit(-1);
+				}
+				if ((tit-1)->second==tit->second)
+				{
+					tit->flag = -1;//erase
+					(tit-1)->flag=4;
+				}
+				else if ((tit-1)->flag==4)
+				{
+					assert((tit-1)->second<tit->second);
+					tit->first = (tit-1)->second+1;
+				}
+				else if (tit->flag==4)
+				{
+					assert(tit->second<(tit-1)->second);
+					(tit-1)->first = tit->second+1;
+				}
+			}
+			else if ((tit-1)->second==tit->second)
+			{
+				// first is not identical
+				assert(((tit-1)+1)->flag = 4);
+				(tit-1)->second = tit->first-1;
+			}
+			else if ((tit-1)->second>tit->second)
+			{
+				// cds is included in a single exon
+
+				if (tit->flag != 4)
+				{
+					printf("\ntit-1: %i %i %i\n", (tit-1)->first, (tit-1)->second, (tit-1)->flag);
+					printf("tit:   %i %i %i\n", tit->first, tit->second, tit->flag);
+				}
+				assert(tit->flag==4);
+				{
+					// create three exons
+					segment* seg = new segment();
+					seg->first = tit->second+1;
+					seg->second = (tit-1)->second;
+					seg->flag = 5;
+					(tit-1)->second = tit->first-1;
+
+					tit = reg->transcripts[0].insert(tit+1, *seg);
+
+					//printf("insert segment: %i %i %i\n", seg->first, seg->second, seg->flag);
+					delete seg;
+					//for (int jj=0; jj<reg->transcripts[0].size(); jj++)
+					//	printf("seg: %i %i (%i)\n", reg->transcripts[0][jj].first, reg->transcripts[0][jj].second, reg->transcripts[0][jj].flag);
+					//exit(-1);
+				}
+			}
+		}
+
+		// erase exons flagged with -1
+		// and fix coding flags
+		vector<segment> trans;
+		int last_flag = -1;
+		for (tit = reg->transcripts[0].begin(); tit != reg->transcripts[0].end(); tit++)
+		{
+			if (tit->flag != -1)
+				trans.push_back(*tit);
+
+			// gtf files do not distinguish between 5' and 3' UTRs 
+			if (reg->strand == '+')
+			{
+				if ((last_flag == 4 || last_flag == 3) && tit->flag == 5)
+				{
+					tit->flag = 3; 
+				}
+			}
+			if (reg->strand == '-')
+			{
+				if ((last_flag == -1 || last_flag == 3) && tit->flag == 5)
+				{
+					tit->flag = 3; 
+				}
+			}
+			last_flag = tit->flag;
+		}
+		//reg->transcripts[0].clear();
+		reg->transcripts[0] = trans;
 	}
 	
 	vector<Region*> regions = regions_from_map(transcripts);

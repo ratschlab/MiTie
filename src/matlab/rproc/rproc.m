@@ -41,7 +41,7 @@ else
 end ;
 
 if isequal(environment, 'internal'),
-    home_str = '/fml/ag-raetsch/home/';
+    home_str = '/cbio/grlab/home/';
 elseif isequal(environment, 'galaxy'),
     home_str = '/home/' ;
 end
@@ -111,25 +111,25 @@ jobinfo.hard_time_limit = options.hard_time_limit ;
 
 % wait for the previous matlab 
 % the started matlab will remove the call information file
-if ~exist('~/tmp/sge')
+if ~exist('~/tmp/.sge')
   username = whoami ;
-  base_dir = sprintf('%s/sge/tmp/%s',home_str, username) ;
+  base_dir = sprintf('%s/.sge/tmp/%s',home_str, username) ;
   if exist(base_dir)~=7,
     [succ,tmp,tmp]=mkdir(base_dir) ; assert(succ) ;
   end ;
-  tmp_dir = sprintf('%s/sge/tmp/%s/tmp',home_str, username) ;
+  tmp_dir = sprintf('%s/.sge/tmp/%s/tmp',home_str, username) ;
   [succ,tmp,tmp]=mkdir(tmp_dir) ; assert(succ) ;
-  sge_tmp_dir = sprintf('%s/sge/tmp/%s/tmp/sge',home_str, username) ;
+  sge_tmp_dir = sprintf('%s/.sge/tmp/%s/tmp/sge',home_str, username) ;
   [succ,tmp,tmp]=mkdir(sge_tmp_dir) ; assert(succ) ;
 
   [succ,tmp,tmp]=mkdir('~/tmp') ; assert(succ) ;
-  unix(sprintf('ln -s %s ~/tmp/sge',sge_tmp_dir)) ;
+  unix(sprintf('ln -s %s ~/tmp/.sge',sge_tmp_dir)) ;
 end ;
-myassert(exist('~/tmp/sge')==7) ;
+myassert(exist('~/tmp/.sge')==7) ;
 
-if ~exist([dirctry '/sge'])
+if ~exist([dirctry '/.sge'])
   username = whoami ;
-  sge_base_dir = strrep(dirctry, sprintf('/fml/ag-raetsch/home/%s', username), sprintf('%s/sge/tmp/%s',home_str, username)) ;
+  sge_base_dir = strrep(dirctry, sprintf('/cbio/grlab/home/%s', username), sprintf('%s/.sge/tmp/%s',home_str, username)) ;
   if exist(sge_base_dir)~=7,
     succ=unix(sprintf('mkdir -p %s',sge_base_dir)) ; 
     assert(succ==0) ;
@@ -137,22 +137,24 @@ if ~exist([dirctry '/sge'])
   sge_dir = sprintf('%s/sge', sge_base_dir) ;
   [succ,tmp,tmp]=mkdir(sge_dir) ; assert(succ) ;
 
-  unix(sprintf('ln -s %s %s/sge', sge_dir, dirctry)) ;
+  unix(sprintf('ln -s %s %s/.sge', sge_dir, dirctry)) ;
 end ;
 
 %option_str=sprintf(' -l h_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, max(60,time*60)) ;
 
 if use_reservation,
   if Matlab_licenses>0,
-    option_str=sprintf(' -R y -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    %option_str=sprintf(' -R y -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    option_str=sprintf(' -R y -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem, max(60,time*60)) ;
   else
-    option_str=sprintf(' -R y -l h_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, max(60,time*60)) ;
+    option_str=sprintf(' -R y -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem,  max(60,time*60)) ;
   end ;
 else
   if Matlab_licenses>0,
-    option_str=sprintf(' -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    %option_str=sprintf(' -l h_vmem=%iM -l matlab=%1.2f -soft -l h_cpu=%1.0f -hard ', Mem, Matlab_licenses, max(60,time*60)) ;
+    option_str=sprintf(' -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem, max(60,time*60)) ;
   else
-    option_str=sprintf(' -l h_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, max(60,time*60)) ;
+    option_str=sprintf(' -l h_vmem=%iM -l s_vmem=%iM -soft -l h_cpu=%1.0f -hard ', Mem, Mem, max(60,time*60)) ;
   end ;
 end ;
 
@@ -177,9 +179,9 @@ if isfield(options,'nicetohave') && isequal(options.nicetohave,1)
   option_str=[option_str sprintf(' -l nicetohave=1 ')] ;
 end ;  
 
-if isfield(options,'priority') 
-  option_str=[option_str sprintf(' -p %i ', options.priority)] ;
-end ;
+%if isfield(options,'priority') 
+%  option_str=[option_str sprintf(' -p %i ', options.priority)] ;
+%end ;
 if isfield(options,'express') && isequal(options.express,1)
   option_str=[option_str ' -l express '] ;
 end ;
@@ -196,20 +198,25 @@ if isfield(options, 'huangho3')
     option_str = sprintf('%s -l huangho3=%i', option_str, options.huangho3);
 end;
 
+if isfield(options, 'hostname'),
+    option_str = sprintf('%s -l hostname=%s', option_str, options.hostname);
+end;
+
 if isequal(use_engine, 'matlab')
   if isequal(environment, 'internal'),
     if isfield(options,'matlab_v7_0') && isequal(options.matlab_v7_0, 1)
-      bin_str='/fml/ag-raetsch/share/software/matlab-7.0/bin/matlab_rproc -nojvm -nodisplay' ;
+      bin_str='/cbio/grlab/share/software/matlab/matlab-7.0/bin/matlab_rproc -nojvm -nodisplay' ;
     else
-      bin_str = '/fml/ag-raetsch/share/software/matlab-7.6/bin/matlab_rproc -nojvm -nodisplay' ;
+      %bin_str = '/cbio/grlab/share/software/matlab/matlab-7.6/bin/matlab_rproc -nojvm -nodisplay' ;
+      bin_str = '/cbio/grlab/share/software/matlab/matlab_R2012b/bin/matlab_rproc -nojvm -nodisplay' ;
     end ;
   else
     bin_str = '/home/galaxy/matlab-7.6/bin/matlab_rproc -nojvm -nodisplay' ;
   end ;
 elseif isequal(use_engine, 'octave'),
   if isequal(environment, 'internal'),
-    %bin_str = '/fml/ag-raetsch/share/software/octave/x86_64/bin/octave' ;
-    %bin_str = '/fml/ag-raetsch/share/software/octave-3.0.3/bin/octave';
+    %bin_str = '/cbio/grlab/share/software/octave/x86_64/bin/octave' ;
+    %bin_str = '/cbio/grlab/share/software/octave-3.0.3/bin/octave';
     %bin_str = '/usr/bin/octave-3.0.0';
     bin_str = '/usr/bin/octave';
   elseif isequal(environment, 'galaxy'),
@@ -237,6 +244,8 @@ if isfield(options,'ncpus') && ~isempty(options.ncpus) && ~equal(options.ncpus, 
   %option_str=[option_str sprintf(' -pe parallel %i ', options.ncpus)] ;
 end ;
 
+option_str = [option_str ' -R y'];
+
 if isfield(options, 'identifier'),
   identifier = options.identifier ;
 else
@@ -245,21 +254,21 @@ end ;
 
 cc=round(rand(1)*100000) ;
 prefix=sprintf('%s%i-%1.10f', identifier,cc(1),now) ;
-mat_fname=sprintf('~/tmp/sge/%s.mat',prefix) ;
-result_fname=sprintf('~/tmp/sge/%s_result.mat',prefix) ;
-m_fname=sprintf('~/tmp/sge/%s.m',prefix) ;
-while fexist(mat_fname) | fexist(result_fname) | fexist(m_fname),
+mat_fname=sprintf('~/tmp/.sge/%s.mat',prefix) ;
+result_fname=sprintf('~/tmp/.sge/%s_result.mat',prefix) ;
+m_fname=sprintf('~/tmp/.sge/%s.m',prefix) ;
+while fexist(mat_fname) || fexist(result_fname) || fexist(m_fname),
   cc=round(rand(1)*100000) ;
   prefix=sprintf('%s%i-%1.10f', identifier,cc(1), now) ;
-  mat_fname=sprintf('~/tmp/sge/%s.mat',prefix) ;
-  result_fname=sprintf('~/tmp/sge/%s_result.mat',prefix) ;
-  m_fname=sprintf('~/tmp/sge/%s.m',prefix) ;
+  mat_fname=sprintf('~/tmp/.sge/%s.mat',prefix) ;
+  result_fname=sprintf('~/tmp/.sge/%s_result.mat',prefix) ;
+  m_fname=sprintf('~/tmp/.sge/%s.m',prefix) ;
 end ;
 
 
 if ~isfield(options, 'log_fname'),
   clo = clock ;
-  log_fname = sprintf('%s/sge/%s_%s_%i_%i.rproc', dirctry, prefix, ...
+  log_fname = sprintf('%s/.sge/%s_%s_%i_%i.rproc', dirctry, prefix, ...
                       date, clo(4), clo(5)) ;
   qsublog_fname = sprintf('%s.qsubout',log_fname) ;
 else
@@ -279,8 +288,8 @@ save(mat_fname, 'ProcName', 'P1', 'dirctry', 'options', '-v7') ;
 
 if isequal(use_engine, 'matlab'),
   if isequal(environment, 'internal'),
-    evalstring_=['addpath(''/fml/ag-raetsch/share/software/matlab_tools/rproc'') ;'] ;
-    evalstring_=[evalstring_ 'addpath(''/fml/ag-raetsch/share/software/matlab_tools/utils'') ;'] ;
+    evalstring_=['addpath(''/cbio/grlab/share/software/matlab_tools/rproc'') ;'] ;
+    evalstring_=[evalstring_ 'addpath(''/cbio/grlab/share/software/matlab_tools/utils'') ;'] ;
   elseif isequal(environment, 'galaxy'),
     evalstring_=['addpath(''/home/galaxy/svn/tools/rproc'') ;'] ;
     evalstring_=[evalstring_ 'addpath(''/home/galaxy/svn/tools/utils'') ;'] ;
@@ -289,8 +298,8 @@ if isequal(use_engine, 'matlab'),
   end ;
 else
   if isequal(environment, 'internal'),
-    evalstring_=['addpath(''/fml/ag-raetsch/share/software/octave_tools/rproc'') ;'] ;
-    evalstring_=[evalstring_ 'addpath(''/fml/ag-raetsch/share/software/octave_tools/utils'') ;'] ;
+    evalstring_=['addpath(''/cbio/grlab/share/software/octave_tools/rproc'') ;'] ;
+    evalstring_=[evalstring_ 'addpath(''/cbio/grlab/share/software/octave_tools/utils'') ;'] ;
   elseif isequal(environment, 'galaxy'),
     evalstring_=['addpath(''/home/galaxy/svn/tools/rproc'') ;'] ;
     evalstring_=[evalstring_ 'addpath(''/home/galaxy/svn/tools/utils'') ;'] ;
@@ -324,7 +333,8 @@ else
   % start matlab
   str=['echo "' envstr 'hostname; cd ~/matlab; cat ' m_fname '| ' ...
        bin_str ' >>' log_fname '" | qsub -o "' qsublog_fname '" -j y -r y ' ...
-       option_str ' -N ' prefix ' >>& ' log_fname] ;
+       option_str ' -N ' prefix ' >> ' log_fname ' 2>&1'] ;
+       %option_str ' -N ' prefix ' >>& ' log_fname] ;
 end ;
 
 if options.submit_now,
@@ -343,7 +353,7 @@ if ~options.immediately && ~options.immediately_bg && isequal(options.waitonfull
       warning('could not determine how many jobs are scheduled');
       break;
     end
-    num_queued=str2double(num_queued);
+    num_queued=str2num(num_queued) ;
     
     %keep 50 spare jobs if multiple rprocs are scheduling...
     if (num_queued < options.maxjobs)
@@ -370,12 +380,20 @@ if options.submit_now,
     while(1)
       [tmp,str_]=unix('uptime');
       idx=strfind(str_, 'average:') ;
+      while isempty(idx)
+            
+          [tmp,str_]=unix('uptime');
+          idx=strfind(str_, 'average:') ;
+      end;
       assert(~isempty(idx)) ;
       b=separate(str_(idx+8:end), ',') ; 
       cpu_load = str2num(b{1}) ;
-      if cpu_load>10,
+      %[tmp, cpus] = unix('cat /proc/cpuinfo | grep processor | wc -l | tr -d " "');
+      %if cpu_load > (0.5 * str2num(cpus)),
+      if cpu_load > 13,
         if options.verbosity>=1
-          fprintf('load too high: %1.2f\n', cpu_load) ;
+          %fprintf('load too high (> 0.5 x CPUS): %1.2f\n', cpu_load);
+          fprintf('load too high: %1.2f\n', cpu_load);
         end ;
         pause(10) ;
       else
@@ -384,10 +402,15 @@ if options.submit_now,
     end
     pause(2)
   end ;
- 
-  [ret out] = unix(['echo ''' str '''|tcsh']) ;
+
+  %tic
+  %[ret out] = unix(['echo ''' str '''|tcsh']) ; 
+  [ret out] = unix(['echo ''' str '''|bash']) ; 
   if ret~=0
-	error('submission failed: %s', out);
+	error('submission failed: %s\nreturn code: %i', out, ret);
+  %else
+  %  fprintf(1, 'Measuring submission time:\n\t');
+  %  toc
   end
   jobinfo.submission_time = now ;
 

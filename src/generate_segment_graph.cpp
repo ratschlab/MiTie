@@ -1,3 +1,4 @@
+
 #include <string>
 	using std::string;
 #include <vector>
@@ -6,12 +7,14 @@
 #include <algorithm>
 #include <assert.h>
 #include "bam.h"
-#include "region.h"
+#include "bam_region.h"
 #include "get_reads_direct.h"
 #include <fstream>
 #include "gtf_tools.h"
-#include "tools.h"
+//#include "tools.h"
+#include "tools_bam.h"
 #include "file_stats.h"
+#include "vector_op.h"
 
 //includes for samtools
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -24,12 +27,16 @@
 #include "bgzf.h"
 #include "razf.h"
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+#define USE_HDF5 
+
 struct Config
 {
 	vector<char*> bam_files;
 	char* fn_gtf;
 	char* fn_regions;
 	char* fn_out;
+	char* gene;
+	char* chr;
 	float seg_filter;
 	float tss_pval;
 	bool split_chr;
@@ -51,6 +58,8 @@ int parse_args(int argc, char** argv,  Config* c)
 			fprintf(stdout, "Usage: %s <fn_out> [options] <fn_bam1> <fn_bam2> ...\n", argv[0]);
 			fprintf(stdout, "\n");
 			fprintf(stdout, "options:\n");
+			fprintf(stdout, "\t--gene\t\t(gene name) generate graph only for a given gene\n");
+			fprintf(stdout, "\t--chr\t\t(chr name) generate graphs only for a given chromosome\n");
 			fprintf(stdout, "\t--regions\t\t(file name) specify regions flat file (e.g. output of define_regions)\n");
 			fprintf(stdout, "\t--few-regions \t\t(flag) load data not for whole chromosome, but for each region separate \n");
 			fprintf(stdout, "\t--max-junk \t\t(default 2e7) if flag --few-regions not set, load reads for junk at once\n");
@@ -75,6 +84,8 @@ int parse_args(int argc, char** argv,  Config* c)
 	c->fn_gtf = NULL;
 	c->fn_regions = NULL;	
 	c->fn_out = argv[1];	
+	c->gene = NULL;	
+	c->chr = NULL;	
 	c->gtf_offset = 10000;
 	c->strand_specific = true;
 	c->reads_by_chr = true;
@@ -122,6 +133,26 @@ int parse_args(int argc, char** argv,  Config* c)
             }
             i++;
 			c->gtf_offset = atoi(argv[i]);
+        }
+	    else if (strcmp(argv[i], "--gene") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --gene\n") ;
+                return -1;
+            }
+            i++;
+			c->gene = argv[i];
+        }
+	    else if (strcmp(argv[i], "--chr") == 0)
+        {
+            if (i + 1 > argc - 1)
+            {
+                fprintf(stderr, "ERROR: Argument missing for option --chr\n") ;
+                return -1;
+            }
+            i++;
+			c->chr = argv[i];
         }
 	    else if (strcmp(argv[i], "--min-exonic-len") == 0)
         {
@@ -202,7 +233,7 @@ int parse_args(int argc, char** argv,  Config* c)
 			c->bam_files.push_back(argv[i]);
 		}	
 	}
-	assert(c->bam_files.size()>0);
+	assert(c->bam_files.size()>0 || c->fn_gtf);
 	if (!c->fn_regions && !c->fn_gtf)
 	{
 		printf("either --gtf, or --fn-regions, or both have to be specified\n");
@@ -210,7 +241,7 @@ int parse_args(int argc, char** argv,  Config* c)
 	return 0;
 }
 
-void process_gtf_region(Region* region)
+void process_gtf_region(Bam_Region* region)
 {
 	if (region->transcripts.size()==0)
 	{
@@ -360,6 +391,7 @@ int main(int argc, char* argv[])
 	if (ret!=0)
 		return ret;
 
+#ifndef USE_HDF5
 	std::ofstream* ofs = new std::ofstream();
 	ofs->open(c.fn_out, std::ios::binary);
 
@@ -367,6 +399,67 @@ int main(int argc, char* argv[])
 	{
 		fprintf(stderr, "[%s] Could not open file: %s for writing\n", argv[0], c.fn_out);
 		return -2;
+	}
+#endif
+
+	FILE* fd_null = fopen("/dev/null", "w");
+
+	vector<Bam_Region*> gtf_regions;
+	if (c.fn_gtf && c.bam_files.size()==0 )
+	{
+		// this is used e.g. when we only want to quantify known transcripts
+		// compute graph for annotation only
+		const char* format = determine_format(c.fn_gtf);
+		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
+		vector<Region*> tmp;
+		if (strcmp(format, "gtf")==0 && c.gene)
+		{
+			tmp = parse_gtf(c.fn_gtf, c.gene);
+		}
+		else if (strcmp(format, "gtf")==0)
+		{
+			tmp = parse_gtf(c.fn_gtf);
+		}
+		else if (strcmp(format, "gff3")==0)
+			tmp = parse_gff(c.fn_gtf);
+		else
+		{
+			printf("could not determine format of annotation file: %s\n", c.fn_gtf);
+			exit(-1);
+		}
+		// convert to Bam_Regions
+		for (int i=0; i<tmp.size(); i++)
+		{
+			if (!c.chr || strcmp(c.chr, tmp[i]->chr)==0)
+			{
+				gtf_regions.push_back(new Bam_Region(tmp[i]));
+			}
+			delete tmp[i];
+		}
+
+		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
+
+		for (uint i=0;i<gtf_regions.size(); i++)
+		{
+			//gtf_regions[i]->fd_out = stdout;
+			gtf_regions[i]->fd_out = fd_null;
+			gtf_regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
+
+
+			// write region in binary file
+#ifdef USE_HDF5 
+			gtf_regions[i]->write_HDF5(c.fn_out);
+#else
+			gtf_regions[i]->write_binary(ofs);
+#endif
+		}
+
+#ifndef USE_HDF5 
+		// cleanup
+		ofs->close();
+		delete ofs;
+#endif
+		return 0;
 	}
 
 	bamFile fd = bam_open(c.bam_files[0], "r");
@@ -382,21 +475,19 @@ int main(int argc, char* argv[])
 		return NULL;
 	}
 
-	vector<Region*> regions;
+	vector<Bam_Region*> regions;
 	if (c.fn_regions)
 	{
 		printf("loading regions from flat file: %s\n", c.fn_regions);
-		regions = parse_regions(c.fn_regions);
+		regions = parse_bam_regions(c.fn_regions, c.chr);
 		printf("number of regions from flat file: %i\n", (int) regions.size());
 	}
 	int num_reg = regions.size();
 
-	FILE* fd_null = fopen("/dev/null", "w");
 
-	vector<Region*> gtf_regions;
 	char strand_prev;
 	vector<CRead*>::iterator curr; 
-	Region* reg = NULL;
+	Bam_Region* reg = NULL;
 	int last_stop=0;
 	char* chr_prev = (char*) "xxx";
 
@@ -405,15 +496,53 @@ int main(int argc, char* argv[])
 	{
 		const char* format = determine_format(c.fn_gtf);
 		printf("loading regions form %s file: %s\n", format, c.fn_gtf);
-		if (strcmp(format, "gtf")==0)
-			gtf_regions = parse_gtf(c.fn_gtf);
+		vector<Region*> tmp;
+		if (strcmp(format, "gtf")==0 && c.gene)
+		{
+			tmp = parse_gtf(c.fn_gtf, c.gene);
+		}
+		else if (strcmp(format, "gtf")==0)
+			tmp = parse_gtf(c.fn_gtf);
 		else if (strcmp(format, "gff3")==0)
-			genes = parse_gff(fn_gtf);
+			tmp = parse_gff(c.fn_gtf);
 		else
 		{
-			printf("could not determine format of annotation file: %s\n", fn_gtf);
-			exit(-1)
+			printf("could not determine format of annotation file: %s\n", c.fn_gtf);
+			exit(-1);
 		}
+		// convert to Bam_Regions
+		for (int i=0; i<tmp.size(); i++)
+		{
+			if (!c.chr || strcmp(c.chr, tmp[i]->chr)==0)
+			{
+				//Bam_Region* reg = new Bam_Region();
+				//reg->start = tmp[i]->start; 
+				//reg->stop = tmp[i]->stop;
+				//reg->strand = tmp[i]->strand;
+				//reg->chr_num = tmp[i]->chr_num;
+				//if (tmp[i]->chr)
+				//{
+				//	reg->chr = new char[strlen(tmp[i]->chr)+1];
+				//	strcpy(reg->chr, tmp[i]->chr);
+				//}
+				//else
+				//{
+				//	reg->chr = NULL;
+				//}
+				////reg->seq = NULL;
+				//reg->fd_out = tmp[i]->fd_out;
+				//reg->gio = NULL;
+				//reg->segments = tmp[i]->segments;
+				//reg->transcripts = tmp[i]->transcripts;
+				//reg->transcript_names = tmp[i]->transcript_names;
+				//reg->transcript_paths = tmp[i]->transcript_paths;
+
+				//gtf_regions.push_back(reg); 
+				gtf_regions.push_back(new Bam_Region(tmp[i]));
+			}
+			delete tmp[i];
+		}
+
 		printf("number of regions from gtf file: %i\n", (int) gtf_regions.size());
 
 		if (c.reads_by_chr)
@@ -451,7 +580,7 @@ int main(int argc, char* argv[])
 					strand_prev = gtf_regions[i]->strand;
 					printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 					delete reg;
-					reg = new Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
+					reg = new Bam_Region(gtf_regions[i]->start, gtf_regions[i]->start, chr_prev, strand_prev);
 					set_chr_num(reg, header);
 					reg->stop = std::min(gtf_regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 				}
@@ -582,7 +711,7 @@ int main(int argc, char* argv[])
 				}
 			}
 			// remove merged regions
-			vector<Region*> tmp;
+			vector<Bam_Region*> tmp;
 			for (int i=0; i<regions.size(); i++)
 				if (regions[i]->start>-1)
 					tmp.push_back(regions[i]);
@@ -634,7 +763,7 @@ int main(int argc, char* argv[])
 				}
 			}
 			// remove merged regions
-			vector<Region*> tmp;
+			vector<Bam_Region*> tmp;
 			for (int i=0; i<regions.size(); i++)
 				if (regions[i]->start>-1)
 					tmp.push_back(regions[i]);
@@ -674,18 +803,20 @@ int main(int argc, char* argv[])
 					sprintf(fn_out, "%s_%s%c", c.fn_out, regions[i]->chr, regions[i]->strand);
 					if (fexist(fn_out))
 						continue;
+#ifndef USE_HDF5
 					ofs->close();
 					ofs->open(fn_out, std::ios::binary);
+#endif
 				}
 				get_reads = true;
 				chr_prev = regions[i]->chr;
 				strand_prev = regions[i]->strand;
 				printf("starting with chr: %s%c\n", chr_prev, strand_prev);
 				delete reg;
-				//reg = new Region(regions[i]);
+				//reg = new Bam_Region(regions[i]);
 				//reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 				//reg->start = regions[i]->start;
-				reg = new Region(regions[i]->start, regions[i]->start, chr_prev, strand_prev);
+				reg = new Bam_Region(regions[i]->start, regions[i]->start, chr_prev, strand_prev);
 				set_chr_num(reg, header);
 				reg->stop = std::min(regions[i]->start+c.max_junk, (int) header->target_len[reg->chr_num]);
 			}
@@ -694,9 +825,9 @@ int main(int argc, char* argv[])
 			{
 				int prev_st = reg->stop;
 				delete reg;
-				//reg = new Region(regions[i]);
+				//reg = new Bam_Region(regions[i]);
 				//reg->start = regions[i]->start;
-				reg = new Region(regions[i]->start, regions[i]->stop, chr_prev, strand_prev);
+				reg = new Bam_Region(regions[i]->start, regions[i]->stop, chr_prev, strand_prev);
 				set_chr_num(reg, header);
 				reg->stop = std::max(prev_st+c.max_junk, regions[i]->stop);
 				reg->stop = std::min(reg->stop, (int) header->target_len[reg->chr_num]);
@@ -797,8 +928,18 @@ int main(int argc, char* argv[])
 		regions[i]->generate_segment_graph(c.seg_filter, c.tss_pval);
 		//regions[i]->add_bias_counts(&bias_vector);
 
+
+		for (int j=0; j<regions[i]->admat.size(); j++)
+		{
+			float min_row = min<float>(&(regions[i]->admat[j]));
+			assert(min_row>=-2);
+		}
 		// write region in binary file
+#ifdef USE_HDF5
+		regions[i]->write_HDF5(c.fn_out); 
+#else
 		regions[i]->write_binary(ofs);
+#endif
 
 		// cleanup
 		if (c.reads_by_chr)
@@ -819,8 +960,10 @@ int main(int argc, char* argv[])
 	fclose(fd_null);
 	delete reg;
 	//fclose(fd_out);
+#ifndef USE_HDF5 
 	ofs->close();
 	delete ofs;
+#endif
 	bam_close(fd);
 	bam_header_destroy(header);
 
