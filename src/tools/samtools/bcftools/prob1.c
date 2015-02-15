@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
+#include <zlib.h>
 #include "prob1.h"
+#include "kstring.h"
 
 #include "kseq.h"
 KSTREAM_INIT(gzFile, gzread, 16384)
@@ -13,39 +16,7 @@ KSTREAM_INIT(gzFile, gzread, 16384)
 #define MC_EM_EPS 1e-5
 #define MC_DEF_INDEL 0.15
 
-unsigned char seq_nt4_table[256] = {
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
-};
-
-struct __bcf_p1aux_t {
-	int n, M, n1, is_indel;
-	uint8_t *ploidy; // haploid or diploid ONLY
-	double *q2p, *pdg; // pdg -> P(D|g)
-	double *phi, *phi_indel;
-	double *z, *zswap; // aux for afs
-	double *z1, *z2, *phi1, *phi2; // only calculated when n1 is set
-	double **hg; // hypergeometric distribution
-	double *lf; // log factorial
-	double t, t1, t2;
-	double *afs, *afs1; // afs: accumulative AFS; afs1: site posterior distribution
-	const uint8_t *PL; // point to PL
-	int PL_len;
-};
+gzFile bcf_p1_fp_lk;
 
 void bcf_p1_indel_prior(bcf_p1aux_t *ma, double x)
 {
@@ -127,18 +98,20 @@ int bcf_p1_read_prior(bcf_p1aux_t *ma, const char *fn)
 	return 0;
 }
 
-bcf_p1aux_t *bcf_p1_init(int n, uint8_t *ploidy)
+/* Initialise a bcf_p1aux_t */
+bcf_p1aux_t *bcf_p1_init(int n_smpl, uint8_t *ploidy)
 {
 	bcf_p1aux_t *ma;
 	int i;
 	ma = calloc(1, sizeof(bcf_p1aux_t));
 	ma->n1 = -1;
-	ma->n = n; ma->M = 2 * n;
+	ma->n = n_smpl;
+	ma->M = 2 * n_smpl;
 	if (ploidy) {
-		ma->ploidy = malloc(n);
-		memcpy(ma->ploidy, ploidy, n);
-		for (i = 0, ma->M = 0; i < n; ++i) ma->M += ploidy[i];
-		if (ma->M == 2 * n) {
+		ma->ploidy = malloc(n_smpl);
+		memcpy(ma->ploidy, ploidy, n_smpl);
+		for (i = 0, ma->M = 0; i < n_smpl; ++i) ma->M += ploidy[i];
+		if (ma->M == 2 * n_smpl) {
 			free(ma->ploidy);
 			ma->ploidy = 0;
 		}
@@ -163,6 +136,8 @@ bcf_p1aux_t *bcf_p1_init(int n, uint8_t *ploidy)
 	return ma;
 }
 
+int bcf_p1_get_M(bcf_p1aux_t *b) { return b->M; }
+
 int bcf_p1_set_n1(bcf_p1aux_t *b, int n1)
 {
 	if (n1 == 0 || n1 >= b->n) return -1;
@@ -172,6 +147,13 @@ int bcf_p1_set_n1(bcf_p1aux_t *b, int n1)
 	}
 	b->n1 = n1;
 	return 0;
+}
+
+void bcf_p1_set_ploidy(bcf1_t *b, bcf_p1aux_t *ma)
+{
+    // bcf_p1aux_t fields are not visible outside of prob1.c, hence this wrapper.
+    // Ideally, this should set ploidy per site to allow pseudo-autosomal regions
+    b->ploidy = ma->ploidy;
 }
 
 void bcf_p1_destroy(bcf_p1aux_t *ma)
@@ -191,41 +173,496 @@ void bcf_p1_destroy(bcf_p1aux_t *ma)
 	}
 }
 
-static int cal_pdg(const bcf1_t *b, bcf_p1aux_t *ma)
+extern double kf_gammap(double s, double z);
+int test16(bcf1_t *b, anno16_t *a);
+
+// Wigginton 2005, PMID: 15789306
+// written by Jan Wigginton
+double calc_hwe(int obs_hom1, int obs_hom2, int obs_hets)
 {
-	int i, j;
-	long *p, tmp;
-	p = alloca(b->n_alleles * sizeof(long));
-	memset(p, 0, sizeof(long) * b->n_alleles);
-	for (j = 0; j < ma->n; ++j) {
-		const uint8_t *pi = ma->PL + j * ma->PL_len;
-		double *pdg = ma->pdg + j * 3;
-		pdg[0] = ma->q2p[pi[2]]; pdg[1] = ma->q2p[pi[1]]; pdg[2] = ma->q2p[pi[0]];
-		for (i = 0; i < b->n_alleles; ++i)
-			p[i] += (int)pi[(i+1)*(i+2)/2-1];
-	}
-	for (i = 0; i < b->n_alleles; ++i) p[i] = p[i]<<4 | i;
-	for (i = 1; i < b->n_alleles; ++i) // insertion sort
-		for (j = i; j > 0 && p[j] < p[j-1]; --j)
-			tmp = p[j], p[j] = p[j-1], p[j-1] = tmp;
-	for (i = b->n_alleles - 1; i >= 0; --i)
-		if ((p[i]&0xf) == 0) break;
-	return i;
+    if (obs_hom1 + obs_hom2 + obs_hets == 0 ) return 1;
+
+    assert(obs_hom1 >= 0 && obs_hom2 >= 0 && obs_hets >= 0);
+
+    int obs_homc = obs_hom1 < obs_hom2 ? obs_hom2 : obs_hom1;
+    int obs_homr = obs_hom1 < obs_hom2 ? obs_hom1 : obs_hom2;
+
+    int rare_copies = 2 * obs_homr + obs_hets;
+    int genotypes   = obs_hets + obs_homc + obs_homr;
+
+    double *het_probs = (double*) calloc(rare_copies+1, sizeof(double));
+
+    /* start at midpoint */
+    int mid = rare_copies * (2 * genotypes - rare_copies) / (2 * genotypes);
+
+    /* check to ensure that midpoint and rare alleles have same parity */
+    if ((rare_copies & 1) ^ (mid & 1)) mid++;
+
+    int curr_hets = mid;
+    int curr_homr = (rare_copies - mid) / 2;
+    int curr_homc = genotypes - curr_hets - curr_homr;
+
+    het_probs[mid] = 1.0;
+    double sum = het_probs[mid];
+    for (curr_hets = mid; curr_hets > 1; curr_hets -= 2)
+    {
+        het_probs[curr_hets - 2] = het_probs[curr_hets] * curr_hets * (curr_hets - 1.0) / (4.0 * (curr_homr + 1.0) * (curr_homc + 1.0));
+        sum += het_probs[curr_hets - 2];
+
+        /* 2 fewer heterozygotes for next iteration -> add one rare, one common homozygote */
+        curr_homr++;
+        curr_homc++;
+    }
+
+    curr_hets = mid;
+    curr_homr = (rare_copies - mid) / 2;
+    curr_homc = genotypes - curr_hets - curr_homr;
+    for (curr_hets = mid; curr_hets <= rare_copies - 2; curr_hets += 2)
+    {
+        het_probs[curr_hets + 2] = het_probs[curr_hets] * 4.0 * curr_homr * curr_homc /((curr_hets + 2.0) * (curr_hets + 1.0));
+        sum += het_probs[curr_hets + 2];
+
+        /* add 2 heterozygotes for next iteration -> subtract one rare, one common homozygote */
+        curr_homr--;
+        curr_homc--;
+    }
+    int i;
+    for (i = 0; i <= rare_copies; i++) het_probs[i] /= sum;
+
+    /*  p-value calculation for p_hwe  */
+    double p_hwe = 0.0;
+    for (i = 0; i <= rare_copies; i++)
+    {
+        if (het_probs[i] > het_probs[obs_hets])
+            continue;
+        p_hwe += het_probs[i];
+    }
+
+    p_hwe = p_hwe > 1.0 ? 1.0 : p_hwe;
+    free(het_probs);
+    return p_hwe;
 }
 
+static void _set_clr(bcf_p1aux_t *ma, kstring_t *str)
+{
+    ksprintf(str, ";CLR=%d", ma->cons_llr);
+    if ( ma->cons_gt > 0 )
+        ksprintf(str, ";UGT=%c%c%c;CGT=%c%c%c", 
+            ma->cons_gt&0xff, ma->cons_gt>>8&0xff, ma->cons_gt>>16&0xff,
+            ma->cons_gt>>32&0xff, ma->cons_gt>>40&0xff, ma->cons_gt>>48&0xff);
+}
+
+static void _bcf1_set_ref(bcf1_t *b, bcf_p1aux_t *ma, int idp)
+{
+    kstring_t s;
+    int old_n_gi = b->n_gi;
+    s.m = b->m_str; s.l = b->l_str - 1; s.s = b->str;
+    kputs(":GT", &s); kputc('\0', &s);
+    b->m_str = s.m; b->l_str = s.l; b->str = s.s;
+    bcf_sync(b);
+
+    // Call GTs
+    int isample, an = 0;
+    for (isample = 0; isample < b->n_smpl; isample++) 
+    {
+        if ( idp>=0 && ((uint16_t*)b->gi[idp].data)[isample]==0 )
+            ((uint8_t*)b->gi[old_n_gi].data)[isample] = 1<<7;
+        else
+        {
+            ((uint8_t*)b->gi[old_n_gi].data)[isample] = 0;
+            an += b->ploidy ? b->ploidy[isample] : 2;
+        }
+    }
+    bcf_fit_alt(b,1);
+    b->qual = 999;
+
+    // Prepare BCF for output: ref, alt, filter, info, format
+    memset(&s, 0, sizeof(kstring_t)); kputc('\0', &s); 
+    kputs(b->ref, &s); kputc('\0', &s);
+    kputs(b->alt, &s); kputc('\0', &s); kputc('\0', &s);
+    {
+        ksprintf(&s, "AN=%d;", an);
+        kputs(b->info, &s); 
+        anno16_t a;
+        int has_I16 = test16(b, &a) >= 0? 1 : 0;
+        if (has_I16 )
+        {
+            if ( a.is_tested) ksprintf(&s, ";PV4=%.2g,%.2g,%.2g,%.2g", a.p[0], a.p[1], a.p[2], a.p[3]);
+            ksprintf(&s, ";DP4=%d,%d,%d,%d;MQ=%d", a.d[0], a.d[1], a.d[2], a.d[3], a.mq);
+        }
+        if ( ma->cons_llr>0 ) _set_clr(ma, &s);
+        kputc('\0', &s);
+        rm_info(&s, "I16=");
+        rm_info(&s, "QS=");
+    }
+    kputs(b->fmt, &s); kputc('\0', &s);
+    free(b->str);
+    b->m_str = s.m; b->l_str = s.l; b->str = s.s;
+    bcf_sync(b);
+}
+
+int call_multiallelic_gt(bcf1_t *b, bcf_p1aux_t *ma, double threshold, int var_only)
+{
+    int nals = 1;
+    char *p;
+    for (p=b->alt; *p; p++)
+    {
+        if ( *p=='X' || p[0]=='.' ) break;
+        if ( p[0]==',' ) nals++;
+    }
+    if ( b->alt[0] && !*p ) nals++;
+
+    if ( nals>4 )
+    {
+        if ( *b->ref=='N' ) return 0;
+        fprintf(stderr,"Not ready for this, more than 4 alleles at %d: %s, %s\n", b->pos+1, b->ref,b->alt); 
+        exit(1);
+    }
+
+    // find PL, DV and DP FORMAT indexes
+    uint8_t *pl = NULL;
+    int i, npl = 0, idp = -1, idv = -1;
+    for (i = 0; i < b->n_gi; ++i) 
+    {
+        if (b->gi[i].fmt == bcf_str2int("PL", 2)) 
+        {
+            pl  = (uint8_t*)b->gi[i].data;
+            npl = b->gi[i].len;
+        }
+        else if (b->gi[i].fmt == bcf_str2int("DP", 2))  idp=i;
+        else if (b->gi[i].fmt == bcf_str2int("DV", 2))  idv=i;
+    }
+    if ( nals==1 ) 
+    {
+        if ( !var_only ) _bcf1_set_ref(b, ma, idp);
+        return 1;
+    }
+    if ( !pl ) return -1;
+
+    assert(ma->q2p[0] == 1);
+
+    // Init P(D|G)
+    int npdg = nals*(nals+1)/2;
+    double *pdg,*_pdg;
+    _pdg = pdg = malloc(sizeof(double)*ma->n*npdg);
+    for (i=0; i<ma->n; i++)
+    {
+        int j; 
+        double sum = 0;
+        for (j=0; j<npdg; j++)
+        {
+            //_pdg[j] = pow(10,-0.1*pl[j]); 
+            _pdg[j] = ma->q2p[pl[j]];
+            sum += _pdg[j];
+        }
+        if ( sum )
+            for (j=0; j<npdg; j++) _pdg[j] /= sum;
+        _pdg += npdg;
+        pl += npl;
+    }
+
+    if ((p = strstr(b->info, "QS=")) == 0) { fprintf(stderr,"INFO/QS is required with -m, exiting at tid=%d pos=%d\n", b->tid,b->pos+1); exit(1); }
+    double qsum[4];
+    if ( sscanf(p+3,"%lf,%lf,%lf,%lf",&qsum[0],&qsum[1],&qsum[2],&qsum[3])!=4 ) { fprintf(stderr,"Could not parse %s\n",p); exit(1); }
+
+
+    // Calculate the most likely combination of alleles, remembering the most and second most likely set
+    int ia,ib,ic, max_als=0, max_als2=0;
+    double ref_lk = 0, max_lk = INT_MIN, max_lk2 = INT_MIN, lk_sum = INT_MIN, lk_sums[3];
+    for (ia=0; ia<nals; ia++)
+    {
+        double lk_tot = 0;
+        int iaa = (ia+1)*(ia+2)/2-1;
+        int isample;
+        for (isample=0; isample<ma->n; isample++)
+        {
+            double *p = pdg + isample*npdg;
+            // assert( log(p[iaa]) <= 0 );
+            lk_tot += log(p[iaa]);
+        }
+        if ( ia==0 ) ref_lk = lk_tot;
+        if ( max_lk<lk_tot ) { max_lk2 = max_lk; max_als2 = max_als; max_lk = lk_tot; max_als = 1<<ia; }
+        else if ( max_lk2<lk_tot ) { max_lk2 = lk_tot; max_als2 = 1<<ia; }
+        lk_sum = lk_tot>lk_sum ? lk_tot + log(1+exp(lk_sum-lk_tot)) : lk_sum + log(1+exp(lk_tot-lk_sum));
+    }
+    lk_sums[0] = lk_sum;
+    if ( nals>1 )
+    {
+        for (ia=0; ia<nals; ia++)
+        {
+            if ( qsum[ia]==0 ) continue;
+            int iaa = (ia+1)*(ia+2)/2-1;
+            for (ib=0; ib<ia; ib++)
+            {
+                if ( qsum[ib]==0 ) continue;
+                double lk_tot = 0;
+                double fa  = qsum[ia]/(qsum[ia]+qsum[ib]);
+                double fb  = qsum[ib]/(qsum[ia]+qsum[ib]);
+                double fab = 2*fa*fb; fa *= fa; fb *= fb;
+                int isample, ibb = (ib+1)*(ib+2)/2-1, iab = iaa - ia + ib;
+                for (isample=0; isample<ma->n; isample++)
+                {
+                    double *p = pdg + isample*npdg;
+                    //assert( log(fa*p[iaa] + fb*p[ibb] + fab*p[iab]) <= 0 );
+                    if ( b->ploidy && b->ploidy[isample]==1 )
+                        lk_tot +=  log(fa*p[iaa] + fb*p[ibb]);
+                    else 
+                        lk_tot +=  log(fa*p[iaa] + fb*p[ibb] + fab*p[iab]);
+                }
+                if ( max_lk<lk_tot ) { max_lk2 = max_lk; max_als2 = max_als; max_lk = lk_tot; max_als = 1<<ia|1<<ib; }
+                else if ( max_lk2<lk_tot ) { max_lk2 = lk_tot; max_als2 = 1<<ia|1<<ib; }
+                lk_sum = lk_tot>lk_sum ? lk_tot + log(1+exp(lk_sum-lk_tot)) : lk_sum + log(1+exp(lk_tot-lk_sum));
+            }
+        }
+        lk_sums[1] = lk_sum;
+    }
+    if ( nals>2 )
+    {
+        for (ia=0; ia<nals; ia++)
+        {
+            if ( qsum[ia]==0 ) continue;
+            int iaa = (ia+1)*(ia+2)/2-1;
+            for (ib=0; ib<ia; ib++)
+            {
+                if ( qsum[ib]==0 ) continue;
+                int ibb = (ib+1)*(ib+2)/2-1; 
+                int iab = iaa - ia + ib;
+                for (ic=0; ic<ib; ic++)
+                {
+                    if ( qsum[ic]==0 ) continue;
+                    double lk_tot = 0;
+                    double fa  = qsum[ia]/(qsum[ia]+qsum[ib]+qsum[ic]);
+                    double fb  = qsum[ib]/(qsum[ia]+qsum[ib]+qsum[ic]);
+                    double fc  = qsum[ic]/(qsum[ia]+qsum[ib]+qsum[ic]);
+                    double fab = 2*fa*fb, fac = 2*fa*fc, fbc = 2*fb*fc; fa *= fa; fb *= fb; fc *= fc;
+                    int isample, icc = (ic+1)*(ic+2)/2-1;
+                    int iac = iaa - ia + ic, ibc = ibb - ib + ic;
+                    for (isample=0; isample<ma->n; isample++)
+                    {
+                        double *p = pdg + isample*npdg;
+                        //assert( log(fa*p[iaa] + fb*p[ibb] + fc*p[icc] + fab*p[iab] + fac*p[iac] + fbc*p[ibc]) <= 0 );
+                        if ( b->ploidy && b->ploidy[isample]==1 ) 
+                            lk_tot += log(fa*p[iaa] + fb*p[ibb] + fc*p[icc]);
+                        else
+                            lk_tot += log(fa*p[iaa] + fb*p[ibb] + fc*p[icc] + fab*p[iab] + fac*p[iac] + fbc*p[ibc]);
+                    }
+                    if ( max_lk<lk_tot ) { max_lk2 = max_lk; max_als2 = max_als; max_lk = lk_tot; max_als = 1<<ia|1<<ib|1<<ic; }
+                    else if ( max_lk2<lk_tot ) { max_lk2 = lk_tot; max_als2 = 1<<ia|1<<ib|1<<ic; }
+                    lk_sum = lk_tot>lk_sum ? lk_tot + log(1+exp(lk_sum-lk_tot)) : lk_sum + log(1+exp(lk_tot-lk_sum));
+                }
+            }
+        }
+        lk_sums[2] = lk_sum;
+    }
+
+    // Should we add another allele, does it increase the likelihood significantly?
+    int n1=0, n2=0;
+    for (i=0; i<nals; i++) if ( max_als&1<<i) n1++;
+    for (i=0; i<nals; i++) if ( max_als2&1<<i) n2++;
+    if ( n2<n1 && kf_gammap(1,2.0*(max_lk-max_lk2))<threshold )
+    {
+        // the threshold not exceeded, use the second most likely set with fewer alleles
+        max_lk  = max_lk2;
+        max_als = max_als2;
+        n1 = n2;
+    }
+    if ( max_als==1 )   // ref-only call
+    {
+        if ( !var_only ) _bcf1_set_ref(b, ma, idp);
+        free(pdg);
+        return 1;
+    }
+    lk_sum = lk_sums[n1-1];
+
+    // Get the BCF record ready for GT and GQ
+    kstring_t s;
+    int old_n_gi = b->n_gi;
+    s.m = b->m_str; s.l = b->l_str - 1; s.s = b->str;
+    kputs(":GT:GQ", &s); kputc('\0', &s);
+    b->m_str = s.m; b->l_str = s.l; b->str = s.s;
+    bcf_sync(b);
+
+    // Call GTs
+    int isample, gts=0, ac[4] = {0,0,0,0};
+    int nRR = 0, nAA = 0, nRA = 0, max_dv = 0;
+    for (isample = 0; isample < b->n_smpl; isample++) 
+    {
+        int ploidy = b->ploidy ? b->ploidy[isample] : 2;
+        double *p = pdg + isample*npdg;
+        int ia, als = 0;
+        double lk = 0, lk_s = 0;
+        for (ia=0; ia<nals; ia++)
+        {
+            if ( !(max_als&1<<ia) ) continue;
+            int iaa = (ia+1)*(ia+2)/2-1;
+            double _lk = p[iaa]*qsum[ia]*qsum[ia];
+            if ( _lk > lk ) { lk = _lk; als = ia<<3 | ia; }
+            lk_s += _lk;
+        }
+        if ( ploidy==2 ) 
+        {
+            for (ia=0; ia<nals; ia++)
+            {
+                if ( !(max_als&1<<ia) ) continue;
+                int iaa = (ia+1)*(ia+2)/2-1;
+                for (ib=0; ib<ia; ib++)
+                {
+                    if ( !(max_als&1<<ib) ) continue;
+                    int iab = iaa - ia + ib;
+                    double _lk = 2*qsum[ia]*qsum[ib]*p[iab];
+                    if ( _lk > lk ) { lk = _lk; als = ib<<3 | ia; }
+                    lk_s += _lk;
+                }
+            }
+        }
+        lk = -log(1-lk/lk_s)/0.2302585;
+        int dp = 0;
+        if ( idp>=0 && (dp=((uint16_t*)b->gi[idp].data)[isample])==0 )
+        {
+            // no coverage
+            ((uint8_t*)b->gi[old_n_gi].data)[isample]   = 1<<7;
+            ((uint8_t*)b->gi[old_n_gi+1].data)[isample] = 0;
+            continue;
+        }
+        if ( lk>99 ) lk = 99;
+        ((uint8_t*)b->gi[old_n_gi].data)[isample]   = als;
+        ((uint8_t*)b->gi[old_n_gi+1].data)[isample] = (int)lk;
+
+        // For MDV annotation
+        int dv;
+        if ( als && idv>=0 && (dv=((uint16_t*)b->gi[idv].data)[isample]) )
+        {
+            if ( max_dv < dv ) max_dv = dv;
+        }
+
+        // For HWE annotation; multiple ALT alleles treated as one
+        if ( !als ) nRR++;
+        else if ( !(als>>3&7) || !(als&7) ) nRA++;
+        else nAA++;
+
+        gts |= 1<<(als>>3&7) | 1<<(als&7);
+        ac[ als>>3&7 ]++;
+        ac[ als&7 ]++;
+    }
+    free(pdg);
+    bcf_fit_alt(b,gts);
+
+    // The VCF spec is ambiguous about QUAL: is it the probability of anything else
+    //  (that is QUAL(non-ref) = P(ref)+P(any non-ref other than ALT)) or is it
+    //  QUAL(non-ref)=P(ref) and QUAL(ref)=1-P(ref)? Assuming the latter.
+    b->qual = gts>1 ? -4.343*(ref_lk - lk_sum) : -4.343*log(1-exp(ref_lk - lk_sum));
+    if ( b->qual>999 ) b->qual = 999;
+
+    // Prepare BCF for output: ref, alt, filter, info, format
+    memset(&s, 0, sizeof(kstring_t)); kputc('\0', &s); 
+    kputs(b->ref, &s); kputc('\0', &s);
+    kputs(b->alt, &s); kputc('\0', &s); kputc('\0', &s);
+    {
+        int an=0, nalts=0;
+        for (i=0; i<nals; i++)
+        {
+            an += ac[i];
+            if ( i>0 && ac[i] ) nalts++;
+        }
+        ksprintf(&s, "AN=%d;", an);
+        if ( nalts )
+        {
+            kputs("AC=", &s);
+            for (i=1; i<nals; i++)
+            {
+                if ( !(gts&1<<i) ) continue;
+                nalts--;
+                ksprintf(&s,"%d", ac[i]);
+                if ( nalts>0 ) kputc(',', &s);
+            }
+            kputc(';', &s);
+        }
+        kputs(b->info, &s); 
+        anno16_t a;
+        int has_I16 = test16(b, &a) >= 0? 1 : 0;
+        if (has_I16 )
+        {
+            if ( a.is_tested) 
+            {
+                ksprintf(&s, ";PV4=%.2g,%.2g,%.2g,%.2g", a.p[0], a.p[1], a.p[2], a.p[3]);
+                ksprintf(&s, ";EDB=%e", a.edb);
+                ksprintf(&s, ";BQB=%e", a.bqb);
+                ksprintf(&s, ";MQB=%e", a.mqb);
+            }
+            else
+                ksprintf(&s, ";PV4=1,1,1,1;EDB=0;BQB=0;MQB=0");
+            ksprintf(&s, ";DP4=%d,%d,%d,%d;MQ=%d", a.d[0], a.d[1], a.d[2], a.d[3], a.mq);
+            ksprintf(&s, ";QBD=%e", b->qual/(a.d[0] + a.d[1] + a.d[2] + a.d[3]));
+            if ( max_dv ) ksprintf(&s, ";MDV=%d", max_dv);
+
+            float strand_bias = a.d[0] < a.d[1] ? (1.0+a.d[0])/(1.0+a.d[1]) : (1.0+a.d[1])/(1.0+a.d[0]);
+            strand_bias *= a.d[2] < a.d[3] ? (1.0+a.d[2])/(1.0+a.d[3]) : (1.0+a.d[3])/(1.0+a.d[2]);
+            ksprintf(&s, ";SB=%f", strand_bias);
+        }
+        if ( nAA+nRA )
+        {
+            double hwe = calc_hwe(nAA, nRR, nRA);
+            ksprintf(&s, ";HWE=%e", hwe);
+        }
+        if ( ma->cons_llr>0 ) _set_clr(ma, &s);
+        kputc('\0', &s);
+        rm_info(&s, "I16=");
+        rm_info(&s, "QS=");
+    }
+    kputs(b->fmt, &s); kputc('\0', &s);
+    free(b->str);
+    b->m_str = s.m; b->l_str = s.l; b->str = s.s;
+    bcf_sync(b);
+
+    return gts;
+}
+
+/* Calculate P(D|g) */
+static int cal_pdg(const bcf1_t *b, bcf_p1aux_t *ma)
+{
+    int i, j;
+    long *p, tmp;
+    p = alloca(b->n_alleles * sizeof(long));
+    memset(p, 0, sizeof(long) * b->n_alleles);
+	
+    // Set P(D|g) for each sample and sum phread likelihoods across all samples to create lk
+    for (j = 0; j < ma->n; ++j) {
+        // Fetch the PL array for the sample
+        const uint8_t *pi = ma->PL + j * ma->PL_len;
+        // Fetch the P(D|g) array for the sample
+        double *pdg = ma->pdg + j * 3;
+        pdg[0] = ma->q2p[pi[2]]; pdg[1] = ma->q2p[pi[1]]; pdg[2] = ma->q2p[pi[0]];
+        for (i = 0; i < b->n_alleles; ++i)
+            p[i] += (int)pi[(i+1)*(i+2)/2-1];
+    }
+    for (i = 0; i < b->n_alleles; ++i) p[i] = p[i]<<4 | i;
+    for (i = 1; i < b->n_alleles; ++i) // insertion sort
+        for (j = i; j > 0 && p[j] < p[j-1]; --j)
+            tmp = p[j], p[j] = p[j-1], p[j-1] = tmp;
+    for (i = b->n_alleles - 1; i >= 0; --i)
+        if ((p[i]&0xf) == 0) break;
+    return i;
+}
+
+
+/* f0 is minor allele fraction */
 int bcf_p1_call_gt(const bcf_p1aux_t *ma, double f0, int k)
 {
 	double sum, g[3];
 	double max, f3[3], *pdg = ma->pdg + k * 3;
 	int q, i, max_i, ploidy;
+	/* determine ploidy */
 	ploidy = ma->ploidy? ma->ploidy[k] : 2;
 	if (ploidy == 2) {
+	/* given allele frequency we can determine how many of each
+	 * genotype we have by HWE p=1-q PP=p^2 PQ&QP=2*p*q QQ=q^2 */
 		f3[0] = (1.-f0)*(1.-f0); f3[1] = 2.*f0*(1.-f0); f3[2] = f0*f0;
 	} else {
 		f3[0] = 1. - f0; f3[1] = 0; f3[2] = f0;
 	}
 	for (i = 0, sum = 0.; i < 3; ++i)
 		sum += (g[i] = pdg[i] * f3[i]);
+	/* normalise g and then determine max */
 	for (i = 0, max = -1., max_i = 0; i < 3; ++i) {
 		g[i] /= sum;
 		if (g[i] > max) max = g[i], max_i = i;
@@ -237,8 +674,8 @@ int bcf_p1_call_gt(const bcf_p1aux_t *ma, double f0, int k)
 	return q<<2|max_i;
 }
 
+// If likelihoods fall below this they get squashed to 0
 #define TINY 1e-20
-
 static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 {
 	double *z[2], *tmp, *pdg;
@@ -258,6 +695,7 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 			int k, j = _j - beg, _min = last_min, _max = last_max, M0;
 			double p[3], sum;
 			M0 = M; M += 2;
+			// Fetch P(D|g) for this sample
 			pdg = ma->pdg + _j * 3;
 			p[0] = pdg[0]; p[1] = 2. * pdg[1]; p[2] = pdg[2];
 			for (; _min < _max && z[0][_min] < TINY; ++_min) z[0][_min] = z[1][_min] = 0.;
@@ -272,6 +710,7 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 			for (k = _min; k <= _max; ++k) z[1][k] /= sum;
 			if (_min >= 1) z[1][_min-1] = 0.;
 			if (_min >= 2) z[1][_min-2] = 0.;
+			// If we are not on the last sample
 			if (j < ma->n - 1) z[1][_max+1] = z[1][_max+2] = 0.;
 			if (_j == ma->n1 - 1) { // set pop1; ma->n1==-1 when unset
 				ma->t1 = ma->t;
@@ -287,6 +726,7 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 		for (j = 0; j < ma->n; ++j) {
 			int k, M0, _min = last_min, _max = last_max;
 			double p[3], sum;
+			// Fetch P(D|g) for this sample
 			pdg = ma->pdg + j * 3;
 			for (; _min < _max && z[0][_min] < TINY; ++_min) z[0][_min] = z[1][_min] = 0.;
 			for (; _max > _min && z[0][_max] < TINY; --_max) z[0][_max] = z[1][_max] = 0.;
@@ -302,6 +742,7 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 				ma->t += log(sum / M);
 				for (k = _min; k <= _max; ++k) z[1][k] /= sum;
 				if (_min >= 1) z[1][_min-1] = 0.;
+				// If we are not on the last sample
 				if (j < ma->n - 1) z[1][_max+1] = 0.;
 			} else if (ma->ploidy[j] == 2) {
 				p[0] = pdg[0]; p[1] = 2 * pdg[1]; p[2] = pdg[2];
@@ -315,6 +756,7 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 				for (k = _min; k <= _max; ++k) z[1][k] /= sum;
 				if (_min >= 1) z[1][_min-1] = 0.;
 				if (_min >= 2) z[1][_min-2] = 0.;
+				// If we are not on the last sample
 				if (j < ma->n - 1) z[1][_max+1] = z[1][_max+2] = 0.;
 			}
 			tmp = z[0]; z[0] = z[1]; z[1] = tmp;
@@ -322,6 +764,8 @@ static void mc_cal_y_core(bcf_p1aux_t *ma, int beg)
 		}
 	}
 	if (z[0] != ma->z) memcpy(ma->z, z[0], sizeof(double) * (ma->M + 1));
+	if (bcf_p1_fp_lk)
+		gzwrite(bcf_p1_fp_lk, ma->z, sizeof(double) * (ma->M + 1));
 }
 
 static void mc_cal_y(bcf_p1aux_t *ma)
@@ -453,6 +897,7 @@ static double mc_cal_afs(bcf_p1aux_t *ma, double *p_ref_folded, double *p_var_fo
 	memset(ma->afs1, 0, sizeof(double) * (ma->M + 1));
 	mc_cal_y(ma);
 	// compute AFS
+	// MP15: is this using equation 20 from doi:10.1093/bioinformatics/btr509?
 	for (k = 0, sum = 0.; k <= ma->M; ++k)
 		sum += (long double)phi[k] * ma->z[k];
 	for (k = 0; k <= ma->M; ++k) {

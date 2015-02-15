@@ -100,8 +100,13 @@ nC = length(C_idx);	assert(nC==t*c*r);
 nD = length(D_idx); assert(nD==c*r*2);
 
 
-%                          A1      A2    A3     A4+A5+A6 A8+A9  A10+A11+A12
-expected_num_constrains = 2*s*r + s*t + 2*s*t + 3*r*s*t + 2*t + 3*r*t*c; 
+ss = s*10;
+%                          A1      A2    A3     A4+A5+A6 A8+A9  A10+A11+A12	 A13+A14   A15   A18
+expected_num_constrains = 2*s*r + s*t + 2*s*t + 3*r*s*t + 2*t +   3*r*t*c  + 2*r*t*c + r*c + t*ss; 
+
+%ss: number of segments not connected to segment x, but within an intron from x to another segment
+%	usually much smaller than s^2, but approaching s^2 if there are many introns spanning large parts 
+% 	of the gene 
 
 
 %%%
@@ -808,9 +813,9 @@ if ~use_LP_covloss,
 			if strcmp(param.loss, 'nb') || strcmp(param.loss, 'poisson')
 				%[left, right] = get_coefficients(val);
 				if strcmp(param.loss, 'poisson')
-					[ll, lq, rl, rq] = get_coefficients_lq(val, -1);
+					[ll, lq, rl, rq] = get_coefficients_lq(val, 1, 0, 0);
 				else
-					[ll, lq, rl, rq] = get_coefficients_lq(val, param.lambda);
+					[ll, lq, rl, rq] = get_coefficients_lq(val, param.eta1, param.eta2, param.lambda);
 				end
 
         		Q(x1,x1) = 1/r*rq*C.exon_cov*(len(j)/readlen*cov_scale(i))^2;
@@ -837,9 +842,9 @@ for i=1:r
 
 		if strcmp(param.loss, 'nb') || strcmp(param.loss, 'poisson')
 			if strcmp(param.loss, 'poisson')
-				[ll, lq, rl, rq] = get_coefficients_lq(val, -1);
+				[ll, lq, rl, rq] = get_coefficients_lq(val, 1, 0, 0);
 			else
-				[ll, lq, rl, rq] = get_coefficients_lq(val, param.lambda);
+				[ll, lq, rl, rq] = get_coefficients_lq(val, param.eta1, param.eta2, param.lambda);
 			end
 
 		
@@ -898,7 +903,6 @@ for x = 1:length(predef_trans)
 end
 
 
-% set all but the first weight to zero
 % these constraints will be removed one by one 
 % during the solving; the last constraint will be removed first
 %A20 = zeros(r*(t-1), num_var);
@@ -937,6 +941,11 @@ elseif use_pair && ~use_cluster
     A = [A15; A1; A2; A3; A4; A5; A6; A8; A9; A10; A11; A12; A13; A14; A18; A19; AP1; AP2; A20];
     b = [b15; b1; b2; b3; b4; b5; b6; b8; b9; b10; b11; b12; b13; b14; b18; b19; bp1; bp2; b20];
 end ;
+
+infeasible_idx = find(sum(abs(A'))==0 & b'~=0);
+if ~isempty(infeasible_idx)
+	keyboard
+end
 
 % solve min_x x'Qx+f'x
 % s.t. 	Ax<=b
@@ -1044,6 +1053,72 @@ end ;
 if exist('fn_res', 'var') && ~isempty(fn_res)
 	save(fn_res, 'transcripts', 'weights', 'how', 'solvetime', 'clusters', 'PAR');
 end
+
+
+if isfield(param, 'get_conf') && param.get_conf
+	% set regularization to zero
+	f(I_idx) = C.num_transcripts;
+	if use_cluster
+		f(K_idx) = C.num_clusters;
+	end	
+
+	%% find nonzero transcripts and fix all others to zero
+	%% set indicator variable to zero => zero expression in all samples
+	%zero_idx = find(round(result(I_idx))==0);
+	%num_zero = length(zero_idx);
+	%cnt = 0;
+	%A21 = zeros(num_zero, num_var);
+	%b21 = zeros(num_zero, 1);
+	%for x = zero_idx 
+	%	cnt = cnt+1;
+	%	A21(cnt, I_idx(x)) = 1;
+	%end
+	%A21 = sparse(A21);
+	%A = [A; A21];
+	%b = [b; b21];
+
+
+	% fix all transcripts to their current result
+	cnt = 0;
+	A_new = zeros(s*t, num_var);
+	b_new = zeros(s*t, 1);
+	for x = 1:t
+		for j = 1:s
+			cnt = cnt+1;
+			A_new(cnt, U_idx((j-1)*t+x)) = 1;
+			b_new(cnt) = round(result(U_idx((j-1)*t+x))); % fix U_{j,cnt} to the result from the previous run
+		end
+	end
+	A_new = sparse(A_new);
+	n_of_equalities = n_of_equalities + s*t;
+	A = [A_new; A];
+	b = [b_new; b];
+
+	% solve once for all transcripts
+	[result2, how] = solve_mip(Q, f, A, b, lb, ub, binary_var_index, n_of_equalities, param.time_limit, r, 0, s, U_idx, length(predef_trans));
+	fprintf('Objective: %.3f\n', result2'*Q*result2+f'*result2);
+
+	conf_res(1) = result2'*Q*result2+f'*result2;
+
+	% solve with transcript k set to zero
+	nonzero_idx = find(round(result(I_idx))==1);
+	for x = nonzero_idx'
+		A22 = zeros(1, num_var);
+		b22 = 0;
+		A22(1, I_idx(x)) = 1;
+		A = [A; A22];
+		b = [b; b22];
+		[result2, how] = solve_mip(Q, f, A, b, lb, ub, binary_var_index, n_of_equalities, param.time_limit, r, 0, s, U_idx, length(predef_trans));
+		fprintf('Objective: %.3f\n', result2'*Q*result2+f'*result2);
+
+		conf_res(end+1) = result2'*Q*result2+f'*result2;
+		A(end, :) = [];
+		b(end) = [];
+	end
+	save(fn_res, 'transcripts', 'weights', 'how', 'solvetime', 'clusters', 'PAR');
+	save('-append', fn_res, 'conf_res', 'nonzero_idx')
+end
+
 return
 
 
@@ -1076,15 +1151,13 @@ for k = 1:length(predef_trans)
 	end
 	fprintf('\n')
 end
-function [ll, lq, rl, rq] = get_coefficients_lq(obs, lambda)
+function [ll, lq, rl, rq] = get_coefficients_lq(obs, eta1, eta2, lambda)
 
 	%load('/fml/ag-raetsch/nobackup/projects/mip/human_sim/nb_fit/var0.02.mat', 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
 	%load('/fml/ag-raetsch/nobackup/projects/mip/human_sim/nb_fit/var0.02_fit0.1x-3x.mat', 'xpos', 'left_l', 'left_q', 'right_l', 'right_q') one of the files was accidently overwritten
-	if lambda==-1
-		load(sprintf('param/only_poisson'), 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
-	else
-		load(sprintf('param/poisson_%i', lambda), 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
-	end
+
+	fname = create_loss_parameters(eta1, eta2, lambda, '~/tmp');
+	load(fname, 'xpos', 'left_l', 'left_q', 'right_l', 'right_q')
 
 	% find bin
 	for j=1:length(xpos)
@@ -1139,19 +1212,3 @@ function [left, right] = get_coefficients(x)
 	right = ((x-w2_x(j-1))*w2_y(j)+(w2_x(j)-x)*w2_y(j-1))/(w2_x(j)-w2_x(j-1));
 return
 
-function intron_conf = compute_intron_list(admat)
-
-	s = size(admat, 1);
-	intron_conf = zeros(s*(s-1)/2, 3);
-	cnt = 0;
-	for j = 1:s
-		for k = j+1:s
-			if admat(j, k)>=0
-				% valid intron not just a neighboring segment
-				cnt = cnt+1;
-				intron_conf(cnt,:) = [j, k, admat(j, k)];
-			end	
-		end
-	end
-	intron_conf(cnt+1:end, : ) = [];
-return

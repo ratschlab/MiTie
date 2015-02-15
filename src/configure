@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+
+#general
+SUCC=yes
+TMPLOG=configure.log
+
+#CPLEX
+USE_CPLEX=no
+CPLEX_PATH=
+CPLEX_INCL=
+CPLEX_LD=
+CPLEX_LIBS=
+CPLEX_FLAGS=
+
+#GLPK
+USE_GLPK=yes
+GLPK_PATH=
+GLPK_INCL=
+GLPK_LD=
+GLPK_LIBS=
+
+#HDF5
+HDF5_PATH=
+HDF_INCL=
+HDF_LD=
+HDF_LIBS=
+
+
+usage()
+{	
+	cat << EOF
+Usage: $0 [options]
+-help                           print this help message
+-no-cplex                       do not use cplex 
+-glpk-dir=<path_to_glpk>			solve lp with glpk instead of qp with cplex
+-cplex-dir=<path_to_cplex>     mandatory if -glpk-dir is not given
+-hdf5_dir=<path_to_hdf5>        only needed if system libraries cannot be found 
+EOF
+}
+
+
+parse_arguments()
+{
+	for parm in "$@" ; do
+		if test "$parm" = "--help" || test "$parm" = "-help" || test "$parm" = "-h" ; then
+			usage
+			exit 0
+		fi
+	done
+
+	for ac_option ; do
+		case "$ac_option" in 
+			-hdf5_dir=* | --hdf5_dir=*)
+				HDF5_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo using hdf5_dir $HDF5_PATH
+			;;
+			-matlab | --matlab)
+				echo use matlab/mex
+				NO_MEX=no
+			;;
+			-glpk-dir=* | --glpk-dir=*)
+				GLPK_PATH=`echo $ac_option | cut -d '=' -f 2`
+				echo useng GLPK path $GLPK_PATH
+			;;
+			-no-cplex | --no-cplex)
+				USE_CPLEX=no
+			;;
+			-cplex-dir=* | --cplex-dir=*)
+				CPLEX_PATH=`echo $ac_option | cut -d '=' -f 2`
+				USE_CPLEX=yes
+				echo using cplex path $CPLEX_PATH
+			;;
+			*)
+				echo did not recognize option $ac_option
+				usage
+				exit 0;
+			;;
+		esac
+	done
+}
+get_cflags()
+{
+    def=$1; pkgs="${*#$def}"
+    if test -n "`which pkg-config 2>/dev/null`"; then
+    for i in $pkgs; do
+        if pkg-config --exists $i; then
+        pkg-config --cflags $i; return
+        fi
+    done
+    fi
+    echo $def
+}
+
+get_lflags()
+{
+	echo $*
+    def=$1; pkgs="${*#$def}"
+	echo pkgs: 
+	echo $pkgs
+    if test -n "`which pkg-config 2>/dev/null`"; then
+    for i in $pkgs; do
+        if pkg-config --exists $i; then
+        pkg-config --libs $i; return
+        fi
+    done
+    fi
+    echo $def
+}
+
+check_glpk()
+{
+	echo -n "checking for GLPK libraries...  "
+	TMPCXX=tmp_glpk.cpp
+	TMPO=tmp_glpk.o
+	cat > $TMPCXX << EOF
+#include <glpk.h>
+int main()
+{
+glp_prob*lp;
+lp=glp_create_prob();
+glp_delete_prob(lp);
+return 0;
+}
+EOF
+	# compile
+	if [ ! -z GLPK_PATH ]; then
+		GLPK_INCL="$GLPK_PATH/include/"
+		GLPK_LD="$GLPK_PATH/lib/"
+		GLPK_LIBS="glpk m"
+		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GLPK_LD
+	fi
+	echo g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm >> "$TMPLOG" 2>&1	
+	( g++ "$TMPCXX" -o "$TMPO" -I$GLPK_INCL -L$GLPK_LD -lglpk -lm) >> "$TMPLOG" 2>&1	
+	TMP="$?"
+	if test -f "$TMPO"
+	then
+		echo >> "$TMPLOG" 
+    	echo "ldd $TMPO" >> "$TMPLOG"
+    	( ldd "$TMPO" ) >> "$TMPLOG" 2>&1
+		rm $TMPO
+		USE_GLPK=yes
+		echo ok
+	else
+		echo failed
+		echo
+		USE_GLPK=no
+		echo -e "\tcould not find GLPK lib or include"
+		echo -e "\tplease provide path to your glpk installation"
+		echo -e "\tyou can download glpk e.g. using \n\twget http://ftp.gnu.org/gnu/glpk/glpk-4.52.tar.gz"
+	fi
+	rm $TMPCXX
+	echo >> "$TMPLOG" 
+}
+	
+check_hdf5()
+{
+	echo -n "checking for HDF5 libraries...  "
+	
+	TMPCXX=tmp_hdf.cpp
+	TMPO=tmp_hdf.o
+
+	cat > $TMPCXX << EOF
+#include "H5Cpp.h"
+int main(void)
+{
+
+	H5::H5File* file = new H5::H5File("tmpfile.h5", H5F_ACC_TRUNC);
+	delete file;
+    return 0;
+}
+EOF
+
+	# compile
+	if [ ! -z HDF5_PATH ]; then
+		HDF_INCL="$HDF5_PATH/include/"
+		HDF_LD="$HDF5_PATH/lib/"
+		HDF_LIBS="hdf5 hdf5_cpp hdf5 hdf5_hl m"
+		LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5_PATH/lib/
+	fi
+	HDF_IL="-I$HDF_INCL -L$HDF_LD -lhdf5 -lhdf5_cpp -lhdf5 -lhdf5_hl -lm"
+
+	echo g++ "$TMPCXX" -o "$TMPO" $HDF_IL  >> "$TMPLOG" 2>&1	
+	( g++ "$TMPCXX" -o "$TMPO" $HDF_IL ) >> "$TMPLOG" 2>&1	
+	TMP="$?"
+	if test -f "$TMPO"
+	then
+		echo >> "$TMPLOG" 
+    	echo "ldd $TMPO" >> "$TMPLOG"
+    	( ldd "$TMPO" ) >> "$TMPLOG" 2>&1
+		rm $TMPO
+		echo ok
+	else
+		echo failed
+		echo
+		echo -e "\tcould not find HDF5 lib"
+		echo -e "\tget libraries e.g.:"
+		echo -e "\t\twget http://www.hdfgroup.org/ftp/HDF5/current/bin/linux-x86_64/hdf5-1.8.11-linux-x86_64-shared.tar.gz"
+		echo -e "\tand configure with --enable-cxx"
+		echo -e "\tcompile and specify path with -hdf5_dir=<path_to_hdf5> such that <path_to_hdf>/include/ and <path_to_hdf>/lib/ contain are valid"
+	fi
+	rm $TMPCXX
+	echo >> "$TMPLOG" 
+}
+
+
+
+check_matlab()
+{
+	if [ "$NO_MEX" == "yes" ]; then
+		return 
+	fi
+	
+	echo -n "checking for mex binary...  "
+
+	MEX_BIN=`which mex 2>/dev/null`
+	if [ -z "$MEX_BIN" ];
+	then
+		echo did not find mex in PATH
+		echo please add the path to the matlab/mex binary to the PATH variable 
+		echo "or specify -no-matlab (not all functionality if available then)"
+		SUCC=no
+	else
+		echo ok
+	fi
+
+	echo -n "checking for matlab binary...  "
+	MATLAB_BIN=`which matlab 2>/dev/null`
+	if [ -z "$MATLAB_BIN" ];
+	then
+		echo did not find matlab in PATH
+		echo please add the path to the matlab/mex binary to the PATH variable 
+		echo "or specify -no-matlab (not all functionality if available then)"
+		SUCC=no
+	else
+		echo ok
+	fi
+
+	echo -n "checking for mex include...  "
+	MATLAB_INCDIR=`dirname $MEX_BIN 2>/dev/null`/../extern/include
+	if [ ! -f $MATLAB_INCDIR/mex.h ]; then 
+		echo did not find mex.h file
+		echo "please specify the directory with -mat-include=<dirname>"
+		SUCC=no
+	else
+		echo ok
+	fi
+}
+
+check_cplex()
+{
+	if [ ! "$USE_CPLEX" == "yes" ]
+	then 
+		return 0;
+	fi
+
+	echo -n "checking for cplex ...  "
+	#CPLEX_PATH=/cbio/grlab/share/software/ilog/CPLEX_Studio124/ 
+
+	CPLEXDIR=${CPLEX_PATH}/cplex
+	CONCERTDIR=${CPLEX_PATH}/concert
+
+	#SYSTEM=x86-64_sles10_4.1
+	SYSTEM=`ls -d ${CPLEXDIR}/lib/*/`
+	SYSTEM=`basename $SYSTEM`
+	
+	#LIBFORMAT=static_pic
+	LIBFORMAT=`ls -d ${CPLEXDIR}/lib/${SYSTEM}/*/`
+	LIBFORMAT=`basename $LIBFORMAT`
+
+	CPLEX_INC_DIR=${CPLEXDIR}/include
+	CONCERT_INC_DIR=${CONCERTDIR}/include
+
+	CPLEX_LIB_DIR=${CPLEXDIR}/lib/${SYSTEM}/${LIBFORMAT}
+	CONCERT_LIB_DIR=${CONCERTDIR}/lib/${SYSTEM}/${LIBFORMAT}
+
+	CCLNFLAGS="-L${CPLEXLIBDIR} -lilocplex -lcplex -L${CONCERTLIBDIR} -lconcert -lm -lpthread"
+
+	CPLEX_LD="${CPLEX_LIB_DIR} ${CONCERT_LIB_DIR}"
+	CPLEX_LIBS="ilocplex cplex concert m pthread"
+	CPLEX_INCL="$CPLEX_INC_DIR $CONCERT_INC_DIR"
+	CPLEX_FLAGS="-m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD"
+
+	# the -DNDEBUG switches off all asserts
+	#CCOPT = -m64 -O -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD
+	#CCOPT="-m64 -fPIC -fno-strict-aliasing -fexceptions -DIL_STD"
+	#CCFLAGS="${CCOPT} -I${CPLEXINCDIR} -I${CONCERTINCDIR}"
+
+	if [ ! -f $CPLEX_LIB_DIR/libcplex.a ] 
+	then 
+		SUCC=no
+		echo did not find cplex library file
+		echo $CPLEXLIBDIR/libcplex.a
+		echo check paths in Makefile
+		USE_CPLEX=no
+	else
+		echo ok
+	fi
+}
+
+parse_arguments $@
+check_hdf5
+#check_matlab
+check_cplex
+check_glpk
+
+
+echo writing config.sh
+echo 
+echo "#!/bin/bash" > config.sh
+echo  >> config.sh
+if [ "$USE_GLPK" == "yes" ]; then 
+	echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$GLPK_LD" >> config.sh
+fi
+if [ ! -z $HDF_LD ]; then
+	echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$HDF_LD" >> config.sh
+fi
+
+## writing config file
+echo 
+echo writing file config.h
+echo > config.h
+if [ "$USE_GLPK" == "yes" ]
+then
+	echo "#define USE_GLPK" >> config.h
+fi
+if [ "$USE_CPLEX" == "yes" ]
+then
+	echo "#define USE_CPLEX" >> config.h
+fi
+
+echo
+echo creating Makefile
+echo  > Makefile
+echo "### HDF paths and flags" >> Makefile
+if [ ! -z $HDF5_PATH ]
+then 
+	echo "INCLUDE_DIRS += $HDF_INCL" >> Makefile
+	echo "LD_DIRS += $HDF_LD" >> Makefile
+fi
+echo "LIBS += $HDF_LIBS" >> Makefile
+echo  >> Makefile
+
+if [ "$USE_GLPK" == "yes" ]; then
+	echo "### GLPK paths and flags" >> Makefile
+	echo "INCLUDE_DIRS += $GLPK_INCL" >> Makefile
+	echo "LD_DIRS += $GLPK_LD" >> Makefile
+	echo "LIBS += $GLPK_LIBS" >> Makefile
+	echo "GLPK = solve_lp_glpk.cpp -lglpk" >> Makefile
+	echo  >> Makefile
+fi
+if [ "$USE_CPLEX" == "yes" ]; then
+	echo "### CPLEX paths and flags" >> Makefile
+	echo "INCLUDE_DIRS += $CPLEX_INCL" >> Makefile
+	echo "LD_DIRS += $CPLEX_LD" >> Makefile
+	echo "LIBS += $CPLEX_LIBS" >> Makefile
+	echo "CPLEX_FLAGS = $CPLEX_FLAGS" >> Makefile
+	echo "CPLEX = solve_qp_cplex.cpp" >> Makefile
+	echo  >> Makefile
+fi
+cat Makefile.sample >> Makefile
+
+if [ "${SUCC}" == "yes" ]
+then 
+	echo configure was successful
+	echo run make now
+else
+	echo some error occured
+	echo created Makefile, but not all features are fully supported
+fi
+
+

@@ -8,42 +8,81 @@
   using std::sort;
   using std::min;
   using std::max;
-#include <region.h>
-#include "bam.h"
 
-vector<char*> separate(char* str, char sep)
-{
-	vector<char*> ret;
-	int i=0;
-	ret.push_back(str);
-	while (str[i]!=0)
-	{
-		if (str[i]==sep)
-		{
-			str[i]=0;
-			ret.push_back(str+i+1);
-		}
-		i++;
-	}
-	return ret;
-}
+#include "region.h"
+#include "basic_tools.h"
+
 
 bool compare_second(segment intr1, segment intr2)
 {
-	if (intr1.first<intr2.first)
-		return true;
-	if (intr1.first>intr2.first)
-		return false;
-	return (intr1.second<intr2.second);
+       if (intr1.first<intr2.first)
+               return true;
+       if (intr1.first>intr2.first)
+               return false;
+       return (intr1.second<intr2.second);
 }
 
+
+vector<Region*> parse_bed(char* fn_regions)
+{
+	FILE* fd = fopen(fn_regions, "r");
+	if (!fd)
+	{
+		fprintf(stderr, "tools: Could not open file: %s for reading\n", fn_regions);
+		exit(1);	
+	}
+	int num_bytes = 1000;
+
+	int skip=0; 
+	vector<Region*> regions;
+	while (!feof(fd))
+	{
+		char line[num_bytes]; 
+		if (!fgets(line, num_bytes, fd))
+		{
+			break;
+		}
+		if (line[0]=='%' || line[0]=='#')
+			continue;
+
+		if (strstr(line, "browser"))
+			continue; 
+		if (strstr(line, "track"))
+			continue; 
+
+		char* chr = new char[1000];
+		char* strand = new char[1000];
+		sprintf(strand, "."); 
+		int start = 0;
+		int stop = 0;
+		int num_read = sscanf(line, "%s\t%i\t%i", chr, &start, &stop);
+		if (num_read!=3)
+		{
+			skip++;
+			//printf("[%s]: skip line: %s\n", __func__, line); 
+		}
+		else
+		{
+			Region* reg = new Region(start, stop, chr, strand[0]);
+			regions.push_back(reg);
+		}
+		delete[] strand; 
+		delete[] chr;
+	}
+	if (skip>0)
+		printf("[%s] skipped %i lines\n", __func__, skip); 
+
+	fclose(fd);
+
+	return regions;
+}
 vector<Region*> parse_regions(char* fn_regions)
 {
 	FILE* fd = fopen(fn_regions, "r");
 	if (!fd)
 	{
-		fprintf(stderr, "Could not open file: %s for reading\n", fn_regions);
-	
+		fprintf(stderr, "tools: Could not open file: %s for reading\n", fn_regions);
+		exit(1); 
 	}
 	int num_bytes = 1000;
 
@@ -64,7 +103,7 @@ vector<Region*> parse_regions(char* fn_regions)
 		int num_read = sscanf(line, "%s\t%s\t%i\t%i", chr, strand, &start, &stop);
 		if (num_read!=4)
 		{
-			fprintf(stderr, "Error parsing line: %s\n", line);
+			fprintf(stderr, "tools: Error parsing line: %s\n", line);
 			exit(-2);
 		}
 		Region* reg = new Region(start, stop, chr, strand[0]);
@@ -77,6 +116,7 @@ vector<Region*> parse_regions(char* fn_regions)
 
 	return regions;
 }
+
 void write_regions(vector<Region*> regions, FILE* fd)
 {
 	for (uint i=0; i<regions.size(); i++)
@@ -84,19 +124,8 @@ void write_regions(vector<Region*> regions, FILE* fd)
 		fprintf(fd, "%s\t%c\t%i\t%i\n", regions[i]->chr, regions[i]->strand, regions[i]->start, regions[i]->stop);
 	}
 }
-void set_chr_num(Region* reg, bam_header_t* header)
-{
-	for (int j=0; j<header->n_targets; j++)
-	{
-		if (strcmp(reg->chr, header->target_name[j])==0)
-		{
-			reg->chr_num = j;
-			return;
-		}
-	}
-	fprintf(stderr, "Did not find chr name in header: %s\n", reg->chr);
-	exit(-2);
-}
+
+
 
 // interval overlapp code
 ////////////////////////////////////////////////////////////////////////////////
@@ -263,11 +292,9 @@ vector<vector<int> > region_overlap(vector<Region*> regions1, vector<Region*> re
 
 	vector<int> ov = interval_overlap(starts1, stops1, starts2, stops2);
 
-	//printf("overlap.size(): %i\n", (int) ov.size());
 	vector<vector<int> > ov_list(regions1.size());
 	for (uint i=0; i<ov.size(); i+=2)
 	{
-		//printf("(%i,%i) %i->%i, %i->%i\n", ov[i], ov[i+1], regions1[ov[i]]->start, regions1[ov[i]]->stop, regions2[ov[i+1]]->start, regions2[ov[i+1]]->stop);
 		ov_list[ov[i]].push_back(ov[i+1]);
 	}
 	return ov_list;

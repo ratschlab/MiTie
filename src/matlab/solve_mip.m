@@ -1,7 +1,12 @@
 function [x2, how] = solve_mip(Q, c, A, b, lb, ub, binary_idx, n_of_equalities, time_limit, r, t, s, U_idx, num_predef)
 
 %addpath ~/svn/tools/cplex/cplex101
-addpath ~/svn/tools/cplex/cplex91
+%addpath ~/svn/tools/cplex/cplex91
+%addpath /cbio/grlab/share/software/ilog/cplex91
+%addpath /cbio/grlab/share/git/tools/cplex
+%addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab/cplex_gun %use correct version of cplex_license
+%addpath /cbio/grlab/home/jonas/mpghome/svn/projects/MiTie/src/matlab %use correct version of cplex_license
+addpath matlab/cplex/
 
 disp('calling solve_mip')
 
@@ -14,7 +19,7 @@ lpenv
 
 % get license 
 if isempty(lpenv)
-    lpenv=cplex_license(1,0)
+    lpenv=cplex_license(1,1)
 end ;
 
 if lpenv==0,
@@ -100,13 +105,27 @@ else
 	num_added = 0;
 	num_rows = size(A,1)-1; % zero based
 	num_var = size(A, 2);
-	while cnt<t
+
+	while all(A(num_rows+1, :)==0)
+		% for technical reasons there are as many empty rows in A 
+		% as there are annotated transcripts
+		disp_ = 0;
+		h = lp_delrows(lpenv,p_lp,num_rows,num_rows,disp_);
+		num_rows = num_rows-1;
+		cnt = cnt+1;
+	end
+
+	while 1 % cnt<t
 		[x,lambda2,how2]=lp_resolve(lpenv, p_lp, 3, 'mip');
 		how2
 		cnt = cnt+1;
 
 		if ~isempty(strfind(how2, 'Time limit exceeded'))
-			relgap = getmiprelgap(lpenv, p_lp);
+			if exist('getmiprelgap', 'file')==3
+				relgap = getmiprelgap(lpenv, p_lp);
+			else
+				relgap = 0.99;
+			end
 			if isempty(x2) || relgap<0.1
 				x2 = x;
 				how = how2;
@@ -114,7 +133,7 @@ else
 			how = sprintf('%s;time_limit:%i;gap:%.2f', how, cnt, relgap*100)
 			break
 		end
-		if cnt==t
+		if cnt>=t
 			x2 = x;
 			how = how2;
 			break;
