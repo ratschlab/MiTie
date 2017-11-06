@@ -345,7 +345,7 @@ if [ "$USE_GLPK" == "yes" ]; then
 	echo "INCLUDE_DIRS += $GLPK_INCL" >> Makefile
 	echo "LD_DIRS += $GLPK_LD" >> Makefile
 	echo "LIBS += $GLPK_LIBS" >> Makefile
-	echo "GLPK = solve_lp_glpk.cpp -lglpk" >> Makefile
+	echo "GLPK = solve_lp_glpk.cpp" >> Makefile
 	echo  >> Makefile
 fi
 if [ "$USE_CPLEX" == "yes" ]; then
