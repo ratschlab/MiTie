@@ -13,7 +13,7 @@ void save_score_pos(char* path_prefix, char** score_names, float** scores, int n
 	
 	// open output files
 	char filename[MAXLINE]; 
-	fstream score_fds[num_scores];
+	fstream *score_fds = new fstream[num_scores];
 	fstream pos_fd; 
     sprintf(filename, "%s.pos", path_prefix);
     pos_fd.open(filename, fstream::out);

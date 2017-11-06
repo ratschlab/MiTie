@@ -85,7 +85,7 @@ class Bam_Region: public Region
 		int get_read_ends(int from, int to);
 
 		void find_tss_and_cleave(vector<int>* pos, vector<int>* starts, vector<int>* stops, float pval);
-		void write_segment_graph(_IO_FILE*& fd);
+		void write_segment_graph(FILE*& fd);
 
 		void generate_segment_graph(float seg_filter, float tss_pval);
 
@@ -101,7 +101,7 @@ class Bam_Region: public Region
 
 		vector<int> get_children(int node, bool no_neighbors);
 
-		void print_segments_and_coverage(_IO_FILE*& fd);
+		void print_segments_and_coverage(FILE*& fd);
 
 };
 #endif

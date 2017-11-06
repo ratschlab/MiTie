@@ -386,7 +386,7 @@ void Region::load_genomic_sequence()
 	seq = gio->read_flat_file(chr_num, start-1, stop-1);
 }
 
-void Region::print(_IO_FILE*& fd)
+void Region::print(FILE*& fd)
 {
 	fprintf(fd, "region %s\n", get_region_str());
 	fprintf(fd, "region start:\t%i\n", start);
