@@ -98,7 +98,7 @@ long unsigned int Bam_Region::compute_num_paths()
 	return num_paths;
 }
 
-void Bam_Region::write_segment_graph(_IO_FILE*& fd)
+void Bam_Region::write_segment_graph(FILE*& fd)
 {
 	fprintf(fd, "region\t%s\t%c\t%i\t%i\n", chr, strand, start, stop);
 
@@ -1037,7 +1037,7 @@ void Bam_Region::add_bias_counts(vector<int>* vec)
 
 }
 
-void Bam_Region::print_segments_and_coverage(_IO_FILE*& fd)
+void Bam_Region::print_segments_and_coverage(FILE*& fd)
 {
 	for (uint i=0; i<segments.size(); i++) 
 	{
@@ -1964,7 +1964,7 @@ int Bam_Region::read_binary(std::ifstream* ifs)
 	// splice graph
 	ifs->read((char *) &len, sizeof(int));
 	assert(len>0);
-	segment seg[len];
+        segment *seg = new segment[len];
 	ifs->read((char *) seg, len*sizeof(segment));
 	for (int i=0; i<len; i++)
 	{

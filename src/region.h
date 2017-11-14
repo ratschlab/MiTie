@@ -112,7 +112,7 @@ class Region
 
 		char* get_region_str();
 
-		virtual void print(_IO_FILE*& fd);
+		virtual void print(FILE*& fd);
 
 	private: 
 		char* seq;
